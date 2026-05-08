@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-SHOW_WIDGET=$(tmux show-option -gv @gruvbox-tmux_show_wbg)
+SHOW_WIDGET=$(tmux show-option -gv @flavors-tmux_show_wbg)
 if [ "$SHOW_WIDGET" == "0" ]; then
   exit 0
 fi

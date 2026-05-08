@@ -4,8 +4,8 @@
 # Themes define colors by *meaning* (success, danger, etc.) rather than
 # literal names (green, red, etc.), so non-Gruvbox palettes render correctly.
 
-SELECTED_THEME="$(tmux show-option -gv @gruvbox-tmux_theme 2>/dev/null || echo "hard")"
-TRANSPARENT_THEME="$(tmux show-option -gv @gruvbox-tmux_transparent 2>/dev/null || echo 0)"
+SELECTED_THEME="$(tmux show-option -gv @flavors-tmux_theme 2>/dev/null || echo "hard")"
+TRANSPARENT_THEME="$(tmux show-option -gv @flavors-tmux_transparent 2>/dev/null || echo 0)"
 
 # ---------------------------------------------------------------------------
 # Gruvbox palettes (original 4 variants)

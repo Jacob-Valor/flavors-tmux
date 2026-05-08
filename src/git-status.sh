@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-SHOW_NETSPEED=$(tmux show-option -gv @gruvbox-tmux_show_git)
+SHOW_NETSPEED=$(tmux show-option -gv @flavors-tmux_show_git)
 if [ "$SHOW_NETSPEED" == "0" ]; then
   exit 0
 fi

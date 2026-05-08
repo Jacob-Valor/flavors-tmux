@@ -6,13 +6,13 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
     exit 1
 }
 
-SHOW_BATTERY_WIDGET=$(tmux show-option -gv @gruvbox-tmux_show_battery_widget 2>/dev/null)
+SHOW_BATTERY_WIDGET=$(tmux show-option -gv @flavors-tmux_show_battery_widget 2>/dev/null)
 if [[ "${SHOW_BATTERY_WIDGET}" != 1 ]]; then
     exit 0
 fi
 
-BATTERY_NAME=$(tmux show-option -gv @gruvbox-tmux_battery_name 2>/dev/null)
-BATTERY_LOW=$(tmux show-option -gv @gruvbox-tmux_battery_low_threshold 2>/dev/null)
+BATTERY_NAME=$(tmux show-option -gv @flavors-tmux_battery_name 2>/dev/null)
+BATTERY_LOW=$(tmux show-option -gv @flavors-tmux_battery_low_threshold 2>/dev/null)
 DEFAULT_BATTERY_LOW=20
 BATTERY_LOW="${BATTERY_LOW:-$DEFAULT_BATTERY_LOW}"
 

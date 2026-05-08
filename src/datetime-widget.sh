@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # Grab global variable for showing datetime widget, only hide if explicitly disabled
-SHOW_DATETIME=$(tmux show-option -gv @gruvbox-tmux_show_time 2>/dev/null)
+SHOW_DATETIME=$(tmux show-option -gv @flavors-tmux_show_time 2>/dev/null)
 if [[ $SHOW_DATETIME == "0" ]]; then
   exit 0
 fi
@@ -13,7 +13,7 @@ source "${CURRENT_DIR}/themes.sh" || {
 }
 
 # Assign values based on user config
-time_format=$(tmux show-option -gv @gruvbox-tmux_time_format 2>/dev/null)
+time_format=$(tmux show-option -gv @flavors-tmux_time_format 2>/dev/null)
 
 time_string=""
 
