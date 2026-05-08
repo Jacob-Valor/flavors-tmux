@@ -2,11 +2,64 @@
 
 CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPTS_PATH="$CURRENT_DIR/src"
+BINARY_PATH="$CURRENT_DIR/zig-out/bin/flavors_tmux"
 
 source "$SCRIPTS_PATH/themes.sh" || {
     echo "Error: Failed to source themes.sh" >&2
     exit 1
 }
+
+# ---------------------------------------------------------------------------
+# Widget command builders: prefer Zig binary when available
+# ---------------------------------------------------------------------------
+
+window_id_style="$(tmux show-option -gv @flavors-tmux_window_id_style 2>/dev/null || echo "digital")"
+pane_id_style="$(tmux show-option -gv @flavors-tmux_pane_id_style 2>/dev/null || echo "hsquare")"
+zoom_id_style="$(tmux show-option -gv @flavors-tmux_zoom_id_style 2>/dev/null || echo "dsquare")"
+terminal_icon="$(tmux show-option -gv @flavors-tmux_terminal_icon 2>/dev/null || echo '')"
+active_terminal_icon="$(tmux show-option -gv @flavors-tmux_active_terminal_icon 2>/dev/null || echo '')"
+
+time_format="$(tmux show-option -gv @flavors-tmux_time_format 2>/dev/null || echo "")"
+
+battery_name="$(tmux show-option -gv @flavors-tmux_battery_name 2>/dev/null || echo "")"
+battery_low="$(tmux show-option -gv @flavors-tmux_battery_low_threshold 2>/dev/null || echo "20")"
+
+if [[ -x "$BINARY_PATH" ]]; then
+    custom_number_cmd() {
+        echo "#($BINARY_PATH custom-number $1 $2)"
+    }
+    datetime_cmd() {
+        local fmt="${time_format:-24H}"
+        echo "#($BINARY_PATH datetime --theme $SELECTED_THEME --format $fmt)"
+    }
+    battery_cmd() {
+        local name_arg=""
+        [[ -n "$battery_name" ]] && name_arg="--name $battery_name"
+        echo "#($BINARY_PATH battery --theme $SELECTED_THEME $name_arg --low-threshold ${battery_low:-20})"
+    }
+    git_status_cmd() {
+        echo "#($BINARY_PATH git-status --theme $SELECTED_THEME #{pane_current_path})"
+    }
+    wb_git_status_cmd() {
+        echo "#($BINARY_PATH wb-git-status --theme $SELECTED_THEME #{pane_current_path})"
+    }
+else
+    custom_number_cmd() {
+        echo "#($SCRIPTS_PATH/custom-number.sh $1 $2)"
+    }
+    datetime_cmd() {
+        echo "#($SCRIPTS_PATH/datetime-widget.sh)"
+    }
+    battery_cmd() {
+        echo "#($SCRIPTS_PATH/battery-widget.sh)"
+    }
+    git_status_cmd() {
+        echo "#($SCRIPTS_PATH/git-status.sh #{pane_current_path})"
+    }
+    wb_git_status_cmd() {
+        echo "#($SCRIPTS_PATH/wb-git-status.sh #{pane_current_path})"
+    }
+fi
 
 tmux set -g status-left-length 80
 tmux set -g status-right-length 150
@@ -22,19 +75,13 @@ tmux set -g pane-border-status off
 
 tmux set -g status-style "fg=${THEME[foreground]},bg=${THEME[background]}"
 
-window_id_style="$(tmux show-option -gv @gruvbox-tmux_window_id_style 2>/dev/null || echo "digital")"
-pane_id_style="$(tmux show-option -gv @gruvbox-tmux_pane_id_style 2>/dev/null || echo "hsquare")"
-zoom_id_style="$(tmux show-option -gv @gruvbox-tmux_zoom_id_style 2>/dev/null || echo "dsquare")"
-terminal_icon="$(tmux show-option -gv @gruvbox-tmux_terminal_icon 2>/dev/null || echo '')"
-active_terminal_icon="$(tmux show-option -gv @gruvbox-tmux_active_terminal_icon 2>/dev/null || echo '')"
-
-git_status="#($SCRIPTS_PATH/git-status.sh #{pane_current_path})"
-wb_git_status="#($SCRIPTS_PATH/wb-git-status.sh #{pane_current_path} &)"
-window_number="#($SCRIPTS_PATH/custom-number.sh #I $window_id_style)"
-custom_pane="#($SCRIPTS_PATH/custom-number.sh #P $pane_id_style)"
-zoom_number="#($SCRIPTS_PATH/custom-number.sh #P $zoom_id_style)"
-date_and_time="$($SCRIPTS_PATH/datetime-widget.sh)"
-battery_status="#($SCRIPTS_PATH/battery-widget.sh)"
+git_status="$(git_status_cmd)"
+wb_git_status="$(wb_git_status_cmd)"
+window_number="$(custom_number_cmd '#I' "$window_id_style")"
+custom_pane="$(custom_number_cmd '#P' "$pane_id_style")"
+zoom_number="$(custom_number_cmd '#P' "$zoom_id_style")"
+date_and_time="$(datetime_cmd)"
+battery_status="$(battery_cmd)"
 
 tmux set -g status-left "\
 #[fg=${THEME[foreground]},bg=${THEME[primary]},bold] \
