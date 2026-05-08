@@ -1,0 +1,18 @@
+# Zig build artifacts
+.zig-cache/
+zig-cache/
+zig-out/
+
+# Local editor and OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Local OpenCode/Sisyphus runtime state
+.sisyphus/run-continuation/
+
+# Runtime traces and logs
+*.log
+*.trace

@@ -1,0 +1,17 @@
+# Normalize text files across platforms.
+* text=auto eol=lf
+
+# Shell/tmux scripts should keep LF endings and executable-friendly text handling.
+*.sh text eol=lf
+*.tmux text eol=lf
+
+# Zig sources and package metadata.
+*.zig text eol=lf
+*.zon text eol=lf
+
+# Documentation/configuration.
+*.md text eol=lf
+*.json text eol=lf
+
+# Binary assets.
+*.png binary
