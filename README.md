@@ -1,87 +1,199 @@
-# Gruvbox Tmux
+# Flavors Tmux
 
-![Overview](screenshots/overview.png)
+![Flavors Tmux overview](screenshots/overview.png)
 
-A clean  Tmux theme that  follow the [gruvbox](https://github.com/morhetz/gruvbox) colors, Inspired by [Tokyo Night Tmux](https://github.com/janoamaral/tokyo-night-tmux).
+**Flavors Tmux** is a clean, multi-palette tmux theme with Nerd Font icons,
+semantic colors, and optional status widgets for Git, GitHub/GitLab, battery,
+and time.
+
+It started from a Gruvbox-inspired style and now includes several familiar
+flavors: Gruvbox Hard, Medium, Soft, Light, Tokyo Night, Catppuccin, Dracula,
+and Nord.
+
+## Features
+
+- Eight built-in color flavors
+- Optional transparent status bar background
+- Git branch, change, insert, delete, untracked, push, and pull indicators
+- Optional GitHub/GitLab widget for pull requests, reviews, issues, and bugs
+- Optional battery widget with charging/discharging icons
+- Configurable 12-hour, 24-hour, or hidden time widget
+- Custom window, pane, and zoom number styles
+- Custom terminal and active-terminal icons
 
 ## Requirements
 
-This theme has the following hard requirements:
+Required:
 
-- Any font from [Nerd Fonts](https://www.nerdfonts.com/) 
+- [tmux](https://github.com/tmux/tmux)
 - [Bash](https://www.gnu.org/software/bash/)
+- A [Nerd Font](https://www.nerdfonts.com/) for icon rendering
 
-The following are recommended for full support of all widgets and features:
+Recommended for full widget support:
 
-- bc (for git widgets)
-- jq, gh, glab (for git forges widgets)
+- `git`
+- `bc` for Git counters
+- `jq` plus either `gh` or `glab` for GitHub/GitLab status widgets
 
-## Installation using TPM
+## Installation
 
-In your `tmux.conf` add :
+### TPM
 
-```bash
-set -g @plugin "https://gitlab.com/motaz-shokry/gruvbox-tmux"
+Add the plugin to your `.tmux.conf`:
+
+```tmux
+set -g @plugin "Jacob-Valor/flavors-tmux"
+```
+
+Then press your TPM prefix followed by `I` to install.
+
+### Manual
+
+Clone the repository and run the plugin from your `.tmux.conf`:
+
+```sh
+git clone https://github.com/Jacob-Valor/flavors-tmux ~/.tmux/plugins/flavors-tmux
+```
+
+```tmux
+run-shell ~/.tmux/plugins/flavors-tmux/flavors.tmux
+```
+
+Reload tmux after installing:
+
+```sh
+tmux source-file ~/.tmux.conf
 ```
 
 ## Configuration
 
-Add these lines to your  `.tmux.conf`:
+All options use the `@flavors-tmux_` prefix.
 
-### Theme Flavor
+### Theme
 
-```bash
-set -g @gruvbox-tmux_theme "medium"  # hard | medium | soft | light | tokyonight | catppuccin | dracula | nord
-set -g @gruvbox-tmux_transparent 0   # 1 | 0
+```tmux
+set -g @flavors-tmux_theme "hard"
+set -g @flavors-tmux_transparent 0
 ```
 
-### Terminal icons
+Available themes:
 
-```bash
-set -g @gruvbox-tmux_terminal_icon 
-set -g @gruvbox-tmux_active_terminal_icon 
+- `hard`
+- `medium`
+- `soft`
+- `light`
+- `tokyonight`
+- `catppuccin`
+- `dracula`
+- `nord`
+
+Set `@flavors-tmux_transparent` to `1` to use your terminal background.
+
+### Icons
+
+```tmux
+set -g @flavors-tmux_terminal_icon ""
+set -g @flavors-tmux_active_terminal_icon ""
 ```
 
 ### Number styles
 
-
-```bash
-set -g @gruvbox-tmux_window_id_style hsquare  # hsquare | fsquare | sub | super | arabic | earabic
-set -g @gruvbox-tmux_pane_id_style super      # hsquare | fsquare | sub | super | arabic | earabic
-set -g @gruvbox-tmux_zoom_id_style dsquare    # hsquare | fsquare | sub | super | arabic | earabic
+```tmux
+set -g @flavors-tmux_window_id_style "hsquare"
+set -g @flavors-tmux_pane_id_style "super"
+set -g @flavors-tmux_zoom_id_style "dsquare"
 ```
 
-### Widgets
+Available styles:
 
-For widgets add following lines in you `.tmux.conf`
+- `arabic` — `0 1 2 3`
+- `earabic` — Eastern Arabic numerals
+- `fsquare` — filled square icons
+- `hsquare` — hollow square icons
+- `dsquare` — double square icons
+- `super` — superscript numbers
+- `sub` — subscript numbers
+- `hide` — hide the number
 
-#### Time widget
+## Widgets
 
-This widget is enabled by default. To disable it:
+### Time
 
-```bash
-set -g @gruvbox-tmux_show_datetime 0
+The time widget is enabled by default.
+
+```tmux
+set -g @flavors-tmux_show_time 1
+set -g @flavors-tmux_time_format "24H"
 ```
 
-Time options
+Available formats:
 
-```bash
-set -g @gruvbox-tmux_time_format 12H
-```
-##### Available Options
-- `24H`: 18:30
-- `12H`: 6:30 PM
+- `24H` — `18:30`
+- `12H` — `06:30 PM`
+- `hide` — hide only the time text
 
-#### Battery Widget
+Disable the whole time widget:
 
-```bash
-set -g @gruvbox-tmux_show_battery_widget 1     # 0 to disable
-set -g @gruvbox-tmux_battery_name "BAT0"       # run `ls /sys/class/power_supply` to know
-set -g @gruvbox-tmux_battery_low_threshold 25 
+```tmux
+set -g @flavors-tmux_show_time 0
 ```
 
+### Git
 
-### Snapshots
+The Git widget is enabled by default and appears inside Git repositories.
 
-![Hard](screenshots/hard.png)
-![Light](screenshots/light.png)
+```tmux
+set -g @flavors-tmux_show_git 1
+```
+
+Disable it:
+
+```tmux
+set -g @flavors-tmux_show_git 0
+```
+
+### GitHub / GitLab
+
+The forge widget is enabled by default when the current repository uses GitHub
+or GitLab and the required CLI is available.
+
+```tmux
+set -g @flavors-tmux_show_wbg 1
+```
+
+Disable it:
+
+```tmux
+set -g @flavors-tmux_show_wbg 0
+```
+
+### Battery
+
+The battery widget is disabled by default.
+
+```tmux
+set -g @flavors-tmux_show_battery_widget 1
+set -g @flavors-tmux_battery_name "BAT0"
+set -g @flavors-tmux_battery_low_threshold 20
+```
+
+On Linux, run this to find your battery name:
+
+```sh
+ls /sys/class/power_supply
+```
+
+## Screenshots
+
+### Gruvbox Hard
+
+![Gruvbox Hard screenshot](screenshots/hard.png)
+
+### Gruvbox Light
+
+![Gruvbox Light screenshot](screenshots/light.png)
+
+## Inspiration
+
+- [Gruvbox](https://github.com/morhetz/gruvbox)
+- [Tokyo Night Tmux](https://github.com/janoamaral/tokyo-night-tmux)
