@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 
-SHOW_NETSPEED=$(tmux show-option -gv @flavors-tmux_show_git)
+SHOW_NETSPEED=$(tmux show-option -gv @flavors-tmux_show_git 2>/dev/null || echo 1)
 if [ "$SHOW_NETSPEED" == "0" ]; then
   exit 0
 fi
 
 CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$CURRENT_DIR/../lib/coreutils-compat.sh"
 source "$CURRENT_DIR/themes.sh"
 
 cd "$1" || exit 1
@@ -35,7 +34,7 @@ if [[ $STATUS -ne 0 ]]; then
   SYNC_MODE=1
 fi
 
-UNTRACKED_COUNT="$(git ls-files --other --directory --exclude-standard | wc -l | bc)"
+UNTRACKED_COUNT="$(git ls-files --other --directory --exclude-standard | wc -l)"
 
 if [[ $CHANGED_COUNT -gt 0 ]]; then
   STATUS_CHANGED="${RESET}#[fg=${THEME[warning]},bg=${THEME[background]},bold] ${CHANGED_COUNT} "
@@ -55,12 +54,12 @@ fi
 
 # Determine repository sync status
 if [[ $SYNC_MODE -eq 0 ]]; then
-  NEED_PUSH=$(git log @{push}.. | wc -l | bc)
+  NEED_PUSH=$(git log @{push}.. 2>/dev/null | wc -l)
   if [[ $NEED_PUSH -gt 0 ]]; then
     SYNC_MODE=2
   else
-    LAST_FETCH=$(stat -c %Y .git/FETCH_HEAD | bc)
-    NOW=$(date +%s | bc)
+    LAST_FETCH=$(stat -c %Y .git/FETCH_HEAD 2>/dev/null || echo 0)
+    NOW=$(date +%s)
 
     # if 5 minutes have passed since the last fetch
     if [[ $((NOW - LAST_FETCH)) -gt 300 ]]; then

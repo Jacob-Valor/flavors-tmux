@@ -1,6 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const themes = @import("../themes.zig");
+const themes = @import("../themes/registry.zig");
 
 const discharging_icons = [_][]const u8{
     "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹",

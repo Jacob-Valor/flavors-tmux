@@ -1,7 +1,8 @@
 const std = @import("std");
 const Io = std.Io;
 
-const themes = @import("themes.zig");
+const themes = @import("themes/registry.zig");
+const cli = @import("cli/args.zig");
 const custom_number = @import("widgets/custom_number.zig");
 const datetime = @import("widgets/datetime.zig");
 const battery = @import("widgets/battery.zig");
@@ -31,59 +32,6 @@ const usage =
     \\
 ;
 
-const Args = struct {
-    command: []const u8 = "",
-    positional: std.ArrayList([]const u8),
-    theme: []const u8 = "hard",
-    time_format: []const u8 = "24H",
-    battery_name: ?[]const u8 = null,
-    low_threshold: u8 = 20,
-
-    pub fn init() Args {
-        return .{ .positional = .empty };
-    }
-
-    pub fn deinit(self: *Args, allocator: std.mem.Allocator) void {
-        self.positional.deinit(allocator);
-    }
-};
-
-fn parseArgs(allocator: std.mem.Allocator, raw_args: []const []const u8) !Args {
-    var args = Args.init();
-    errdefer args.deinit(allocator);
-
-    if (raw_args.len == 0) return error.Usage;
-    args.command = raw_args[0];
-
-    var i: usize = 1;
-    while (i < raw_args.len) : (i += 1) {
-        const arg = raw_args[i];
-        if (std.mem.eql(u8, arg, "--theme")) {
-            i += 1;
-            if (i >= raw_args.len) return error.MissingValue;
-            args.theme = raw_args[i];
-        } else if (std.mem.eql(u8, arg, "--format")) {
-            i += 1;
-            if (i >= raw_args.len) return error.MissingValue;
-            args.time_format = raw_args[i];
-        } else if (std.mem.eql(u8, arg, "--name")) {
-            i += 1;
-            if (i >= raw_args.len) return error.MissingValue;
-            args.battery_name = raw_args[i];
-        } else if (std.mem.eql(u8, arg, "--low-threshold")) {
-            i += 1;
-            if (i >= raw_args.len) return error.MissingValue;
-            args.low_threshold = std.fmt.parseInt(u8, raw_args[i], 10) catch return error.InvalidNumber;
-        } else if (std.mem.startsWith(u8, arg, "-")) {
-            return error.UnknownOption;
-        } else {
-            try args.positional.append(allocator, arg);
-        }
-    }
-
-    return args;
-}
-
 fn run(init: std.process.Init) !void {
     const arena = init.arena.allocator();
     const raw_args = try init.minimal.args.toSlice(arena);
@@ -93,7 +41,7 @@ fn run(init: std.process.Init) !void {
         return error.Usage;
     }
 
-    const args = try parseArgs(arena, raw_args[1..]);
+    const args = try cli.parseArgs(arena, raw_args[1..]);
 
     const io = init.io;
     var stdout_buffer: [4096]u8 = undefined;

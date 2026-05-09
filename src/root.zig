@@ -1,4 +1,4 @@
-pub const themes = @import("themes.zig");
+pub const themes = @import("themes/registry.zig");
 pub const custom_number = @import("widgets/custom_number.zig");
 pub const datetime = @import("widgets/datetime.zig");
 pub const battery = @import("widgets/battery.zig");

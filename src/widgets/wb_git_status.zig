@@ -1,20 +1,7 @@
 const std = @import("std");
-const themes = @import("../themes.zig");
-
-fn runGitCommand(allocator: std.mem.Allocator, io: std.Io, argv: []const []const u8, cwd: ?[]const u8) ![]u8 {
-    const result = try std.process.run(allocator, io, .{
-        .argv = argv,
-        .cwd = if (cwd) |p| .{ .path = p } else .inherit,
-    });
-    defer allocator.free(result.stderr);
-
-    if (result.term != .exited or result.term.exited != 0) {
-        allocator.free(result.stdout);
-        return error.GitError;
-    }
-
-    return result.stdout;
-}
+const themes = @import("../themes/registry.zig");
+const util = @import("../core/util.zig");
+const runGitCommand = util.runGitCommand;
 
 fn getProvider(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !?[]const u8 {
     const stdout = runGitCommand(allocator, io, &.{ "git", "config", "remote.origin.url" }, repo_path) catch return null;

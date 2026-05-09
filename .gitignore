@@ -16,3 +16,7 @@ Thumbs.db
 # Runtime traces and logs
 *.log
 *.trace
+
+# Agent runtime state
+.agents/
+skills-lock.json

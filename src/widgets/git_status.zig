@@ -1,25 +1,8 @@
 const std = @import("std");
-const themes = @import("../themes.zig");
-
-fn trimBranchName(allocator: std.mem.Allocator, branch: []const u8) ![]const u8 {
-    if (branch.len <= 25) return try allocator.dupe(u8, branch);
-    return try std.fmt.allocPrint(allocator, "{s}...", .{branch[0..25]});
-}
-
-fn runGitCommand(allocator: std.mem.Allocator, io: std.Io, argv: []const []const u8, cwd: ?[]const u8) ![]u8 {
-    const result = try std.process.run(allocator, io, .{
-        .argv = argv,
-        .cwd = if (cwd) |p| .{ .path = p } else .inherit,
-    });
-    defer allocator.free(result.stderr);
-
-    if (result.term != .exited or result.term.exited != 0) {
-        allocator.free(result.stdout);
-        return error.GitError;
-    }
-
-    return result.stdout;
-}
+const themes = @import("../themes/registry.zig");
+const util = @import("../core/util.zig");
+const runGitCommand = util.runGitCommand;
+const trimBranchName = util.trimBranchName;
 
 fn countChangedFiles(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !usize {
     const stdout = runGitCommand(allocator, io, &.{ "git", "status", "--porcelain" }, repo_path) catch return 0;

@@ -1,0 +1,24 @@
+const Theme = @import("../core/theme.zig").Theme;
+
+pub const theme = Theme{
+    .background = "#F9F5D7",
+    .foreground = "#1b1b1b",
+    .surface = "#EBDBB2",
+    .surface_alt = "#F9F5D7",
+    .primary = "#458588",
+    .primary_bright = "#076678",
+    .success = "#98971a",
+    .success_bright = "#79740E",
+    .danger = "#cc241d",
+    .danger_bright = "#9D0006",
+    .warning = "#d79921",
+    .warning_bright = "#B57614",
+    .info = "#689d6a",
+    .info_bright = "#427B58",
+    .accent = "#b16286",
+    .accent_bright = "#8F3F71",
+    .emphasis = "#1b1b1b",
+    .muted = "#7c6f64",
+    .forge_github = "#1b1b1b",
+    .forge_gitlab = "#fc6d26",
+};

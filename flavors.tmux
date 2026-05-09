@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCRIPTS_PATH="$CURRENT_DIR/src"
+SCRIPTS_PATH="$CURRENT_DIR/scripts"
 BINARY_PATH="$CURRENT_DIR/zig-out/bin/flavors_tmux"
 
 source "$SCRIPTS_PATH/themes.sh" || {
@@ -13,7 +13,7 @@ source "$SCRIPTS_PATH/themes.sh" || {
 # Widget command builders: prefer Zig binary when available
 # ---------------------------------------------------------------------------
 
-window_id_style="$(tmux show-option -gv @flavors-tmux_window_id_style 2>/dev/null || echo "digital")"
+window_id_style="$(tmux show-option -gv @flavors-tmux_window_id_style 2>/dev/null || echo "hsquare")"
 pane_id_style="$(tmux show-option -gv @flavors-tmux_pane_id_style 2>/dev/null || echo "hsquare")"
 zoom_id_style="$(tmux show-option -gv @flavors-tmux_zoom_id_style 2>/dev/null || echo "dsquare")"
 terminal_icon="$(tmux show-option -gv @flavors-tmux_terminal_icon 2>/dev/null || echo '')"
@@ -38,10 +38,10 @@ if [[ -x "$BINARY_PATH" ]]; then
         echo "#($BINARY_PATH battery --theme $SELECTED_THEME $name_arg --low-threshold ${battery_low:-20})"
     }
     git_status_cmd() {
-        echo "#($BINARY_PATH git-status --theme $SELECTED_THEME #{pane_current_path})"
+        echo "#($BINARY_PATH git-status --theme $SELECTED_THEME #{q:pane_current_path})"
     }
     wb_git_status_cmd() {
-        echo "#($BINARY_PATH wb-git-status --theme $SELECTED_THEME #{pane_current_path})"
+        echo "#($BINARY_PATH wb-git-status --theme $SELECTED_THEME #{q:pane_current_path})"
     }
 else
     custom_number_cmd() {
@@ -54,10 +54,10 @@ else
         echo "#($SCRIPTS_PATH/battery-widget.sh)"
     }
     git_status_cmd() {
-        echo "#($SCRIPTS_PATH/git-status.sh #{pane_current_path})"
+        echo "#($SCRIPTS_PATH/git-status.sh #{q:pane_current_path})"
     }
     wb_git_status_cmd() {
-        echo "#($SCRIPTS_PATH/wb-git-status.sh #{pane_current_path})"
+        echo "#($SCRIPTS_PATH/wb-git-status.sh #{q:pane_current_path})"
     }
 fi
 
