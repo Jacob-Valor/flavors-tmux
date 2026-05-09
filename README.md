@@ -35,6 +35,11 @@ Recommended for full widget support:
 - `bc` for Git counters
 - `jq` plus either `gh` or `glab` for GitHub/GitLab status widgets
 
+Optional:
+
+- [Zig](https://ziglang.org/) 0.16.0+ — builds a native binary for faster
+  widgets (auto-detected by TPM and manual install)
+
 ## Installation
 
 ### TPM
@@ -46,6 +51,10 @@ set -g @plugin "Jacob-Valor/flavors-tmux"
 ```
 
 Then press your TPM prefix followed by `I` to install.
+
+> **Note:** If [Zig](https://ziglang.org/) is installed, TPM will automatically
+> build the native binary on install and update for faster widget rendering.
+> Without Zig, the plugin falls back to Bash scripts.
 
 ### Manual
 
