@@ -55,6 +55,29 @@ elif [[ $PROVIDER == "gitlab.com" ]]; then
   PR_COUNT=$(glab mr list | grep -cE "^\!")
   REVIEW_COUNT=$(glab mr list --reviewer=@me | grep -cE "^\!")
   ISSUE_COUNT=$(glab issue list | grep -cE "^\#")
+elif [[ $PROVIDER == "codeberg.org" ]]; then
+  CODEBERG_TOKEN=$(tmux show-option -gv @flavors-tmux_codeberg_token 2>/dev/null || echo "")
+  if [[ -z "$CODEBERG_TOKEN" ]]; then
+    exit 0
+  fi
+  if ! command -v curl &>/dev/null || ! command -v jq &>/dev/null; then
+    exit 1
+  fi
+  OWNER=""
+  REPO=""
+  if [[ "$REMOTE_URL" =~ codeberg.org[:/]([^/]+)/([^/]+)(\.git)?$ ]]; then
+    OWNER="${BASH_REMATCH[1]}"
+    REPO="${BASH_REMATCH[2]}"
+  fi
+  if [[ -z "$OWNER" || -z "$REPO" ]]; then
+    exit 0
+  fi
+  PROVIDER_ICON="$RESET#[fg=${THEME[forge_codeberg]}] "
+  API_BASE="https://codeberg.org/api/v1"
+  PR_COUNT=$(curl -s -H "Authorization: token ${CODEBERG_TOKEN}" \
+    "${API_BASE}/repos/${OWNER}/${REPO}/pulls?state=open&limit=1" | jq 'length')
+  ISSUE_COUNT=$(curl -s -H "Authorization: token ${CODEBERG_TOKEN}" \
+    "${API_BASE}/repos/${OWNER}/${REPO}/issues?state=open&limit=1" | jq 'length')
 else
   exit 0
 fi

@@ -172,10 +172,10 @@ Disable it:
 set -g @flavors-tmux_show_git 0
 ```
 
-### GitHub / GitLab
+### GitHub / GitLab / Codeberg
 
-The forge widget is enabled by default when the current repository uses GitHub
-or GitLab and the required CLI is available.
+The forge widget is enabled by default when the current repository uses GitHub,
+GitLab, or Codeberg and the required CLI/token is available.
 
 ```tmux
 set -g @flavors-tmux_show_wbg 1
@@ -186,6 +186,16 @@ Disable it:
 ```tmux
 set -g @flavors-tmux_show_wbg 0
 ```
+
+#### Codeberg
+
+For Codeberg support, set a personal access token:
+
+```tmux
+set -g @flavors-tmux_codeberg_token "your-token-here"
+```
+
+Generate a token at: https://codeberg.org/user/settings/applications
 
 ### Battery
 

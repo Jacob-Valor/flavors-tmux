@@ -21,6 +21,7 @@ pub const Theme = struct {
     muted: []const u8,
     forge_github: []const u8,
     forge_gitlab: []const u8,
+    forge_codeberg: []const u8,
 
     pub fn lookup(self: Theme, key: []const u8) ?[]const u8 {
         if (std.mem.eql(u8, key, "background")) return self.background;
@@ -43,6 +44,7 @@ pub const Theme = struct {
         if (std.mem.eql(u8, key, "muted")) return self.muted;
         if (std.mem.eql(u8, key, "forge_github")) return self.forge_github;
         if (std.mem.eql(u8, key, "forge_gitlab")) return self.forge_gitlab;
+        if (std.mem.eql(u8, key, "forge_codeberg")) return self.forge_codeberg;
         return null;
     }
 };

@@ -34,6 +34,7 @@ load_theme() {
             THEMES[hard_muted]="#a89984"
             THEMES[hard_forge_github]="#fbf1c7"
             THEMES[hard_forge_gitlab]="#fc6d26"
+            THEMES[hard_forge_codeberg]="#fc6d26"
             ;;
         medium)
             THEMES[medium_background]="#282828"
@@ -56,6 +57,7 @@ load_theme() {
             THEMES[medium_muted]="#a89984"
             THEMES[medium_forge_github]="#fbf1c7"
             THEMES[medium_forge_gitlab]="#fc6d26"
+            THEMES[medium_forge_codeberg]="#fc6d26"
             ;;
         soft)
             THEMES[soft_background]="#32302F"
@@ -78,6 +80,7 @@ load_theme() {
             THEMES[soft_muted]="#a89984"
             THEMES[soft_forge_github]="#fbf1c7"
             THEMES[soft_forge_gitlab]="#fc6d26"
+            THEMES[soft_forge_codeberg]="#fc6d26"
             ;;
         light)
             THEMES[light_background]="#F9F5D7"
@@ -100,6 +103,7 @@ load_theme() {
             THEMES[light_muted]="#7c6f64"
             THEMES[light_forge_github]="#1b1b1b"
             THEMES[light_forge_gitlab]="#fc6d26"
+            THEMES[light_forge_codeberg]="#fc6d26"
             ;;
         tokyonight)
             THEMES[tokyonight_background]="#1a1b26"
@@ -122,6 +126,7 @@ load_theme() {
             THEMES[tokyonight_muted]="#565f89"
             THEMES[tokyonight_forge_github]="#a9b1d6"
             THEMES[tokyonight_forge_gitlab]="#fc6d26"
+            THEMES[tokyonight_forge_codeberg]="#fc6d26"
             ;;
         catppuccin)
             THEMES[catppuccin_background]="#1e1e2e"
@@ -144,6 +149,7 @@ load_theme() {
             THEMES[catppuccin_muted]="#6c7086"
             THEMES[catppuccin_forge_github]="#cdd6f4"
             THEMES[catppuccin_forge_gitlab]="#fc6d26"
+            THEMES[catppuccin_forge_codeberg]="#fc6d26"
             ;;
         dracula)
             THEMES[dracula_background]="#282a36"
@@ -166,6 +172,7 @@ load_theme() {
             THEMES[dracula_muted]="#6272a4"
             THEMES[dracula_forge_github]="#f8f8f2"
             THEMES[dracula_forge_gitlab]="#fc6d26"
+            THEMES[dracula_forge_codeberg]="#fc6d26"
             ;;
         nord)
             THEMES[nord_background]="#2e3440"
@@ -188,6 +195,7 @@ load_theme() {
             THEMES[nord_muted]="#4c566a"
             THEMES[nord_forge_github]="#d8dee9"
             THEMES[nord_forge_gitlab]="#fc6d26"
+            THEMES[nord_forge_codeberg]="#fc6d26"
             ;;
         github_dark)
             THEMES[github_dark_background]="#0d1117"
@@ -210,6 +218,7 @@ load_theme() {
             THEMES[github_dark_muted]="#8b949e"
             THEMES[github_dark_forge_github]="#f0f6fc"
             THEMES[github_dark_forge_gitlab]="#fc6d26"
+            THEMES[github_dark_forge_codeberg]="#fc6d26"
             ;;
         onedark)
             THEMES[onedark_background]="#282c34"
@@ -232,6 +241,7 @@ load_theme() {
             THEMES[onedark_muted]="#5c6370"
             THEMES[onedark_forge_github]="#abb2bf"
             THEMES[onedark_forge_gitlab]="#fc6d26"
+            THEMES[onedark_forge_codeberg]="#fc6d26"
             ;;
         solarized_dark)
             THEMES[solarized_dark_background]="#002b36"
@@ -254,6 +264,7 @@ load_theme() {
             THEMES[solarized_dark_muted]="#586e75"
             THEMES[solarized_dark_forge_github]="#839496"
             THEMES[solarized_dark_forge_gitlab]="#fc6d26"
+            THEMES[solarized_dark_forge_codeberg]="#fc6d26"
             ;;
         solarized_light)
             THEMES[solarized_light_background]="#fdf6e3"
@@ -276,6 +287,8 @@ load_theme() {
             THEMES[solarized_light_muted]="#93a1a1"
             THEMES[solarized_light_forge_github]="#657b83"
             THEMES[solarized_light_forge_gitlab]="#fc6d26"
+            THEMES[solarized_light_forge_codeberg]="#fc6d26"
+            THEMES[light_forge_codeberg]="#fc6d26"
             ;;
         monokai)
             THEMES[monokai_background]="#272822"
@@ -298,6 +311,7 @@ load_theme() {
             THEMES[monokai_muted]="#75715e"
             THEMES[monokai_forge_github]="#f8f8f2"
             THEMES[monokai_forge_gitlab]="#fc6d26"
+            THEMES[monokai_forge_codeberg]="#fc6d26"
             ;;
         github_light)
             THEMES[github_light_background]="#ffffff"
@@ -320,6 +334,8 @@ load_theme() {
             THEMES[github_light_muted]="#656d76"
             THEMES[github_light_forge_github]="#1f2328"
             THEMES[github_light_forge_gitlab]="#fc6d26"
+            THEMES[github_light_forge_codeberg]="#fc6d26"
+            THEMES[light_forge_codeberg]="#fc6d26"
             ;;
         ayu_dark)
             THEMES[ayu_dark_background]="#0D1017"
@@ -342,6 +358,7 @@ load_theme() {
             THEMES[ayu_dark_muted]="#ACB6BF"
             THEMES[ayu_dark_forge_github]="#BFBDB6"
             THEMES[ayu_dark_forge_gitlab]="#FC6D26"
+            THEMES[ayu_dark_forge_codeberg]="#FC6D26"
             ;;
         ayu_light)
             THEMES[ayu_light_background]="#F8F9FA"
@@ -364,6 +381,8 @@ load_theme() {
             THEMES[ayu_light_muted]="#787B80"
             THEMES[ayu_light_forge_github]="#5C6166"
             THEMES[ayu_light_forge_gitlab]="#FC6D26"
+            THEMES[ayu_light_forge_codeberg]="#FC6D26"
+            THEMES[light_forge_codeberg]="#fc6d26"
             ;;
         flexoki_dark)
             THEMES[flexoki_dark_background]="#100F0F"
@@ -386,6 +405,7 @@ load_theme() {
             THEMES[flexoki_dark_muted]="#6F6E69"
             THEMES[flexoki_dark_forge_github]="#CECDC3"
             THEMES[flexoki_dark_forge_gitlab]="#DA702C"
+            THEMES[flexoki_dark_forge_codeberg]="#DA702C"
             ;;
         flexoki_light)
             THEMES[flexoki_light_background]="#FFFCF0"
@@ -408,6 +428,8 @@ load_theme() {
             THEMES[flexoki_light_muted]="#878580"
             THEMES[flexoki_light_forge_github]="#100F0F"
             THEMES[flexoki_light_forge_gitlab]="#BC5215"
+            THEMES[flexoki_light_forge_codeberg]="#BC5215"
+            THEMES[light_forge_codeberg]="#fc6d26"
             ;;
     esac
 }

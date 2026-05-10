@@ -21,4 +21,5 @@ pub const theme = Theme{
     .muted = "#6c7086",
     .forge_github = "#cdd6f4",
     .forge_gitlab = "#fc6d26",
+    .forge_codeberg = "#fc6d26",
 };

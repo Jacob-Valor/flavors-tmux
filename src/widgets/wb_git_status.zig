@@ -94,6 +94,26 @@ fn runGhCommand(allocator: std.mem.Allocator, io: std.Io, argv: []const []const 
     return result.stdout;
 }
 
+fn parseCodebergOwnerRepo(allocator: std.mem.Allocator, remote_url: []const u8) !?[]const u8 {
+    // Supports git@codeberg.org:owner/repo.git and https://codeberg.org/owner/repo.git
+    var start: usize = 0;
+    if (std.mem.startsWith(u8, remote_url, "git@codeberg.org:")) {
+        start = 17; // len("git@codeberg.org:")
+    } else if (std.mem.startsWith(u8, remote_url, "https://codeberg.org/")) {
+        start = 21; // len("https://codeberg.org/")
+    } else {
+        return null;
+    }
+
+    var end = remote_url.len;
+    if (std.mem.endsWith(u8, remote_url, ".git")) {
+        end -= 4;
+    }
+
+    if (start >= end) return null;
+    return try allocator.dupe(u8, remote_url[start..end]);
+}
+
 fn countJsonArrayItems(allocator: std.mem.Allocator, json_str: []const u8) !usize {
     const parsed = try std.json.parseFromSlice(std.json.Value, allocator, json_str, .{});
     defer parsed.deinit();
@@ -199,6 +219,33 @@ fn renderUncached(
         const issue_text = runGhCommand(allocator, io, &.{ "glab", "issue", "list" }, repo_path) catch "";
         defer if (issue_text.len > 0) allocator.free(issue_text);
         issue_count = countLinesMatching(issue_text, "#");
+    } else if (std.mem.eql(u8, provider_str, "codeberg.org")) {
+        provider_icon = " ";
+
+        // Get remote URL to parse owner/repo
+        const remote_url_opt = try getRemoteUrl(allocator, io, repo_path);
+        defer if (remote_url_opt) |url| allocator.free(url);
+        if (remote_url_opt == null) return try allocator.dupe(u8, "");
+
+        const owner_repo = try parseCodebergOwnerRepo(allocator, remote_url_opt.?);
+        defer if (owner_repo) |or_| allocator.free(or_);
+        if (owner_repo == null) return try allocator.dupe(u8, "");
+
+        const api_base = "https://codeberg.org/api/v1";
+
+        // PR count
+        const pr_url = try std.fmt.allocPrint(allocator, "{s}/repos/{s}/pulls?state=open&limit=100", .{ api_base, owner_repo.? });
+        defer allocator.free(pr_url);
+        const pr_json = runGhCommand(allocator, io, &.{ "curl", "-s", "-L", pr_url }, repo_path) catch "";
+        defer if (pr_json.len > 0) allocator.free(pr_json);
+        pr_count = countJsonArrayItems(allocator, pr_json) catch 0;
+
+        // Issue count (excludes PRs in Gitea API when using /issues endpoint)
+        const issue_url = try std.fmt.allocPrint(allocator, "{s}/repos/{s}/issues?state=open&limit=100", .{ api_base, owner_repo.? });
+        defer allocator.free(issue_url);
+        const issue_json = runGhCommand(allocator, io, &.{ "curl", "-s", "-L", issue_url }, repo_path) catch "";
+        defer if (issue_json.len > 0) allocator.free(issue_json);
+        issue_count = countJsonArrayItems(allocator, issue_json) catch 0;
     } else {
         return try allocator.dupe(u8, ""); // Unsupported provider
     }
@@ -223,6 +270,8 @@ fn renderUncached(
 
     if (std.mem.eql(u8, provider_str, "github.com")) {
         try result.appendSlice(allocator, theme.forge_github);
+    } else if (std.mem.eql(u8, provider_str, "codeberg.org")) {
+        try result.appendSlice(allocator, theme.forge_codeberg);
     } else {
         try result.appendSlice(allocator, theme.forge_gitlab);
     }
