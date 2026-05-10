@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
-. "${ROOT_DIR}/src/themes.sh" || {
+. "${ROOT_DIR}/scripts/themes.sh" || {
     echo "Error: Failed to source themes.sh" >&2
     exit 1
 }
