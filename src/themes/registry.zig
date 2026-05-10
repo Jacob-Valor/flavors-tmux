@@ -9,6 +9,12 @@ const tokyonight_mod = @import("tokyonight.zig");
 const catppuccin_mod = @import("catppuccin.zig");
 const dracula_mod = @import("dracula.zig");
 const nord_mod = @import("nord.zig");
+const github_dark_mod = @import("github_dark.zig");
+const onedark_mod = @import("onedark.zig");
+const solarized_dark_mod = @import("solarized_dark.zig");
+const solarized_light_mod = @import("solarized_light.zig");
+const monokai_mod = @import("monokai.zig");
+const github_light_mod = @import("github_light.zig");
 
 pub const hard = hard_mod.theme;
 pub const medium = medium_mod.theme;
@@ -18,6 +24,12 @@ pub const tokyonight = tokyonight_mod.theme;
 pub const catppuccin = catppuccin_mod.theme;
 pub const dracula = dracula_mod.theme;
 pub const nord = nord_mod.theme;
+pub const github_dark = github_dark_mod.theme;
+pub const onedark = onedark_mod.theme;
+pub const solarized_dark = solarized_dark_mod.theme;
+pub const solarized_light = solarized_light_mod.theme;
+pub const monokai = monokai_mod.theme;
+pub const github_light = github_light_mod.theme;
 
 pub fn byName(name: []const u8) ?Theme {
     if (std.mem.eql(u8, name, "hard")) return hard;
@@ -28,12 +40,20 @@ pub fn byName(name: []const u8) ?Theme {
     if (std.mem.eql(u8, name, "catppuccin")) return catppuccin;
     if (std.mem.eql(u8, name, "dracula")) return dracula;
     if (std.mem.eql(u8, name, "nord")) return nord;
+    if (std.mem.eql(u8, name, "github_dark")) return github_dark;
+    if (std.mem.eql(u8, name, "onedark")) return onedark;
+    if (std.mem.eql(u8, name, "solarized_dark")) return solarized_dark;
+    if (std.mem.eql(u8, name, "solarized_light")) return solarized_light;
+    if (std.mem.eql(u8, name, "monokai")) return monokai;
+    if (std.mem.eql(u8, name, "github_light")) return github_light;
     return null;
 }
 
 pub const names = [_][]const u8{
     "hard",       "medium",    "soft",     "light",
-    "tokyonight", "catppuccin", "dracula", "nord",
+    "tokyonight", "catppuccin", "dracula", "nord", "github_dark",
+    "onedark",    "solarized_dark", "solarized_light",
+    "monokai",    "github_light",
 };
 
 test "byName returns correct themes" {

@@ -148,7 +148,7 @@ pub fn run(
     defer segments.deinit(allocator);
 
     if (changed > 0) {
-        const seg = try std.fmt.allocPrint(allocator, "{s}#[fg={s},bg={s},bold] {d} ", .{
+        const seg = try std.fmt.allocPrint(allocator, " {s}#[fg={s},bg={s},bold] {d}", .{
             reset, theme.warning, theme.background, changed,
         });
         defer allocator.free(seg);
@@ -156,7 +156,7 @@ pub fn run(
     }
 
     if (insertions > 0) {
-        const seg = try std.fmt.allocPrint(allocator, "{s}#[fg={s},bg={s},bold] {d} ", .{
+        const seg = try std.fmt.allocPrint(allocator, " {s}#[fg={s},bg={s},bold] {d}", .{
             reset, theme.success, theme.background, insertions,
         });
         defer allocator.free(seg);
@@ -164,7 +164,7 @@ pub fn run(
     }
 
     if (deletions > 0) {
-        const seg = try std.fmt.allocPrint(allocator, "{s}#[fg={s},bg={s},bold] {d} ", .{
+        const seg = try std.fmt.allocPrint(allocator, " {s}#[fg={s},bg={s},bold] {d}", .{
             reset, theme.danger, theme.background, deletions,
         });
         defer allocator.free(seg);
@@ -172,7 +172,7 @@ pub fn run(
     }
 
     if (untracked > 0) {
-        const seg = try std.fmt.allocPrint(allocator, "{s}#[fg={s},bg={s},bold] {d} ", .{
+        const seg = try std.fmt.allocPrint(allocator, " {s}#[fg={s},bg={s},bold] {d}", .{
             reset, theme.surface_alt, theme.background, untracked,
         });
         defer allocator.free(seg);
