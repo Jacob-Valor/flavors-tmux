@@ -19,6 +19,13 @@ source "$SCRIPTS_PATH/themes.sh" || {
     exit 1
 }
 
+# Validate theme name
+VALID_THEMES=("hard" "medium" "soft" "light" "tokyonight" "catppuccin" "dracula" "nord")
+if [[ ! " ${VALID_THEMES[*]} " =~ " ${SELECTED_THEME} " ]]; then
+    echo "flavors-tmux: unknown theme '${SELECTED_THEME}', using 'hard'. Available: ${VALID_THEMES[*]}" >&2
+    SELECTED_THEME="hard"
+fi
+
 # ---------------------------------------------------------------------------
 # Widget command builders: prefer Zig binary when available
 # ---------------------------------------------------------------------------
