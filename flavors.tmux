@@ -180,3 +180,12 @@ right_status="\
 tmux set -g status-right "$right_status"
 
 tmux set -g window-status-separator ""
+
+# ---------------------------------------------------------------------------
+# Auto-update check (runs in background)
+# ---------------------------------------------------------------------------
+
+auto_update="$(tmux show-option -gv @flavors-tmux_auto_update 2>/dev/null || echo "0")"
+if [[ "$auto_update" == "1" ]]; then
+    ("$SCRIPTS_PATH/auto-update.sh" &)
+fi

@@ -203,6 +203,22 @@ On Linux, run this to find your battery name:
 ls /sys/class/power_supply
 ```
 
+### Auto-update
+
+Check for plugin updates automatically. Disabled by default.
+
+```tmux
+set -g @flavors-tmux_auto_update 1
+set -g @flavors-tmux_auto_update_interval 24
+```
+
+Options:
+
+- `@flavors-tmux_auto_update` — `1` to enable checking, `0` to disable (default)
+- `@flavors-tmux_auto_update_interval` — hours between checks (default: `24`)
+- `@flavors-tmux_auto_update_pull` — `1` to auto-pull updates silently (default: `0`, only notifies)
+- `@flavors-tmux_auto_update_branch` — branch to track (default: `main`)
+
 ## Screenshots
 
 ### Gruvbox Hard
