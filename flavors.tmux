@@ -30,17 +30,54 @@ terminal_icon="$(tmux show-option -gv @flavors-tmux_terminal_icon 2>/dev/null ||
 active_terminal_icon="$(tmux show-option -gv @flavors-tmux_active_terminal_icon 2>/dev/null || echo '')"
 
 time_format="$(tmux show-option -gv @flavors-tmux_time_format 2>/dev/null || echo "")"
+show_time="$(tmux show-option -gv @flavors-tmux_show_time 2>/dev/null || echo "1")"
 
 battery_name="$(tmux show-option -gv @flavors-tmux_battery_name 2>/dev/null || echo "")"
 battery_low="$(tmux show-option -gv @flavors-tmux_battery_low_threshold 2>/dev/null || echo "20")"
+forge_cache_ttl="$(tmux show-option -gv @flavors-tmux_forge_cache_ttl 2>/dev/null || echo "300")"
+
+custom_number_format() {
+    local id="$1"
+    local style="$2"
+    local source
+
+    case "$id" in
+        "#I") source='#{window_index}' ;;
+        "#P") source='#{pane_index}' ;;
+        *) source="#{l:$id}" ;;
+    esac
+
+    case "$style" in
+        hide) echo "" ;;
+        arabic) echo "#{s|0|0 |;s|1|1 |;s|2|2 |;s|3|3 |;s|4|4 |;s|5|5 |;s|6|6 |;s|7|7 |;s|8|8 |;s|9|9 |:$source}" ;;
+        fsquare) echo "#{s|0|󰎡 |;s|1|󰎤 |;s|2|󰎧 |;s|3|󰎪 |;s|4|󰎭 |;s|5|󰎱 |;s|6|󰎳 |;s|7|󰎶 |;s|8|󰎹 |;s|9|󰎼 |:$source}" ;;
+        dsquare) echo "#{s|0|󰎢 |;s|1|󰎥 |;s|2|󰎨 |;s|3|󰎫 |;s|4|󰎲 |;s|5|󰎯 |;s|6|󰎴 |;s|7|󰎷 |;s|8|󰎺 |;s|9|󰎽 |:$source}" ;;
+        super) echo "#{s|0|⁰ |;s|1|¹ |;s|2|² |;s|3|³ |;s|4|⁴ |;s|5|⁵ |;s|6|⁶ |;s|7|⁷ |;s|8|⁸ |;s|9|⁹ |:$source}" ;;
+        sub) echo "#{s|0|₀ |;s|1|₁ |;s|2|₂ |;s|3|₃ |;s|4|₄ |;s|5|₅ |;s|6|₆ |;s|7|₇ |;s|8|₈ |;s|9|₉ |:$source}" ;;
+        earabic) echo "#{s|0|٠ |;s|1|١ |;s|2|٢ |;s|3|٣ |;s|4|٤ |;s|5|٥ |;s|6|٦ |;s|7|٧ |;s|8|٨ |;s|9|٩ |:$source}" ;;
+        *) echo "#{s|0|󰎣 |;s|1|󰎦 |;s|2|󰎩 |;s|3|󰎬 |;s|4|󰎮 |;s|5|󰎰 |;s|6|󰎵 |;s|7|󰎸 |;s|8|󰎻 |;s|9|󰎾 |:$source}" ;;
+    esac
+}
+
+datetime_format() {
+    if [[ "$show_time" == "0" ]]; then
+        echo ""
+        return
+    fi
+
+    case "${time_format:-24H}" in
+        12H) echo "▒ 󰥔 %I:%M %p " ;;
+        hide) echo "▒ 󰥔 " ;;
+        *) echo "▒ 󰥔 %H:%M " ;;
+    esac
+}
 
 if [[ -x "$BINARY_PATH" ]]; then
     custom_number_cmd() {
-        echo "#($BINARY_PATH custom-number $1 $2)"
+        custom_number_format "$1" "$2"
     }
     datetime_cmd() {
-        local fmt="${time_format:-24H}"
-        echo "#($BINARY_PATH datetime --theme $SELECTED_THEME --format $fmt)"
+        datetime_format
     }
     battery_cmd() {
         local name_arg=""
@@ -51,14 +88,14 @@ if [[ -x "$BINARY_PATH" ]]; then
         echo "#($BINARY_PATH git-status --theme $SELECTED_THEME #{q:pane_current_path})"
     }
     wb_git_status_cmd() {
-        echo "#($BINARY_PATH wb-git-status --theme $SELECTED_THEME #{q:pane_current_path})"
+        echo "#($BINARY_PATH wb-git-status --theme $SELECTED_THEME --cache-ttl ${forge_cache_ttl:-300} #{q:pane_current_path})"
     }
 else
     custom_number_cmd() {
-        echo "#($SCRIPTS_PATH/custom-number.sh $1 $2)"
+        custom_number_format "$1" "$2"
     }
     datetime_cmd() {
-        echo "#($SCRIPTS_PATH/datetime-widget.sh)"
+        datetime_format
     }
     battery_cmd() {
         echo "#($SCRIPTS_PATH/battery-widget.sh)"
