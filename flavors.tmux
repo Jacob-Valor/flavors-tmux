@@ -34,6 +34,7 @@ show_time="$(tmux show-option -gv @flavors-tmux_show_time 2>/dev/null || echo "1
 
 battery_name="$(tmux show-option -gv @flavors-tmux_battery_name 2>/dev/null || echo "")"
 battery_low="$(tmux show-option -gv @flavors-tmux_battery_low_threshold 2>/dev/null || echo "20")"
+show_battery_widget="$(tmux show-option -gv @flavors-tmux_show_battery_widget 2>/dev/null || echo "0")"
 forge_cache_ttl="$(tmux show-option -gv @flavors-tmux_forge_cache_ttl 2>/dev/null || echo "300")"
 
 custom_number_format() {
@@ -80,9 +81,14 @@ if [[ -x "$BINARY_PATH" ]]; then
         datetime_format
     }
     battery_cmd() {
+        [[ "$show_battery_widget" == "1" ]] || return
         local name_arg=""
         [[ -n "$battery_name" ]] && name_arg="--name $battery_name"
-        echo "#($BINARY_PATH battery --theme $SELECTED_THEME $name_arg --low-threshold ${battery_low:-20})"
+        if [[ -x "$SCRIPTS_PATH/battery-fast.sh" && "$(uname -s)" == "Linux" ]]; then
+            echo "#($SCRIPTS_PATH/battery-fast.sh ${battery_name:-BAT0} ${battery_low:-20} '${THEME[danger]}' '${THEME[success]}' '${THEME[warning]}')"
+        else
+            echo "#($BINARY_PATH battery --theme $SELECTED_THEME $name_arg --low-threshold ${battery_low:-20})"
+        fi
     }
     git_status_cmd() {
         echo "#($BINARY_PATH git-status --theme $SELECTED_THEME #{q:pane_current_path})"
