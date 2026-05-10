@@ -3,16 +3,18 @@ const themes = @import("../themes/registry.zig");
 const util = @import("../core/util.zig");
 const runGitCommand = util.runGitCommand;
 
-fn getProvider(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !?[]const u8 {
+const max_cache_bytes = 8192;
+
+fn getRemoteUrl(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !?[]const u8 {
     const stdout = runGitCommand(allocator, io, &.{ "git", "config", "remote.origin.url" }, repo_path) catch return null;
     defer allocator.free(stdout);
 
     const url = std.mem.trim(u8, stdout, " \n\r\t");
     if (url.len == 0) return null;
+    return try allocator.dupe(u8, url);
+}
 
-    // Parse provider from remote URL
-    // ssh:   git@github.com:user/repo.git
-    // https: https://github.com/user/repo.git
+fn providerFromUrl(allocator: std.mem.Allocator, url: []const u8) !?[]const u8 {
     if (std.mem.startsWith(u8, url, "git@")) {
         const at_idx = std.mem.indexOf(u8, url, "@") orelse return null;
         const colon_idx = std.mem.indexOf(u8, url[at_idx..], ":") orelse return null;
@@ -23,6 +25,58 @@ fn getProvider(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) 
         return try allocator.dupe(u8, after_proto[0..slash_idx]);
     }
     return null;
+}
+
+fn cacheBase(environ_map: *std.process.Environ.Map) []const u8 {
+    if (environ_map.get("XDG_CACHE_HOME")) |xdg_cache_home| {
+        if (xdg_cache_home.len > 0) return xdg_cache_home;
+    }
+    return "/tmp";
+}
+
+fn cachePath(
+    allocator: std.mem.Allocator,
+    environ_map: *std.process.Environ.Map,
+    theme_name: []const u8,
+    repo_path: []const u8,
+    remote_url: []const u8,
+) ![]u8 {
+    var hasher = std.hash.Wyhash.init(0);
+    hasher.update(theme_name);
+    hasher.update("\x00");
+    hasher.update(repo_path);
+    hasher.update("\x00");
+    hasher.update(remote_url);
+    const key = hasher.final();
+
+    const base = cacheBase(environ_map);
+    return std.fmt.allocPrint(allocator, "{s}/flavors-tmux-wb-{x}.cache", .{ base, key });
+}
+
+fn readFreshCache(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    path: []const u8,
+    ttl_seconds: u64,
+) !?[]u8 {
+    if (ttl_seconds == 0) return null;
+
+    var file = std.Io.Dir.openFileAbsolute(io, path, .{}) catch return null;
+    defer file.close(io);
+
+    const stat = file.stat(io) catch return null;
+    const now = std.Io.Timestamp.now(io, .real);
+    const age_ns = now.nanoseconds - stat.mtime.nanoseconds;
+    if (age_ns < 0) return null;
+
+    const ttl_ns: i96 = @as(i96, @intCast(ttl_seconds)) * std.time.ns_per_s;
+    if (age_ns > ttl_ns) return null;
+
+    return std.Io.Dir.readFileAlloc(.cwd(), io, path, allocator, .limited(max_cache_bytes)) catch return null;
+}
+
+fn writeCache(io: std.Io, path: []const u8, output: []const u8) void {
+    std.Io.Dir.writeFile(.cwd(), io, .{ .sub_path = path, .data = output }) catch {};
 }
 
 fn runGhCommand(allocator: std.mem.Allocator, io: std.Io, argv: []const []const u8, repo_path: []const u8) ![]u8 {
@@ -81,31 +135,23 @@ fn countLinesMatching(text: []const u8, prefix: []const u8) usize {
     return count;
 }
 
-pub fn run(
+fn renderUncached(
     allocator: std.mem.Allocator,
     io: std.Io,
     theme_name: []const u8,
     repo_path: []const u8,
-    writer: *std.Io.Writer,
-) !void {
+    provider_str: []const u8,
+) ![]u8 {
     const theme = themes.byName(theme_name) orelse themes.hard;
 
     // Get branch name
     const branch_raw = runGitCommand(allocator, io, &.{ "git", "rev-parse", "--abbrev-ref", "HEAD" }, repo_path) catch {
-        return; // Not a git repo
+        return try allocator.dupe(u8, ""); // Not a git repo
     };
     defer allocator.free(branch_raw);
 
     const branch = std.mem.trim(u8, branch_raw, " \n\r\t");
-    if (branch.len == 0) return;
-
-    // Get provider
-    const provider = try getProvider(allocator, io, repo_path);
-    defer if (provider) |p| allocator.free(p);
-
-    if (provider == null) return;
-
-    const provider_str = provider.?;
+    if (branch.len == 0) return try allocator.dupe(u8, "");
 
     var pr_count: usize = 0;
     var review_count: usize = 0;
@@ -154,7 +200,7 @@ pub fn run(
         defer if (issue_text.len > 0) allocator.free(issue_text);
         issue_count = countLinesMatching(issue_text, "#");
     } else {
-        return; // Unsupported provider
+        return try allocator.dupe(u8, ""); // Unsupported provider
     }
 
     const reset = try std.fmt.allocPrint(allocator, "#[fg={s},bg={s},nobold,noitalics,nounderscore,nodim]", .{
@@ -217,5 +263,39 @@ pub fn run(
         try result.appendSlice(allocator, seg);
     }
 
-    try writer.print("{s}", .{result.items});
+    return result.toOwnedSlice(allocator);
+}
+
+pub fn run(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    environ_map: *std.process.Environ.Map,
+    theme_name: []const u8,
+    repo_path: []const u8,
+    cache_ttl: u64,
+    writer: *std.Io.Writer,
+) !void {
+    const remote_url = try getRemoteUrl(allocator, io, repo_path);
+    defer if (remote_url) |url| allocator.free(url);
+    if (remote_url == null) return;
+
+    const provider = try providerFromUrl(allocator, remote_url.?);
+    defer if (provider) |p| allocator.free(p);
+    if (provider == null) return;
+
+    const path = try cachePath(allocator, environ_map, theme_name, repo_path, remote_url.?);
+    defer allocator.free(path);
+
+    const cached = try readFreshCache(allocator, io, path, cache_ttl);
+    if (cached) |output| {
+        defer allocator.free(output);
+        try writer.print("{s}", .{output});
+        return;
+    }
+
+    const output = try renderUncached(allocator, io, theme_name, repo_path, provider.?);
+    defer allocator.free(output);
+
+    writeCache(io, path, output);
+    try writer.print("{s}", .{output});
 }

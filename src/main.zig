@@ -26,6 +26,7 @@ const usage =
     \\  --format <12H|24H|hide>             Time format (datetime)
     \\  --name <battery-name>               Battery name (battery)
     \\  --low-threshold <n>                 Low battery threshold (battery, default: 20)
+    \\  --cache-ttl <seconds>               Forge widget cache TTL (default: 300)
     \\
     \\Styles for custom-number:
     \\  arabic, fsquare, hsquare, dsquare, super, sub, earabic, hide
@@ -65,7 +66,7 @@ fn run(init: std.process.Init) !void {
             std.debug.print("Usage: flavors-tmux wb-git-status --theme <name> <repo-path>\n", .{});
             return error.Usage;
         }
-        try wb_git_status.run(arena, io, args.theme, args.positional.items[0], stdout_writer);
+        try wb_git_status.run(arena, io, init.environ_map, args.theme, args.positional.items[0], args.cache_ttl, stdout_writer);
     } else if (std.mem.eql(u8, args.command, "theme")) {
         if (args.positional.items.len < 2) {
             std.debug.print("Usage: flavors-tmux theme <name> <key>\n", .{});

@@ -7,6 +7,7 @@ pub const Args = struct {
     time_format: []const u8 = "24H",
     battery_name: ?[]const u8 = null,
     low_threshold: u8 = 20,
+    cache_ttl: u64 = 300,
 
     pub fn init() Args {
         return .{ .positional = .empty };
@@ -43,6 +44,10 @@ pub fn parseArgs(allocator: std.mem.Allocator, raw_args: []const []const u8) !Ar
             i += 1;
             if (i >= raw_args.len) return error.MissingValue;
             args.low_threshold = std.fmt.parseInt(u8, raw_args[i], 10) catch return error.InvalidNumber;
+        } else if (std.mem.eql(u8, arg, "--cache-ttl")) {
+            i += 1;
+            if (i >= raw_args.len) return error.MissingValue;
+            args.cache_ttl = std.fmt.parseInt(u64, raw_args[i], 10) catch return error.InvalidNumber;
         } else if (std.mem.startsWith(u8, arg, "-")) {
             return error.UnknownOption;
         } else {
