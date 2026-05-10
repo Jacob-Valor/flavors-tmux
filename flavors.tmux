@@ -20,7 +20,7 @@ source "$SCRIPTS_PATH/themes.sh" || {
 }
 
 # Validate theme name
-VALID_THEMES=("hard" "medium" "soft" "light" "tokyonight" "catppuccin" "dracula" "nord")
+VALID_THEMES=("hard" "medium" "soft" "light" "tokyonight" "catppuccin" "dracula" "nord" "github_dark" "onedark" "solarized_dark" "solarized_light" "monokai" "github_light")
 if [[ ! " ${VALID_THEMES[*]} " =~ " ${SELECTED_THEME} " ]]; then
     echo "flavors-tmux: unknown theme '${SELECTED_THEME}', using 'hard'. Available: ${VALID_THEMES[*]}" >&2
     SELECTED_THEME="hard"
@@ -144,13 +144,13 @@ date_and_time="$(datetime_cmd)"
 battery_status="$(battery_cmd)"
 
 tmux set -g status-left "\
-#[fg=${THEME[foreground]},bg=${THEME[primary]},bold] \
+#[fg=${THEME[foreground]},bg=${THEME[primary]},bold]\
 #{?client_prefix,󰠠 ,󰤂 }\
-#[bold,nodim]#S "
+#[bold,nodim]#S"
 
 tmux set -g window-status-current-format "\
 $RESET\
-#[fg=${THEME[success_bright]},bg=${THEME[surface]}] \
+#[fg=${THEME[success_bright]},bg=${THEME[surface]}]\
 #{?#{==:#{pane_current_command},ssh},󰣀 ,$active_terminal_icon }\
 #[fg=${THEME[accent_bright]},bold,nodim]\
 $window_number\
@@ -161,7 +161,7 @@ $window_number\
 
 tmux set -g window-status-format "\
 $RESET\
-#[fg=${THEME[foreground]}] \
+#[fg=${THEME[foreground]}]\
 #{?#{==:#{pane_current_command},ssh},󰣀 ,$terminal_icon }\
 ${RESET}\
 $window_number\
