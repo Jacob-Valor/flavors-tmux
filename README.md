@@ -8,12 +8,12 @@ and time.
 
 It started from a Gruvbox-inspired style and now includes several familiar
 flavors: Gruvbox Hard, Medium, Soft, Light, Tokyo Night, Catppuccin, Dracula,
-Nord, GitHub Dark, One Dark, Solarized Dark, Solarized Light, Monokai, and
-GitHub Light.
+Nord, GitHub Dark, One Dark, Solarized Dark, Solarized Light, Monokai,
+GitHub Light, Ayu Dark, Ayu Light, Flexoki Dark, and Flexoki Light.
 
 ## Features
 
-- Fourteen built-in color flavors
+- Eighteen built-in color flavors
 - Optional transparent status bar background
 - Git branch, change, insert, delete, untracked, push, and pull indicators
 - Optional GitHub/GitLab widget for pull requests, reviews, issues, and bugs
@@ -102,6 +102,10 @@ Available themes:
 - `solarized_light`
 - `monokai`
 - `github_light`
+- `ayu_dark`
+- `ayu_light`
+- `flexoki_dark`
+- `flexoki_light`
 
 Set `@flavors-tmux_transparent` to `1` to use your terminal background.
 

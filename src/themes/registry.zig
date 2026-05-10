@@ -15,6 +15,10 @@ const solarized_dark_mod = @import("solarized_dark.zig");
 const solarized_light_mod = @import("solarized_light.zig");
 const monokai_mod = @import("monokai.zig");
 const github_light_mod = @import("github_light.zig");
+const ayu_dark_mod = @import("ayu_dark.zig");
+const ayu_light_mod = @import("ayu_light.zig");
+const flexoki_dark_mod = @import("flexoki_dark.zig");
+const flexoki_light_mod = @import("flexoki_light.zig");
 
 pub const hard = hard_mod.theme;
 pub const medium = medium_mod.theme;
@@ -30,6 +34,10 @@ pub const solarized_dark = solarized_dark_mod.theme;
 pub const solarized_light = solarized_light_mod.theme;
 pub const monokai = monokai_mod.theme;
 pub const github_light = github_light_mod.theme;
+pub const ayu_dark = ayu_dark_mod.theme;
+pub const ayu_light = ayu_light_mod.theme;
+pub const flexoki_dark = flexoki_dark_mod.theme;
+pub const flexoki_light = flexoki_light_mod.theme;
 
 pub fn byName(name: []const u8) ?Theme {
     if (std.mem.eql(u8, name, "hard")) return hard;
@@ -46,6 +54,10 @@ pub fn byName(name: []const u8) ?Theme {
     if (std.mem.eql(u8, name, "solarized_light")) return solarized_light;
     if (std.mem.eql(u8, name, "monokai")) return monokai;
     if (std.mem.eql(u8, name, "github_light")) return github_light;
+    if (std.mem.eql(u8, name, "ayu_dark")) return ayu_dark;
+    if (std.mem.eql(u8, name, "ayu_light")) return ayu_light;
+    if (std.mem.eql(u8, name, "flexoki_dark")) return flexoki_dark;
+    if (std.mem.eql(u8, name, "flexoki_light")) return flexoki_light;
     return null;
 }
 
@@ -53,7 +65,8 @@ pub const names = [_][]const u8{
     "hard",       "medium",    "soft",     "light",
     "tokyonight", "catppuccin", "dracula", "nord", "github_dark",
     "onedark",    "solarized_dark", "solarized_light",
-    "monokai",    "github_light",
+    "monokai",    "github_light", "ayu_dark", "ayu_light",
+    "flexoki_dark", "flexoki_light",
 };
 
 test "byName returns correct themes" {

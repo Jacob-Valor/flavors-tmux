@@ -20,7 +20,7 @@ source "$SCRIPTS_PATH/themes.sh" || {
 }
 
 # Validate theme name
-VALID_THEMES=("hard" "medium" "soft" "light" "tokyonight" "catppuccin" "dracula" "nord" "github_dark" "onedark" "solarized_dark" "solarized_light" "monokai" "github_light")
+VALID_THEMES=("hard" "medium" "soft" "light" "tokyonight" "catppuccin" "dracula" "nord" "github_dark" "onedark" "solarized_dark" "solarized_light" "monokai" "github_light" "ayu_dark" "ayu_light" "flexoki_dark" "flexoki_light")
 if [[ ! " ${VALID_THEMES[*]} " =~ " ${SELECTED_THEME} " ]]; then
     echo "flavors-tmux: unknown theme '${SELECTED_THEME}', using 'hard'. Available: ${VALID_THEMES[*]}" >&2
     SELECTED_THEME="hard"
