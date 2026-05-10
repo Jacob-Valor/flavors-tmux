@@ -98,7 +98,7 @@ if [[ $BUG_COUNT -gt 0 ]]; then
   BUG_STATUS="#[fg=${THEME[danger]},bg=${THEME[background]},bold] ${RESET}${BUG_COUNT} "
 fi
 
-WB_STATUS="#[fg=${THEME[surface_alt]},bg=${THEME[background]},bold] $RESET$PROVIDER_ICON $RESET$PR_STATUS$REVIEW_STATUS$ISSUE_STATUS$BUG_STATUS"
+WB_STATUS="#[fg=${THEME[muted]},bg=${THEME[background]},bold] $RESET$PROVIDER_ICON $RESET$PR_STATUS$REVIEW_STATUS$ISSUE_STATUS$BUG_STATUS"
 
 echo "$WB_STATUS"
 

@@ -173,7 +173,7 @@ pub fn run(
 
     if (untracked > 0) {
         const seg = try std.fmt.allocPrint(allocator, " {s}#[fg={s},bg={s},bold] {d}", .{
-            reset, theme.surface_alt, theme.background, untracked,
+            reset, theme.muted, theme.background, untracked,
         });
         defer allocator.free(seg);
         try segments.appendSlice(allocator, seg);

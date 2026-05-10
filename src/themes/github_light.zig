@@ -20,6 +20,6 @@ pub const theme = Theme{
     .emphasis = "#1f2328",
     .muted = "#656d76",
     .forge_github = "#1f2328",
-    .forge_gitlab = "#fc6d26",
-    .forge_codeberg = "#fc6d26",
+    .forge_gitlab = "#C84A0E",
+    .forge_codeberg = "#C84A0E",
 };

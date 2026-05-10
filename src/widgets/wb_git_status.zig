@@ -261,7 +261,7 @@ fn renderUncached(
 
     // Header:  + provider icon
     try result.appendSlice(allocator, "#[fg=");
-    try result.appendSlice(allocator, theme.surface_alt);
+    try result.appendSlice(allocator, theme.muted);
     try result.appendSlice(allocator, ",bg=");
     try result.appendSlice(allocator, theme.background);
     try result.appendSlice(allocator, ",bold] ");

@@ -49,7 +49,7 @@ if [[ $DELETIONS_COUNT -gt 0 ]]; then
 fi
 
 if [[ $UNTRACKED_COUNT -gt 0 ]]; then
-  STATUS_UNTRACKED=" ${RESET}#[fg=${THEME[surface_alt]},bg=${THEME[background]},bold] ${UNTRACKED_COUNT}"
+  STATUS_UNTRACKED=" ${RESET}#[fg=${THEME[muted]},bg=${THEME[background]},bold] ${UNTRACKED_COUNT}"
 fi
 
 # Determine repository sync status

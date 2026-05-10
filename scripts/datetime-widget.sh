@@ -31,4 +31,4 @@ esac
 
 separator="▒"
 
-echo "$RESET#[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$separator 󰥔 $time_string"
+echo "${RESET}#[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$separator #[fg=${THEME[emphasis]}]󰥔 $time_string"

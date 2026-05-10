@@ -25,10 +25,11 @@ pub fn run(theme_name: []const u8, time_format: []const u8, io: std.Io, writer: 
         }
     }
 
-    try writer.print("#[fg={s},bg={s}]{s} {s} {s}", .{
+    try writer.print("#[fg={s},bg={s}]{s} #[fg={s}]{s} {s}", .{
         theme.accent,
         theme.surface_alt,
         separator,
+        theme.emphasis,
         time_icon,
         time_str,
     });
