@@ -7,6 +7,8 @@ pub const Theme = struct {
     surface_alt: []const u8,
     primary: []const u8,
     primary_bright: []const u8,
+    on_primary: []const u8,
+    on_primary_bright: []const u8,
     success: []const u8,
     success_bright: []const u8,
     danger: []const u8,
@@ -39,6 +41,8 @@ pub const Theme = struct {
         if (std.mem.eql(u8, key, "surface_alt")) return self.surface_alt;
         if (std.mem.eql(u8, key, "primary")) return self.primary;
         if (std.mem.eql(u8, key, "primary_bright")) return self.primary_bright;
+        if (std.mem.eql(u8, key, "on_primary")) return self.on_primary;
+        if (std.mem.eql(u8, key, "on_primary_bright")) return self.on_primary_bright;
         if (std.mem.eql(u8, key, "success")) return self.success;
         if (std.mem.eql(u8, key, "success_bright")) return self.success_bright;
         if (std.mem.eql(u8, key, "danger")) return self.danger;

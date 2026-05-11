@@ -132,7 +132,7 @@ tmux set -g status-right-length 150
 
 tmux set -g mode-style "fg=${THEME[background]},bg=${THEME[foreground]},reverse"
 
-tmux set -g message-style "bg=${THEME[primary_bright]},fg=${THEME[background]},bold"
+tmux set -g message-style "bg=${THEME[primary_bright]},fg=${THEME[on_primary_bright]},bold"
 tmux set -g message-command-style "fg=${THEME[emphasis]},bg=${THEME[surface_alt]},bold"
 
 tmux set -g pane-border-style "fg=${THEME[surface]}"
@@ -150,7 +150,7 @@ date_and_time="$(datetime_cmd)"
 battery_status="$(battery_cmd)"
 
 tmux set -g status-left "\
-#[fg=#000000,bg=${THEME[primary]},bold]\
+#[fg=${THEME[on_primary]},bg=${THEME[primary]},bold]\
 #{?client_prefix,󰠠 ,󰤂 }\
 #[bold,nodim]#S"
 
