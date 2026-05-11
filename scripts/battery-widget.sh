@@ -91,13 +91,18 @@ if ! [[ $BATTERY_PERCENTAGE =~ ^[0-9]+$ ]]; then
   BATTERY_PERCENTAGE=0
 fi
 
+BATTERY_ICON_INDEX=$((BATTERY_PERCENTAGE / 10))
+if [[ $BATTERY_ICON_INDEX -gt 9 ]]; then
+  BATTERY_ICON_INDEX=9
+fi
+
 # Determine icon and color based on battery status and percentage
 case "$BATTERY_STATUS" in
 "Charging" | "Charged" | "charging" | "Charged")
-  ICON="${CHARGING_ICONS[$((BATTERY_PERCENTAGE / 10))]}"
+  ICON="${CHARGING_ICONS[$BATTERY_ICON_INDEX]}"
   ;;
 "Discharging" | "discharging")
-  ICON="${DISCHARGING_ICONS[$((BATTERY_PERCENTAGE / 10))]}"
+  ICON="${DISCHARGING_ICONS[$BATTERY_ICON_INDEX]}"
   ;;
 "Full" | "charged" | "full" | "AC")
   ICON="$NOT_CHARGING_ICON"

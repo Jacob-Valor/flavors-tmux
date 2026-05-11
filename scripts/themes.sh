@@ -362,7 +362,7 @@ load_theme() {
             THEMES[ayu_dark_background]="#0D1017"
             THEMES[ayu_dark_foreground]="#BFBDB6"
             THEMES[ayu_dark_surface]="#141821"
-            THEMES[ayu_dark_surface_alt]="#10141C"
+            THEMES[ayu_dark_surface_alt]="#0D1017"
             THEMES[ayu_dark_primary]="#E6B450"
             THEMES[ayu_dark_primary_bright]="#FFB454"
             THEMES[ayu_dark_success]="#70BF56"
@@ -385,7 +385,7 @@ load_theme() {
             THEMES[ayu_light_background]="#F8F9FA"
             THEMES[ayu_light_foreground]="#5C6166"
             THEMES[ayu_light_surface]="#FFFFFF"
-            THEMES[ayu_light_surface_alt]="#FCFCFC"
+            THEMES[ayu_light_surface_alt]="#F8F9FA"
             THEMES[ayu_light_primary]="#8A5500"
             THEMES[ayu_light_primary_bright]="#EBA400"
             THEMES[ayu_light_success]="#3B7A1A"
@@ -399,7 +399,7 @@ load_theme() {
             THEMES[ayu_light_accent]="#A37ACC"
             THEMES[ayu_light_accent_bright]="#7850A0"
             THEMES[ayu_light_emphasis]="#24292E"
-            THEMES[ayu_light_muted]="#787B80"
+            THEMES[ayu_light_muted]="#6A6F74"
             THEMES[ayu_light_forge_github]="#5C6166"
             THEMES[ayu_light_forge_gitlab]="#B83E00"
             THEMES[ayu_light_forge_codeberg]="#B83E00"
@@ -483,6 +483,7 @@ done
 
 if [[ "${TRANSPARENT_THEME}" == "1" ]]; then
     THEME["background"]="default"
+    THEME["surface_alt"]="default"
 fi
 
 # ---------------------------------------------------------------------------

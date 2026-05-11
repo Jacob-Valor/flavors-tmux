@@ -25,7 +25,7 @@ fn countChangedFiles(allocator: std.mem.Allocator, io: std.Io, repo_path: []cons
 }
 
 fn getDiffStats(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !struct { changed: usize, insertions: usize, deletions: usize } {
-    const stdout = runGitCommand(allocator, io, &.{ "git", "diff", "--numstat" }, repo_path) catch return .{ .changed = 0, .insertions = 0, .deletions = 0 };
+    const stdout = runGitCommand(allocator, io, &.{ "git", "diff", "--numstat", "HEAD" }, repo_path) catch return .{ .changed = 0, .insertions = 0, .deletions = 0 };
     defer allocator.free(stdout);
 
     var changed: usize = 0;
@@ -62,39 +62,28 @@ fn countUntracked(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u
 }
 
 fn checkNeedPush(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !bool {
-    const stdout = runGitCommand(allocator, io, &.{ "git", "log", "@{push}.." }, repo_path) catch return false;
+    const stdout = runGitCommand(allocator, io, &.{ "git", "rev-list", "--count", "@{push}..HEAD" }, repo_path) catch return false;
     defer allocator.free(stdout);
-    return stdout.len > 0;
+    const count = std.fmt.parseInt(usize, std.mem.trim(u8, stdout, " \n\r\t"), 10) catch 0;
+    return count > 0;
 }
 
-fn checkNeedPull(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8, branch: []const u8) !bool {
-    // Check if origin/branch exists and differs
-    const remote_branch = try std.fmt.allocPrint(allocator, "origin/{s}", .{branch});
-    defer allocator.free(remote_branch);
-
-    const merge_base = runGitCommand(allocator, io, &.{ "git", "merge-base", branch, remote_branch }, repo_path) catch return false;
-    defer allocator.free(merge_base);
-
-    const local_head = runGitCommand(allocator, io, &.{ "git", "rev-parse", branch }, repo_path) catch return false;
-    defer allocator.free(local_head);
-
-    const remote_head = runGitCommand(allocator, io, &.{ "git", "rev-parse", remote_branch }, repo_path) catch return false;
-    defer allocator.free(remote_head);
-
-    const local_trim = std.mem.trim(u8, local_head, " \n\r\t");
-    const remote_trim = std.mem.trim(u8, remote_head, " \n\r\t");
-
-    return !std.mem.eql(u8, local_trim, remote_trim);
+fn checkNeedPull(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !bool {
+    const stdout = runGitCommand(allocator, io, &.{ "git", "rev-list", "--count", "HEAD..@{upstream}" }, repo_path) catch return false;
+    defer allocator.free(stdout);
+    const count = std.fmt.parseInt(usize, std.mem.trim(u8, stdout, " \n\r\t"), 10) catch 0;
+    return count > 0;
 }
 
 pub fn run(
     allocator: std.mem.Allocator,
     io: std.Io,
     theme_name: []const u8,
+    transparent: bool,
     repo_path: []const u8,
     writer: *std.Io.Writer,
 ) !void {
-    const theme = themes.byName(theme_name) orelse themes.hard;
+    const theme = (themes.byName(theme_name) orelse themes.hard).withTransparentBackground(transparent);
 
     // Get branch name
     const branch_raw = runGitCommand(allocator, io, &.{ "git", "rev-parse", "--abbrev-ref", "HEAD" }, repo_path) catch {
@@ -128,7 +117,7 @@ pub fn run(
         if (need_push) {
             sync_mode = 2;
         } else {
-            const need_pull = try checkNeedPull(allocator, io, repo_path, branch);
+            const need_pull = try checkNeedPull(allocator, io, repo_path);
             if (need_pull) {
                 sync_mode = 3;
             }

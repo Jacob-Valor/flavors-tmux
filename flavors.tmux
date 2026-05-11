@@ -38,11 +38,15 @@ active_terminal_icon="$(tmux show-option -gv @flavors-tmux_active_terminal_icon 
 
 time_format="$(tmux show-option -gv @flavors-tmux_time_format 2>/dev/null || echo "")"
 show_time="$(tmux show-option -gv @flavors-tmux_show_time 2>/dev/null || echo "1")"
+show_git="$(tmux show-option -gv @flavors-tmux_show_git 2>/dev/null || echo "1")"
+show_wbg="$(tmux show-option -gv @flavors-tmux_show_wbg 2>/dev/null || echo "1")"
 
 battery_name="$(tmux show-option -gv @flavors-tmux_battery_name 2>/dev/null || echo "")"
 battery_low="$(tmux show-option -gv @flavors-tmux_battery_low_threshold 2>/dev/null || echo "20")"
 show_battery_widget="$(tmux show-option -gv @flavors-tmux_show_battery_widget 2>/dev/null || echo "0")"
 forge_cache_ttl="$(tmux show-option -gv @flavors-tmux_forge_cache_ttl 2>/dev/null || echo "300")"
+transparent_arg=""
+[[ "$TRANSPARENT_THEME" == "1" ]] && transparent_arg="--transparent"
 
 custom_number_format() {
     local id="$1"
@@ -94,14 +98,16 @@ if [[ -x "$BINARY_PATH" ]]; then
         if [[ -x "$SCRIPTS_PATH/battery-fast.sh" && "$(uname -s)" == "Linux" ]]; then
             echo "#($SCRIPTS_PATH/battery-fast.sh ${battery_name:-BAT0} ${battery_low:-20} '${THEME[danger]}' '${THEME[success]}' '${THEME[warning]}')"
         else
-            echo "#($BINARY_PATH battery --theme $SELECTED_THEME $name_arg --low-threshold ${battery_low:-20})"
+            echo "#($BINARY_PATH battery --theme $SELECTED_THEME $transparent_arg $name_arg --low-threshold ${battery_low:-20})"
         fi
     }
     git_status_cmd() {
-        echo "#($BINARY_PATH git-status --theme $SELECTED_THEME #{q:pane_current_path})"
+        [[ "$show_git" == "1" ]] || return
+        echo "#($BINARY_PATH git-status --theme $SELECTED_THEME $transparent_arg #{q:pane_current_path})"
     }
     wb_git_status_cmd() {
-        echo "#($BINARY_PATH wb-git-status --theme $SELECTED_THEME --cache-ttl ${forge_cache_ttl:-300} #{q:pane_current_path})"
+        [[ "$show_wbg" == "1" ]] || return
+        echo "#($BINARY_PATH wb-git-status --theme $SELECTED_THEME $transparent_arg --cache-ttl ${forge_cache_ttl:-300} #{q:pane_current_path})"
     }
 else
     custom_number_cmd() {

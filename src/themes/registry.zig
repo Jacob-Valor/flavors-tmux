@@ -65,11 +65,11 @@ pub fn byName(name: []const u8) ?Theme {
 }
 
 pub const names = [_][]const u8{
-    "hard",       "medium",    "soft",     "light",
-    "tokyonight", "catppuccin", "dracula", "nord", "github_dark",
-    "onedark",    "solarized_dark", "solarized_light",
-    "monokai",    "monokai_nebula", "github_light", "ayu_dark", "ayu_light",
-    "flexoki_dark", "flexoki_light",
+    "hard",        "medium",         "soft",           "light",
+    "tokyonight",  "catppuccin",     "dracula",        "nord",
+    "github_dark", "onedark",        "solarized_dark", "solarized_light",
+    "monokai",     "monokai_nebula", "github_light",   "ayu_dark",
+    "ayu_light",   "flexoki_dark",   "flexoki_light",
 };
 
 test "byName returns correct themes" {

@@ -9,11 +9,11 @@ and time.
 It started from a Gruvbox-inspired style and now includes several familiar
 flavors: Gruvbox Hard, Medium, Soft, Light, Tokyo Night, Catppuccin, Dracula,
 Nord, GitHub Dark, One Dark, Solarized Dark, Solarized Light, Monokai,
-GitHub Light, Ayu Dark, Ayu Light, Flexoki Dark, and Flexoki Light.
+Monokai Nebula, GitHub Light, Ayu Dark, Ayu Light, Flexoki Dark, and Flexoki Light.
 
 ## Features
 
-- Eighteen built-in color flavors
+- Nineteen built-in color flavors
 - Optional transparent status bar background
 - Git branch, change, insert, delete, untracked, push, and pull indicators
 - Optional GitHub/GitLab widget for pull requests, reviews, issues, and bugs
@@ -33,8 +33,8 @@ Required:
 Recommended for full widget support:
 
 - `git`
-- `bc` for Git counters
-- `jq` plus either `gh` or `glab` for GitHub/GitLab status widgets
+- `gh`, `glab`, or `curl` for forge status widgets
+- `jq` for forge status widgets when using the Bash fallback
 
 Optional:
 
@@ -101,6 +101,7 @@ Available themes:
 - `solarized_dark`
 - `solarized_light`
 - `monokai`
+- `monokai_nebula`
 - `github_light`
 - `ayu_dark`
 - `ayu_light`

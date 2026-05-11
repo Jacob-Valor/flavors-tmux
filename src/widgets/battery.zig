@@ -3,10 +3,28 @@ const builtin = @import("builtin");
 const themes = @import("../themes/registry.zig");
 
 const discharging_icons = [_][]const u8{
-    "󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹",
+    "󰁺",
+    "󰁻",
+    "󰁼",
+    "󰁽",
+    "󰁾",
+    "󰁿",
+    "󰂀",
+    "󰂁",
+    "󰂂",
+    "󰁹",
 };
 const charging_icons = [_][]const u8{
-    "󰢜", "󰂆", "󰂇", "󰂈", "󰢝", "󰂉", "󰢞", "󰂊", "󰂋", "󰂅",
+    "󰢜",
+    "󰂆",
+    "󰂇",
+    "󰂈",
+    "󰢝",
+    "󰂉",
+    "󰢞",
+    "󰂊",
+    "󰂋",
+    "󰂅",
 };
 const not_charging_icon = "󰚥";
 const no_battery_icon = "󱉝";
@@ -98,11 +116,12 @@ pub fn run(
     allocator: std.mem.Allocator,
     io: std.Io,
     theme_name: []const u8,
+    transparent: bool,
     battery_name: ?[]const u8,
     low_threshold: u8,
     writer: *std.Io.Writer,
 ) !void {
-    const theme = themes.byName(theme_name) orelse themes.hard;
+    const theme = (themes.byName(theme_name) orelse themes.hard).withTransparentBackground(transparent);
 
     const default_name = if (builtin.os.tag == .macos) "InternalBattery-0" else "BAT0";
     const name = battery_name orelse default_name;

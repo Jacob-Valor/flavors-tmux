@@ -23,6 +23,15 @@ pub const Theme = struct {
     forge_gitlab: []const u8,
     forge_codeberg: []const u8,
 
+    pub fn withTransparentBackground(self: Theme, enabled: bool) Theme {
+        var theme = self;
+        if (enabled) {
+            theme.background = "default";
+            theme.surface_alt = "default";
+        }
+        return theme;
+    }
+
     pub fn lookup(self: Theme, key: []const u8) ?[]const u8 {
         if (std.mem.eql(u8, key, "background")) return self.background;
         if (std.mem.eql(u8, key, "foreground")) return self.foreground;

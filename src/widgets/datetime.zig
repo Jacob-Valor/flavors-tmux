@@ -1,8 +1,8 @@
 const std = @import("std");
 const themes = @import("../themes/registry.zig");
 
-pub fn run(theme_name: []const u8, time_format: []const u8, io: std.Io, writer: *std.Io.Writer) !void {
-    const theme = themes.byName(theme_name) orelse themes.hard;
+pub fn run(theme_name: []const u8, time_format: []const u8, transparent: bool, io: std.Io, writer: *std.Io.Writer) !void {
+    const theme = (themes.byName(theme_name) orelse themes.hard).withTransparentBackground(transparent);
 
     const separator = "▒";
     const time_icon = "󰥔";

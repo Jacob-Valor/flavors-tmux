@@ -27,6 +27,7 @@ const usage =
     \\  --name <battery-name>               Battery name (battery)
     \\  --low-threshold <n>                 Low battery threshold (battery, default: 20)
     \\  --cache-ttl <seconds>               Forge widget cache TTL (default: 300)
+    \\  --transparent                       Use default terminal background
     \\
     \\Styles for custom-number:
     \\  arabic, fsquare, hsquare, dsquare, super, sub, earabic, hide
@@ -52,21 +53,21 @@ fn run(init: std.process.Init) !void {
     if (std.mem.eql(u8, args.command, "custom-number")) {
         try custom_number.run(arena, args.positional.items, stdout_writer);
     } else if (std.mem.eql(u8, args.command, "datetime")) {
-        try datetime.run(args.theme, args.time_format, io, stdout_writer);
+        try datetime.run(args.theme, args.time_format, args.transparent, io, stdout_writer);
     } else if (std.mem.eql(u8, args.command, "battery")) {
-        try battery.run(arena, io, args.theme, args.battery_name, args.low_threshold, stdout_writer);
+        try battery.run(arena, io, args.theme, args.transparent, args.battery_name, args.low_threshold, stdout_writer);
     } else if (std.mem.eql(u8, args.command, "git-status")) {
         if (args.positional.items.len < 1) {
             std.debug.print("Usage: flavors-tmux git-status --theme <name> <repo-path>\n", .{});
             return error.Usage;
         }
-        try git_status.run(arena, io, args.theme, args.positional.items[0], stdout_writer);
+        try git_status.run(arena, io, args.theme, args.transparent, args.positional.items[0], stdout_writer);
     } else if (std.mem.eql(u8, args.command, "wb-git-status")) {
         if (args.positional.items.len < 1) {
             std.debug.print("Usage: flavors-tmux wb-git-status --theme <name> <repo-path>\n", .{});
             return error.Usage;
         }
-        try wb_git_status.run(arena, io, init.environ_map, args.theme, args.positional.items[0], args.cache_ttl, stdout_writer);
+        try wb_git_status.run(arena, io, init.environ_map, args.theme, args.transparent, args.positional.items[0], args.cache_ttl, stdout_writer);
     } else if (std.mem.eql(u8, args.command, "theme")) {
         if (args.positional.items.len < 2) {
             std.debug.print("Usage: flavors-tmux theme <name> <key>\n", .{});

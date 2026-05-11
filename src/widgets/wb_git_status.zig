@@ -38,11 +38,14 @@ fn cachePath(
     allocator: std.mem.Allocator,
     environ_map: *std.process.Environ.Map,
     theme_name: []const u8,
+    transparent: bool,
     repo_path: []const u8,
     remote_url: []const u8,
 ) ![]u8 {
     var hasher = std.hash.Wyhash.init(0);
     hasher.update(theme_name);
+    hasher.update("\x00");
+    hasher.update(if (transparent) "1" else "0");
     hasher.update("\x00");
     hasher.update(repo_path);
     hasher.update("\x00");
@@ -92,6 +95,35 @@ fn runGhCommand(allocator: std.mem.Allocator, io: std.Io, argv: []const []const 
     }
 
     return result.stdout;
+}
+
+fn commandWorks(allocator: std.mem.Allocator, io: std.Io, argv: []const []const u8) bool {
+    const result = std.process.run(allocator, io, .{ .argv = argv }) catch return false;
+    defer allocator.free(result.stdout);
+    defer allocator.free(result.stderr);
+    return result.term == .exited and result.term.exited == 0;
+}
+
+fn getCodebergToken(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.Environ.Map) !?[]u8 {
+    if (environ_map.get("FLAVORS_TMUX_CODEBERG_TOKEN")) |token| {
+        const trimmed = std.mem.trim(u8, token, " \n\r\t");
+        if (trimmed.len > 0) return try allocator.dupe(u8, trimmed);
+    }
+    if (environ_map.get("CODEBERG_TOKEN")) |token| {
+        const trimmed = std.mem.trim(u8, token, " \n\r\t");
+        if (trimmed.len > 0) return try allocator.dupe(u8, trimmed);
+    }
+
+    const result = std.process.run(allocator, io, .{
+        .argv = &.{ "tmux", "show-option", "-gv", "@flavors-tmux_codeberg_token" },
+    }) catch return null;
+    defer allocator.free(result.stdout);
+    defer allocator.free(result.stderr);
+
+    if (result.term != .exited or result.term.exited != 0) return null;
+    const trimmed = std.mem.trim(u8, result.stdout, " \n\r\t");
+    if (trimmed.len == 0) return null;
+    return try allocator.dupe(u8, trimmed);
 }
 
 fn parseCodebergOwnerRepo(allocator: std.mem.Allocator, remote_url: []const u8) !?[]const u8 {
@@ -159,10 +191,12 @@ fn renderUncached(
     allocator: std.mem.Allocator,
     io: std.Io,
     theme_name: []const u8,
+    transparent: bool,
     repo_path: []const u8,
     provider_str: []const u8,
+    environ_map: *std.process.Environ.Map,
 ) ![]u8 {
-    const theme = themes.byName(theme_name) orelse themes.hard;
+    const theme = (themes.byName(theme_name) orelse themes.hard).withTransparentBackground(transparent);
 
     // Get branch name
     const branch_raw = runGitCommand(allocator, io, &.{ "git", "rev-parse", "--abbrev-ref", "HEAD" }, repo_path) catch {
@@ -181,6 +215,7 @@ fn renderUncached(
     var provider_icon: []const u8 = "";
 
     if (std.mem.eql(u8, provider_str, "github.com")) {
+        if (!commandWorks(allocator, io, &.{ "gh", "--version" })) return try allocator.dupe(u8, "");
         provider_icon = " ";
 
         // PR count: gh pr list --json number --jq 'length'
@@ -203,6 +238,7 @@ fn renderUncached(
         bug_count = bugs;
         issue_count = total_issues - bugs;
     } else if (std.mem.eql(u8, provider_str, "gitlab.com")) {
+        if (!commandWorks(allocator, io, &.{ "glab", "--version" })) return try allocator.dupe(u8, "");
         provider_icon = " ";
 
         // glab mr list
@@ -220,6 +256,12 @@ fn renderUncached(
         defer if (issue_text.len > 0) allocator.free(issue_text);
         issue_count = countLinesMatching(issue_text, "#");
     } else if (std.mem.eql(u8, provider_str, "codeberg.org")) {
+        if (!commandWorks(allocator, io, &.{ "curl", "--version" })) return try allocator.dupe(u8, "");
+
+        const token = try getCodebergToken(allocator, io, environ_map);
+        defer if (token) |t| allocator.free(t);
+        if (token == null) return try allocator.dupe(u8, "");
+
         provider_icon = " ";
 
         // Get remote URL to parse owner/repo
@@ -232,18 +274,20 @@ fn renderUncached(
         if (owner_repo == null) return try allocator.dupe(u8, "");
 
         const api_base = "https://codeberg.org/api/v1";
+        const auth_header = try std.fmt.allocPrint(allocator, "Authorization: token {s}", .{token.?});
+        defer allocator.free(auth_header);
 
         // PR count
         const pr_url = try std.fmt.allocPrint(allocator, "{s}/repos/{s}/pulls?state=open&limit=100", .{ api_base, owner_repo.? });
         defer allocator.free(pr_url);
-        const pr_json = runGhCommand(allocator, io, &.{ "curl", "-s", "-L", pr_url }, repo_path) catch "";
+        const pr_json = runGhCommand(allocator, io, &.{ "curl", "-sS", "--fail", "--max-time", "5", "-H", auth_header, "-L", pr_url }, repo_path) catch "";
         defer if (pr_json.len > 0) allocator.free(pr_json);
         pr_count = countJsonArrayItems(allocator, pr_json) catch 0;
 
         // Issue count (excludes PRs in Gitea API when using /issues endpoint)
         const issue_url = try std.fmt.allocPrint(allocator, "{s}/repos/{s}/issues?state=open&limit=100", .{ api_base, owner_repo.? });
         defer allocator.free(issue_url);
-        const issue_json = runGhCommand(allocator, io, &.{ "curl", "-s", "-L", issue_url }, repo_path) catch "";
+        const issue_json = runGhCommand(allocator, io, &.{ "curl", "-sS", "--fail", "--max-time", "5", "-H", auth_header, "-L", issue_url }, repo_path) catch "";
         defer if (issue_json.len > 0) allocator.free(issue_json);
         issue_count = countJsonArrayItems(allocator, issue_json) catch 0;
     } else {
@@ -320,6 +364,7 @@ pub fn run(
     io: std.Io,
     environ_map: *std.process.Environ.Map,
     theme_name: []const u8,
+    transparent: bool,
     repo_path: []const u8,
     cache_ttl: u64,
     writer: *std.Io.Writer,
@@ -332,7 +377,7 @@ pub fn run(
     defer if (provider) |p| allocator.free(p);
     if (provider == null) return;
 
-    const path = try cachePath(allocator, environ_map, theme_name, repo_path, remote_url.?);
+    const path = try cachePath(allocator, environ_map, theme_name, transparent, repo_path, remote_url.?);
     defer allocator.free(path);
 
     const cached = try readFreshCache(allocator, io, path, cache_ttl);
@@ -342,9 +387,9 @@ pub fn run(
         return;
     }
 
-    const output = try renderUncached(allocator, io, theme_name, repo_path, provider.?);
+    const output = try renderUncached(allocator, io, theme_name, transparent, repo_path, provider.?, environ_map);
     defer allocator.free(output);
 
-    writeCache(io, path, output);
+    if (output.len > 0) writeCache(io, path, output);
     try writer.print("{s}", .{output});
 }
