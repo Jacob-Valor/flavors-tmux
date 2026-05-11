@@ -13,11 +13,13 @@ Monokai Nebula, GitHub Light, Ayu Dark, Ayu Light, Flexoki Dark, and Flexoki Lig
 
 ## Features
 
-- Nineteen built-in color flavors
+- Nineteen built-in color flavors plus user-defined custom themes via JSON
 - Optional transparent status bar background
-- Git branch, change, insert, delete, untracked, push, and pull indicators
+- Git branch, change, insert, delete, untracked, stash, conflict, ahead/behind, push, and pull indicators
 - Optional GitHub/GitLab widget for pull requests, reviews, issues, and bugs
 - Optional battery widget with charging/discharging icons
+- Optional hostname/SSH indicator widget
+- Optional CPU and memory usage widget with color-coded thresholds
 - Configurable 12-hour, 24-hour, or hidden time widget
 - Custom window, pane, and zoom number styles
 - Custom terminal and active-terminal icons
@@ -110,6 +112,46 @@ Available themes:
 
 Set `@flavors-tmux_transparent` to `1` to use your terminal background.
 
+### Custom themes
+
+Create a JSON file at `~/.config/flavors-tmux/themes/<name>.json` to define your own palette:
+
+```json
+{
+  "background": "#0d1117",
+  "foreground": "#c9d1d9",
+  "surface": "#161b22",
+  "surface_alt": "#0d1117",
+  "primary": "#58a6ff",
+  "primary_bright": "#79b8ff",
+  "on_primary": "#000000",
+  "on_primary_bright": "#000000",
+  "success": "#3fb950",
+  "success_bright": "#56d364",
+  "danger": "#f85149",
+  "danger_bright": "#ff7b72",
+  "warning": "#d29922",
+  "warning_bright": "#e3b341",
+  "info": "#58a6ff",
+  "info_bright": "#79b8ff",
+  "accent": "#a371f7",
+  "accent_bright": "#bc8cff",
+  "emphasis": "#e6edf3",
+  "muted": "#8b949e",
+  "forge_github": "#ffffff",
+  "forge_gitlab": "#fc6d26",
+  "forge_codeberg": "#fc6d26"
+}
+```
+
+Then reference it by name:
+
+```tmux
+set -g @flavors-tmux_theme "mytheme"
+```
+
+Custom themes take precedence over built-in themes. All fields are optional — missing keys fall back to sensible defaults. If `jq` is available, Bash fallback scripts can also load custom themes.
+
 ### Icons
 
 ```tmux
@@ -173,6 +215,18 @@ Disable it:
 set -g @flavors-tmux_show_git 0
 ```
 
+Indicators shown:
+
+- Branch name (truncated to 25 chars)
+- Changed file count ``
+- Insertion count ``
+- Deletion count ``
+- Untracked file count ``
+- Stash count ``
+- Merge conflict count `󰅘`
+- Ahead/behind upstream counts `↑` / `↓`
+- Sync status icon: synced ``, changed `󱓎`, need-push `󰛃`, need-pull `󰛀`
+
 ### GitHub / GitLab / Codeberg
 
 The forge widget is enabled by default when the current repository uses GitHub,
@@ -197,6 +251,33 @@ set -g @flavors-tmux_codeberg_token "your-token-here"
 ```
 
 Generate a token at: https://codeberg.org/user/settings/applications
+
+### Hostname / SSH
+
+The hostname widget is disabled by default. It shows your system hostname, changing color and icon when connected via SSH.
+
+```tmux
+set -g @flavors-tmux_show_hostname 1
+```
+
+- Local session: `󰌽 hostname` in muted color
+- SSH session: `󰣀 hostname` in warning color
+
+### CPU and Memory
+
+The CPU and memory widget is disabled by default. It shows live CPU and memory usage percentages with color-coded thresholds.
+
+```tmux
+set -g @flavors-tmux_show_cpu_memory 1
+```
+
+Color thresholds:
+
+- **Green** (`success`) — below 50%
+- **Yellow** (`warning`) — 50% to 79%
+- **Red** (`danger`) — 80% and above
+
+Works on Linux (`/proc/stat`, `/proc/meminfo`) and macOS (`top`, `vm_stat`).
 
 ### Battery
 

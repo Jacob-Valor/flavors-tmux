@@ -61,29 +61,53 @@ fn countUntracked(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u
     return count;
 }
 
-fn checkNeedPush(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !bool {
-    const stdout = runGitCommand(allocator, io, &.{ "git", "rev-list", "--count", "@{push}..HEAD" }, repo_path) catch return false;
+fn countStashes(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !usize {
+    const stdout = runGitCommand(allocator, io, &.{ "git", "stash", "list" }, repo_path) catch return 0;
     defer allocator.free(stdout);
-    const count = std.fmt.parseInt(usize, std.mem.trim(u8, stdout, " \n\r\t"), 10) catch 0;
-    return count > 0;
+
+    var count: usize = 0;
+    var lines = std.mem.splitScalar(u8, stdout, '\n');
+    while (lines.next()) |line| {
+        if (line.len > 0) count += 1;
+    }
+    return count;
 }
 
-fn checkNeedPull(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !bool {
-    const stdout = runGitCommand(allocator, io, &.{ "git", "rev-list", "--count", "HEAD..@{upstream}" }, repo_path) catch return false;
+fn countConflicts(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !usize {
+    const stdout = runGitCommand(allocator, io, &.{ "git", "diff", "--name-only", "--diff-filter=U" }, repo_path) catch return 0;
     defer allocator.free(stdout);
-    const count = std.fmt.parseInt(usize, std.mem.trim(u8, stdout, " \n\r\t"), 10) catch 0;
-    return count > 0;
+
+    var count: usize = 0;
+    var lines = std.mem.splitScalar(u8, stdout, '\n');
+    while (lines.next()) |line| {
+        if (line.len > 0) count += 1;
+    }
+    return count;
+}
+
+fn getAheadBehind(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !struct { ahead: usize, behind: usize } {
+    const stdout = runGitCommand(allocator, io, &.{ "git", "rev-list", "--left-right", "--count", "HEAD...@{upstream}" }, repo_path) catch return .{ .ahead = 0, .behind = 0 };
+    defer allocator.free(stdout);
+
+    var it = std.mem.splitScalar(u8, std.mem.trim(u8, stdout, " \n\r\t"), '\t');
+    const ahead_str = it.next() orelse return .{ .ahead = 0, .behind = 0 };
+    const behind_str = it.next() orelse return .{ .ahead = 0, .behind = 0 };
+
+    const ahead = std.fmt.parseInt(usize, ahead_str, 10) catch 0;
+    const behind = std.fmt.parseInt(usize, behind_str, 10) catch 0;
+    return .{ .ahead = ahead, .behind = behind };
 }
 
 pub fn run(
     allocator: std.mem.Allocator,
     io: std.Io,
+    environ_map: *std.process.Environ.Map,
     theme_name: []const u8,
     transparent: bool,
     repo_path: []const u8,
     writer: *std.Io.Writer,
 ) !void {
-    const theme = (themes.byName(theme_name) orelse themes.hard).withTransparentBackground(transparent);
+    const theme = (themes.byName(allocator, io, environ_map, theme_name) orelse themes.hard).withTransparentBackground(transparent);
 
     // Get branch name
     const branch_raw = runGitCommand(allocator, io, &.{ "git", "rev-parse", "--abbrev-ref", "HEAD" }, repo_path) catch {
@@ -105,6 +129,9 @@ pub fn run(
     var insertions: usize = 0;
     var deletions: usize = 0;
 
+    var ahead: usize = 0;
+    var behind: usize = 0;
+
     if (changed_count > 0) {
         const stats = try getDiffStats(allocator, io, repo_path);
         changed = stats.changed;
@@ -112,19 +139,20 @@ pub fn run(
         deletions = stats.deletions;
         sync_mode = 1;
     } else {
-        // Check push/pull status
-        const need_push = try checkNeedPush(allocator, io, repo_path);
-        if (need_push) {
+        // Check push/pull status with numeric counts
+        const ab = try getAheadBehind(allocator, io, repo_path);
+        ahead = ab.ahead;
+        behind = ab.behind;
+        if (ahead > 0) {
             sync_mode = 2;
-        } else {
-            const need_pull = try checkNeedPull(allocator, io, repo_path);
-            if (need_pull) {
-                sync_mode = 3;
-            }
+        } else if (behind > 0) {
+            sync_mode = 3;
         }
     }
 
     const untracked = try countUntracked(allocator, io, repo_path);
+    const stash_count = try countStashes(allocator, io, repo_path);
+    const conflict_count = try countConflicts(allocator, io, repo_path);
 
     const reset = try std.fmt.allocPrint(allocator, "#[fg={s},bg={s},nobold,noitalics,nounderscore,nodim]", .{
         theme.foreground,
@@ -163,6 +191,38 @@ pub fn run(
     if (untracked > 0) {
         const seg = try std.fmt.allocPrint(allocator, " {s}#[fg={s},bg={s},bold] {d}", .{
             reset, theme.muted, theme.background, untracked,
+        });
+        defer allocator.free(seg);
+        try segments.appendSlice(allocator, seg);
+    }
+
+    if (stash_count > 0) {
+        const seg = try std.fmt.allocPrint(allocator, " {s}#[fg={s},bg={s},bold] {d}", .{
+            reset, theme.info_bright, theme.background, stash_count,
+        });
+        defer allocator.free(seg);
+        try segments.appendSlice(allocator, seg);
+    }
+
+    if (conflict_count > 0) {
+        const seg = try std.fmt.allocPrint(allocator, " {s}#[fg={s},bg={s},bold]󰅘 {d}", .{
+            reset, theme.danger_bright, theme.background, conflict_count,
+        });
+        defer allocator.free(seg);
+        try segments.appendSlice(allocator, seg);
+    }
+
+    if (ahead > 0) {
+        const seg = try std.fmt.allocPrint(allocator, " {s}#[fg={s},bg={s},bold]↑{d}", .{
+            reset, theme.info_bright, theme.background, ahead,
+        });
+        defer allocator.free(seg);
+        try segments.appendSlice(allocator, seg);
+    }
+
+    if (behind > 0) {
+        const seg = try std.fmt.allocPrint(allocator, " {s}#[fg={s},bg={s},bold]↓{d}", .{
+            reset, theme.danger, theme.background, behind,
         });
         defer allocator.free(seg);
         try segments.appendSlice(allocator, seg);

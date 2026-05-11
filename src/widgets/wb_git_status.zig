@@ -196,7 +196,7 @@ fn renderUncached(
     provider_str: []const u8,
     environ_map: *std.process.Environ.Map,
 ) ![]u8 {
-    const theme = (themes.byName(theme_name) orelse themes.hard).withTransparentBackground(transparent);
+    const theme = (themes.byName(allocator, io, environ_map, theme_name) orelse themes.hard).withTransparentBackground(transparent);
 
     // Get branch name
     const branch_raw = runGitCommand(allocator, io, &.{ "git", "rev-parse", "--abbrev-ref", "HEAD" }, repo_path) catch {

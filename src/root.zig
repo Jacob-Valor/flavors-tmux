@@ -4,3 +4,5 @@ pub const datetime = @import("widgets/datetime.zig");
 pub const battery = @import("widgets/battery.zig");
 pub const git_status = @import("widgets/git_status.zig");
 pub const wb_git_status = @import("widgets/wb_git_status.zig");
+pub const hostname = @import("widgets/hostname.zig");
+pub const cpu_memory = @import("widgets/cpu_memory.zig");

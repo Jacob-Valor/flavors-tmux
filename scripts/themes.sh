@@ -12,6 +12,19 @@ declare -A THEMES=()
 load_theme() {
     local theme_name="$1"
 
+    local custom_theme_path="${HOME}/.config/flavors-tmux/themes/${theme_name}.json"
+    if [[ -f "$custom_theme_path" ]] && command -v jq &>/dev/null; then
+        local key
+        for key in background foreground surface surface_alt primary primary_bright on_primary on_primary_bright success success_bright danger danger_bright warning warning_bright info info_bright accent accent_bright emphasis muted forge_github forge_gitlab forge_codeberg; do
+            local value
+            value=$(jq -r ".${key} // empty" "$custom_theme_path" 2>/dev/null)
+            if [[ -n "$value" ]]; then
+                THEMES["${theme_name}_${key}"]="$value"
+            fi
+        done
+        return
+    fi
+
     case "$theme_name" in
         hard)
             THEMES[hard_background]="#1b1b1b"

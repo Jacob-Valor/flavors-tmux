@@ -8,6 +8,8 @@ const datetime = @import("widgets/datetime.zig");
 const battery = @import("widgets/battery.zig");
 const git_status = @import("widgets/git_status.zig");
 const wb_git_status = @import("widgets/wb_git_status.zig");
+const hostname = @import("widgets/hostname.zig");
+const cpu_memory = @import("widgets/cpu_memory.zig");
 
 const usage =
     \\Usage: flavors-tmux <command> [options]
@@ -18,6 +20,8 @@ const usage =
     \\  battery --theme <name> [opts]       Render battery widget
     \\  git-status --theme <name> <path>    Render git status widget
     \\  wb-git-status --theme <name> <path> Render GitHub/GitLab status widget
+    \\  hostname --theme <name>             Render hostname/SSH indicator widget
+    \\  cpu-memory --theme <name>           Render CPU and memory usage widget
     \\  theme <name> <key>                  Look up a theme color
     \\  theme-list                          List available themes
     \\
@@ -53,27 +57,31 @@ fn run(init: std.process.Init) !void {
     if (std.mem.eql(u8, args.command, "custom-number")) {
         try custom_number.run(arena, args.positional.items, stdout_writer);
     } else if (std.mem.eql(u8, args.command, "datetime")) {
-        try datetime.run(args.theme, args.time_format, args.transparent, io, stdout_writer);
+        try datetime.run(arena, args.theme, args.time_format, args.transparent, io, init.environ_map, stdout_writer);
     } else if (std.mem.eql(u8, args.command, "battery")) {
-        try battery.run(arena, io, args.theme, args.transparent, args.battery_name, args.low_threshold, stdout_writer);
+        try battery.run(arena, io, init.environ_map, args.theme, args.transparent, args.battery_name, args.low_threshold, stdout_writer);
     } else if (std.mem.eql(u8, args.command, "git-status")) {
         if (args.positional.items.len < 1) {
             std.debug.print("Usage: flavors-tmux git-status --theme <name> <repo-path>\n", .{});
             return error.Usage;
         }
-        try git_status.run(arena, io, args.theme, args.transparent, args.positional.items[0], stdout_writer);
+        try git_status.run(arena, io, init.environ_map, args.theme, args.transparent, args.positional.items[0], stdout_writer);
     } else if (std.mem.eql(u8, args.command, "wb-git-status")) {
         if (args.positional.items.len < 1) {
             std.debug.print("Usage: flavors-tmux wb-git-status --theme <name> <repo-path>\n", .{});
             return error.Usage;
         }
         try wb_git_status.run(arena, io, init.environ_map, args.theme, args.transparent, args.positional.items[0], args.cache_ttl, stdout_writer);
+    } else if (std.mem.eql(u8, args.command, "hostname")) {
+        try hostname.run(arena, io, args.theme, args.transparent, init.environ_map, stdout_writer);
+    } else if (std.mem.eql(u8, args.command, "cpu-memory")) {
+        try cpu_memory.run(arena, io, init.environ_map, args.theme, args.transparent, stdout_writer);
     } else if (std.mem.eql(u8, args.command, "theme")) {
         if (args.positional.items.len < 2) {
             std.debug.print("Usage: flavors-tmux theme <name> <key>\n", .{});
             return error.Usage;
         }
-        const theme = themes.byName(args.positional.items[0]) orelse {
+        const theme = themes.byName(arena, io, init.environ_map, args.positional.items[0]) orelse {
             std.debug.print("Unknown theme: {s}\n", .{args.positional.items[0]});
             return error.UnknownTheme;
         };

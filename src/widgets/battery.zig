@@ -115,13 +115,14 @@ fn getBatteryInfo(allocator: std.mem.Allocator, io: std.Io, name: []const u8) !B
 pub fn run(
     allocator: std.mem.Allocator,
     io: std.Io,
+    environ_map: *std.process.Environ.Map,
     theme_name: []const u8,
     transparent: bool,
     battery_name: ?[]const u8,
     low_threshold: u8,
     writer: *std.Io.Writer,
 ) !void {
-    const theme = (themes.byName(theme_name) orelse themes.hard).withTransparentBackground(transparent);
+    const theme = (themes.byName(allocator, io, environ_map, theme_name) orelse themes.hard).withTransparentBackground(transparent);
 
     const default_name = if (builtin.os.tag == .macos) "InternalBattery-0" else "BAT0";
     const name = battery_name orelse default_name;

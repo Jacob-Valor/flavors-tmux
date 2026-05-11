@@ -21,7 +21,8 @@ source "$SCRIPTS_PATH/themes.sh" || {
 
 # Validate theme name
 VALID_THEMES=("hard" "medium" "soft" "light" "tokyonight" "catppuccin" "dracula" "nord" "github_dark" "onedark" "solarized_dark" "solarized_light" "monokai" "monokai_nebula" "github_light" "ayu_dark" "ayu_light" "flexoki_dark" "flexoki_light")
-if [[ ! " ${VALID_THEMES[*]} " =~ " ${SELECTED_THEME} " ]]; then
+CUSTOM_THEME_PATH="${HOME}/.config/flavors-tmux/themes/${SELECTED_THEME}.json"
+if [[ ! " ${VALID_THEMES[*]} " =~ " ${SELECTED_THEME} " && ! -f "$CUSTOM_THEME_PATH" ]]; then
     echo "flavors-tmux: unknown theme '${SELECTED_THEME}', using 'hard'. Available: ${VALID_THEMES[*]}" >&2
     SELECTED_THEME="hard"
 fi
@@ -44,6 +45,8 @@ show_wbg="$(tmux show-option -gv @flavors-tmux_show_wbg 2>/dev/null || echo "1")
 battery_name="$(tmux show-option -gv @flavors-tmux_battery_name 2>/dev/null || echo "")"
 battery_low="$(tmux show-option -gv @flavors-tmux_battery_low_threshold 2>/dev/null || echo "20")"
 show_battery_widget="$(tmux show-option -gv @flavors-tmux_show_battery_widget 2>/dev/null || echo "0")"
+show_hostname="$(tmux show-option -gv @flavors-tmux_show_hostname 2>/dev/null || echo "0")"
+show_cpu_memory="$(tmux show-option -gv @flavors-tmux_show_cpu_memory 2>/dev/null || echo "0")"
 forge_cache_ttl="$(tmux show-option -gv @flavors-tmux_forge_cache_ttl 2>/dev/null || echo "300")"
 transparent_arg=""
 [[ "$TRANSPARENT_THEME" == "1" ]] && transparent_arg="--transparent"
@@ -109,6 +112,14 @@ if [[ -x "$BINARY_PATH" ]]; then
         [[ "$show_wbg" == "1" ]] || return
         echo "#($BINARY_PATH wb-git-status --theme $SELECTED_THEME $transparent_arg --cache-ttl ${forge_cache_ttl:-300} #{q:pane_current_path})"
     }
+    hostname_cmd() {
+        [[ "$show_hostname" == "1" ]] || return
+        echo "#($BINARY_PATH hostname --theme $SELECTED_THEME $transparent_arg)"
+    }
+    cpu_memory_cmd() {
+        [[ "$show_cpu_memory" == "1" ]] || return
+        echo "#($BINARY_PATH cpu-memory --theme $SELECTED_THEME $transparent_arg)"
+    }
 else
     custom_number_cmd() {
         custom_number_format "$1" "$2"
@@ -124,6 +135,14 @@ else
     }
     wb_git_status_cmd() {
         echo "#($SCRIPTS_PATH/wb-git-status.sh #{q:pane_current_path})"
+    }
+    hostname_cmd() {
+        [[ "$show_hostname" == "1" ]] || return
+        echo "#($SCRIPTS_PATH/hostname.sh)"
+    }
+    cpu_memory_cmd() {
+        [[ "$show_cpu_memory" == "1" ]] || return
+        echo "#($SCRIPTS_PATH/cpu-memory.sh)"
     }
 fi
 
@@ -148,6 +167,8 @@ custom_pane="$(custom_number_cmd '#P' "$pane_id_style")"
 zoom_number="$(custom_number_cmd '#P' "$zoom_id_style")"
 date_and_time="$(datetime_cmd)"
 battery_status="$(battery_cmd)"
+hostname_status="$(hostname_cmd)"
+cpu_memory_status="$(cpu_memory_cmd)"
 
 tmux set -g status-left "\
 #[fg=${THEME[on_primary]},bg=${THEME[primary]},bold]\
@@ -181,6 +202,8 @@ right_status="\
 #[fg=${THEME[success]},bg=${THEME[surface_alt]}]$git_status\
 #[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$wb_git_status\
 #[fg=${THEME[danger]},bg=${THEME[surface_alt]}]$battery_status\
+#[fg=${THEME[info]},bg=${THEME[surface_alt]}]$hostname_status\
+#[fg=${THEME[accent_bright]},bg=${THEME[surface_alt]}]$cpu_memory_status\
 #[fg=${THEME[warning]},bg=${THEME[surface_alt]}]$date_and_time"
 
 tmux set -g status-right "$right_status"

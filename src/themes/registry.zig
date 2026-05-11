@@ -1,5 +1,6 @@
 const std = @import("std");
 const Theme = @import("../core/theme.zig").Theme;
+const theme_loader = @import("../core/theme_loader.zig");
 
 const hard_mod = @import("hard.zig");
 const medium_mod = @import("medium.zig");
@@ -41,7 +42,15 @@ pub const ayu_light = ayu_light_mod.theme;
 pub const flexoki_dark = flexoki_dark_mod.theme;
 pub const flexoki_light = flexoki_light_mod.theme;
 
-pub fn byName(name: []const u8) ?Theme {
+pub fn byName(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.Environ.Map, name: []const u8) ?Theme {
+    const custom_path = theme_loader.customThemePath(allocator, environ_map, name) catch null;
+    if (custom_path) |path| {
+        defer allocator.free(path);
+        if (theme_loader.loadFromFile(allocator, io, path)) |theme| {
+            return theme;
+        } else |_| {}
+    }
+
     if (std.mem.eql(u8, name, "hard")) return hard;
     if (std.mem.eql(u8, name, "medium")) return medium;
     if (std.mem.eql(u8, name, "soft")) return soft;
