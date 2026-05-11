@@ -150,7 +150,7 @@ date_and_time="$(datetime_cmd)"
 battery_status="$(battery_cmd)"
 
 tmux set -g status-left "\
-#[fg=${THEME[foreground]},bg=${THEME[primary]},bold]\
+#[fg=#000000,bg=${THEME[primary]},bold]\
 #{?client_prefix,󰠠 ,󰤂 }\
 #[bold,nodim]#S"
 
