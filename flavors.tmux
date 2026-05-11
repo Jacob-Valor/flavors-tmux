@@ -48,7 +48,6 @@ show_battery_widget="$(tmux show-option -gv @flavors-tmux_show_battery_widget 2>
 show_hostname="$(tmux show-option -gv @flavors-tmux_show_hostname 2>/dev/null || echo "0")"
 show_cpu_memory="$(tmux show-option -gv @flavors-tmux_show_cpu_memory 2>/dev/null || echo "0")"
 forge_cache_ttl="$(tmux show-option -gv @flavors-tmux_forge_cache_ttl 2>/dev/null || echo "300")"
-prefix_highlight="$(tmux show-option -gv @flavors-tmux_prefix_highlight 2>/dev/null || echo "1")"
 transparent_arg=""
 [[ "$TRANSPARENT_THEME" == "1" ]] && transparent_arg="--transparent"
 
@@ -171,20 +170,10 @@ battery_status="$(battery_cmd)"
 hostname_status="$(hostname_cmd)"
 cpu_memory_status="$(cpu_memory_cmd)"
 
-if [[ "$prefix_highlight" == "1" ]]; then
-    tmux set -g status-left "\
-#{?client_prefix,\
-#[fg=${THEME[on_primary_bright]},bg=${THEME[primary_bright]},bold],\
-#[fg=${THEME[on_primary]},bg=${THEME[primary]},bold]\
-}\
-#{?client_prefix,󰠠 ,󰤂 }\
-#[bold,nodim]#S"
-else
-    tmux set -g status-left "\
+tmux set -g status-left "\
 #[fg=${THEME[on_primary]},bg=${THEME[primary]},bold]\
 #{?client_prefix,󰠠 ,󰤂 }\
 #[bold,nodim]#S"
-fi
 
 tmux set -g window-status-current-format "\
 $RESET\

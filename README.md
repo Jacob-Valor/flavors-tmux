@@ -311,16 +311,6 @@ Options:
 - `@flavors-tmux_auto_update_pull` — `1` to auto-pull updates silently (default: `0`, only notifies)
 - `@flavors-tmux_auto_update_branch` — branch to track (default: `main`)
 
-### Prefix Highlight
-
-When the tmux prefix key (default `C-b`) is pressed, the status bar's left section
-switches to the `primary_bright` / `on_primary_bright` color pair for visual
-confirmation that you are in prefix mode. Enabled by default.
-
-```tmux
-set -g @flavors-tmux_prefix_highlight 0
-```
-
 ## Screenshots
 
 ### Gruvbox Hard
