@@ -172,9 +172,9 @@ cpu_memory_status="$(cpu_memory_cmd)"
 
 tmux set -g status-left "\
 #{?client_prefix,\
-#[fg=${THEME[on_primary]},bg=${THEME[warning]},bold]󰠠 PREFIX,\
-#[fg=${THEME[on_primary]},bg=${THEME[primary]},bold]󰤂 }\
-#[fg=${THEME[foreground]},bg=${THEME[background]},bold,nodim]#S"
+#[fg=${THEME[on_primary]}#,bg=${THEME[warning]}][ 󰠠 PREFIX ],\
+#[fg=${THEME[muted]}#,bg=${THEME[background]}][ 󰠠 ]}\
+ #[fg=${THEME[foreground]},bg=${THEME[background]},bold,nodim]#S"
 
 tmux set -g window-status-current-format "\
 $RESET\
