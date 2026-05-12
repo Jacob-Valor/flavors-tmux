@@ -236,7 +236,7 @@ pub fn run(
     };
     defer allocator.free(remote_status);
 
-    try writer.print("{s} {s}{s}{s}", .{
+    try writer.print("{s} {s}{s}{s} ", .{
         remote_status,
         reset,
         display_branch,
