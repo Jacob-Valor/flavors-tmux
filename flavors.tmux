@@ -174,7 +174,7 @@ tmux set -g status-left "\
 #{?client_prefix,\
 #[fg=${THEME[on_primary]}#,bg=${THEME[warning]}][ 󰠠 PREFIX ],\
 #[fg=${THEME[muted]}#,bg=${THEME[background]}][ 󰠠 ]}\
- #[fg=${THEME[foreground]},bg=${THEME[background]},bold,nodim]#S"
+ #[fg=${THEME[foreground]},bg=${THEME[background]},bold,nodim][ #S ]"
 
 tmux set -g window-status-current-format "\
 $RESET\
