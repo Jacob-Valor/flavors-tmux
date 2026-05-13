@@ -10,5 +10,4 @@ pub const kubernetes = @import("widgets/kubernetes.zig");
 pub const cwd = @import("widgets/cwd.zig");
 pub const terraform = @import("widgets/terraform.zig");
 pub const docker = @import("widgets/docker.zig");
-pub const git_worktree = @import("widgets/git_worktree.zig");
 pub const yadm = @import("widgets/yadm.zig");

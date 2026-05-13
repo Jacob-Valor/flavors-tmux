@@ -24,7 +24,6 @@ Monokai Nebula, GitHub Light, Ayu Dark, Ayu Light, Flexoki Dark, and Flexoki Lig
 - Optional current working directory widget with Git repo-relative paths
 - Optional Terraform workspace widget
 - Optional Docker context widget
-- Optional Git worktree indicator widget
 - Optional YADM dotfiles status widget
 - Configurable 12-hour, 24-hour, or hidden time widget
 - Custom window, pane, and zoom number styles
@@ -342,17 +341,6 @@ set -g @flavors-tmux_show_docker 1
 ```
 
 Requires `docker` to be installed. The `default` context is shown in muted color; all others use the info color.
-
-### Git Worktree
-
-Shows the current Git branch. When inside a linked worktree (not the main repository), displays a warning-colored worktree icon.
-
-```tmux
-set -g @flavors-tmux_show_git_worktree 1
-```
-
-- Main worktree: ` branch` in success color
-- Linked worktree: `󰙀 branch` in warning color
 
 ### YADM Dotfiles
 
