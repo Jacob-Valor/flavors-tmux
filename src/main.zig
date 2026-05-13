@@ -10,6 +10,12 @@ const git_status = @import("widgets/git_status.zig");
 const wb_git_status = @import("widgets/wb_git_status.zig");
 const hostname = @import("widgets/hostname.zig");
 const cpu_memory = @import("widgets/cpu_memory.zig");
+const kubernetes = @import("widgets/kubernetes.zig");
+const cwd = @import("widgets/cwd.zig");
+const terraform = @import("widgets/terraform.zig");
+const docker = @import("widgets/docker.zig");
+const git_worktree = @import("widgets/git_worktree.zig");
+const yadm = @import("widgets/yadm.zig");
 
 const usage =
     \\Usage: flavors-tmux <command> [options]
@@ -22,6 +28,12 @@ const usage =
     \\  wb-git-status --theme <name> <path> Render GitHub/GitLab status widget
     \\  hostname --theme <name>             Render hostname/SSH indicator widget
     \\  cpu-memory --theme <name>           Render CPU and memory usage widget
+    \\  kubernetes --theme <name>           Render Kubernetes context widget
+    \\  cwd --theme <name> <path>           Render current working directory widget
+    \\  terraform --theme <name> <path>     Render Terraform workspace widget
+    \\  docker --theme <name>               Render Docker context widget
+    \\  git-worktree --theme <name> <path>  Render Git worktree indicator widget
+    \\  yadm --theme <name>                 Render YADM dotfiles status widget
     \\  theme <name> <key>                  Look up a theme color
     \\  theme-list                          List available themes
     \\
@@ -76,6 +88,30 @@ fn run(init: std.process.Init) !void {
         try hostname.run(arena, io, args.theme, args.transparent, init.environ_map, stdout_writer);
     } else if (std.mem.eql(u8, args.command, "cpu-memory")) {
         try cpu_memory.run(arena, io, init.environ_map, args.theme, args.transparent, stdout_writer);
+    } else if (std.mem.eql(u8, args.command, "kubernetes")) {
+        try kubernetes.run(arena, io, args.theme, args.transparent, init.environ_map, stdout_writer);
+    } else if (std.mem.eql(u8, args.command, "cwd")) {
+        if (args.positional.items.len < 1) {
+            std.debug.print("Usage: flavors-tmux cwd --theme <name> <path>\n", .{});
+            return error.Usage;
+        }
+        try cwd.run(arena, io, args.theme, args.transparent, init.environ_map, args.positional.items[0], stdout_writer);
+    } else if (std.mem.eql(u8, args.command, "terraform")) {
+        if (args.positional.items.len < 1) {
+            std.debug.print("Usage: flavors-tmux terraform --theme <name> <path>\n", .{});
+            return error.Usage;
+        }
+        try terraform.run(arena, io, args.theme, args.transparent, init.environ_map, args.positional.items[0], stdout_writer);
+    } else if (std.mem.eql(u8, args.command, "docker")) {
+        try docker.run(arena, io, args.theme, args.transparent, init.environ_map, stdout_writer);
+    } else if (std.mem.eql(u8, args.command, "git-worktree")) {
+        if (args.positional.items.len < 1) {
+            std.debug.print("Usage: flavors-tmux git-worktree --theme <name> <path>\n", .{});
+            return error.Usage;
+        }
+        try git_worktree.run(arena, io, args.theme, args.transparent, init.environ_map, args.positional.items[0], stdout_writer);
+    } else if (std.mem.eql(u8, args.command, "yadm")) {
+        try yadm.run(arena, io, args.theme, args.transparent, init.environ_map, stdout_writer);
     } else if (std.mem.eql(u8, args.command, "theme")) {
         if (args.positional.items.len < 2) {
             std.debug.print("Usage: flavors-tmux theme <name> <key>\n", .{});

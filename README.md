@@ -20,6 +20,12 @@ Monokai Nebula, GitHub Light, Ayu Dark, Ayu Light, Flexoki Dark, and Flexoki Lig
 - Optional battery widget with charging/discharging icons
 - Optional hostname/SSH indicator widget
 - Optional CPU and memory usage widget with color-coded thresholds
+- Optional Kubernetes context and namespace widget with environment color-coding
+- Optional current working directory widget with Git repo-relative paths
+- Optional Terraform workspace widget
+- Optional Docker context widget
+- Optional Git worktree indicator widget
+- Optional YADM dotfiles status widget
 - Configurable 12-hour, 24-hour, or hidden time widget
 - Custom window, pane, and zoom number styles
 - Custom terminal and active-terminal icons
@@ -294,6 +300,69 @@ On Linux, run this to find your battery name:
 ```sh
 ls /sys/class/power_supply
 ```
+
+### Current Working Directory
+
+Shows the current working directory. When inside a Git repository, displays `repo-name/current-dir`.
+
+```tmux
+set -g @flavors-tmux_show_cwd 1
+```
+
+### Kubernetes Context
+
+Shows the active Kubernetes context and namespace. Automatically color-codes by environment:
+
+- **Red** (`danger`) — production contexts
+- **Yellow** (`warning`) — staging/development contexts
+- **Cyan** (`info`) — all other contexts
+
+```tmux
+set -g @flavors-tmux_show_kubernetes 1
+```
+
+Requires `kubectl` to be installed and configured.
+
+### Terraform Workspace
+
+Shows the active Terraform workspace for the current directory.
+
+```tmux
+set -g @flavors-tmux_show_terraform 1
+```
+
+Requires `terraform` to be installed. The `default` workspace is shown in muted color; all others use the primary color.
+
+### Docker Context
+
+Shows the active Docker context.
+
+```tmux
+set -g @flavors-tmux_show_docker 1
+```
+
+Requires `docker` to be installed. The `default` context is shown in muted color; all others use the info color.
+
+### Git Worktree
+
+Shows the current Git branch. When inside a linked worktree (not the main repository), displays a warning-colored worktree icon.
+
+```tmux
+set -g @flavors-tmux_show_git_worktree 1
+```
+
+- Main worktree: ` branch` in success color
+- Linked worktree: `󰙀 branch` in warning color
+
+### YADM Dotfiles
+
+Shows YADM dotfiles status when inside a YADM-managed repository.
+
+```tmux
+set -g @flavors-tmux_show_yadm 1
+```
+
+Requires `yadm` to be installed. Shows changed and untracked counts similar to the Git widget.
 
 ### Auto-update
 
