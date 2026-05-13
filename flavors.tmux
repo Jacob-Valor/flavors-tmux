@@ -249,17 +249,31 @@ $window_number\
 #[fg=${THEME[warning]}]\
 #{?window_last_flag, ,}"
 
+SEPARATOR="#[fg=${THEME[surface]},bg=${THEME[surface_alt]}] ▒"
+
+SEPARATOR="#[fg=${THEME[surface]},bg=${THEME[surface_alt]}] ▒"
+
 right_status="\
 #[fg=${THEME[emphasis]},bg=${THEME[surface_alt]}]$cwd_status\
+$SEPARATOR \
 #[fg=${THEME[success]},bg=${THEME[surface_alt]}]$git_status\
+$SEPARATOR \
 #[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$wb_git_status\
+$SEPARATOR \
 #[fg=${THEME[danger]},bg=${THEME[surface_alt]}]$battery_status\
+$SEPARATOR \
 #[fg=${THEME[info]},bg=${THEME[surface_alt]}]$hostname_status\
+$SEPARATOR \
 #[fg=${THEME[accent_bright]},bg=${THEME[surface_alt]}]$cpu_memory_status\
+$SEPARATOR \
 #[fg=${THEME[info]},bg=${THEME[surface_alt]}]$kubernetes_status\
+$SEPARATOR \
 #[fg=${THEME[primary]},bg=${THEME[surface_alt]}]$terraform_status\
+$SEPARATOR \
 #[fg=${THEME[info]},bg=${THEME[surface_alt]}]$docker_status\
+$SEPARATOR \
 #[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$yadm_status\
+$SEPARATOR \
 #[fg=${THEME[warning]},bg=${THEME[surface_alt]}]$date_and_time"
 
 tmux set -g status-right "$right_status"
