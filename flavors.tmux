@@ -251,14 +251,14 @@ $window_number\
 
 SEPARATOR="#[fg=${THEME[surface]},bg=${THEME[surface_alt]}] ▒"
 
-SEPARATOR="#[fg=${THEME[surface]},bg=${THEME[surface_alt]}] ▒"
-
 right_status="\
 #[fg=${THEME[emphasis]},bg=${THEME[surface_alt]}]$cwd_status\
 $SEPARATOR \
 #[fg=${THEME[success]},bg=${THEME[surface_alt]}]$git_status\
 $SEPARATOR \
 #[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$wb_git_status\
+$SEPARATOR \
+#[fg=${THEME[info]},bg=${THEME[surface_alt]}]$docker_status\
 $SEPARATOR \
 #[fg=${THEME[danger]},bg=${THEME[surface_alt]}]$battery_status\
 $SEPARATOR \
@@ -269,8 +269,6 @@ $SEPARATOR \
 #[fg=${THEME[info]},bg=${THEME[surface_alt]}]$kubernetes_status\
 $SEPARATOR \
 #[fg=${THEME[primary]},bg=${THEME[surface_alt]}]$terraform_status\
-$SEPARATOR \
-#[fg=${THEME[info]},bg=${THEME[surface_alt]}]$docker_status\
 $SEPARATOR \
 #[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$yadm_status\
 $SEPARATOR \
