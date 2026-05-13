@@ -1,27 +1,5 @@
 # flavors-tmux — agent instructions
 
-**Generated:** 2025-01-15
-**Commit:** 2a3d6de
-**Branch:** dev
-
-## OVERVIEW
-A clean, multi-palette tmux theme with Nerd Font icons, semantic colors, and optional status widgets. Dual implementation: native Zig binary for speed, Bash fallback for compatibility. 27 built-in themes + custom JSON support.
-
-## STRUCTURE
-```
-.
-├── src/
-│   ├── main.zig          # CLI entrypoint (dispatches widget commands)
-│   ├── root.zig          # Library entrypoint (re-exports for consumers)
-│   ├── cli/args.zig      # Argument parsing
-│   ├── core/             # Shared: theme.zig, theme_loader.zig, util.zig
-│   ├── themes/           # 27 built-in theme definitions
-│   └── widgets/          # 12 widget implementations
-├── scripts/              # Bash fallback implementations
-├── flavors.tmux          # tmux plugin entrypoint
-└── build.zig             # Zig build graph
-```
-
 ## Build & test
 - `zig build` — build debug binary → `zig-out/bin/flavors_tmux`
 - `zig build test` — run all tests
@@ -33,7 +11,6 @@ A clean, multi-palette tmux theme with Nerd Font icons, semantic colors, and opt
 - `flavors.tmux` auto-builds the Zig binary on first run if Zig is installed.
 - Binary present → Zig CLI handles widgets (`src/widgets/*.zig`), else Bash fallback (`scripts/*.sh`).
 - **Widget output format MUST match** between Zig and Bash implementations.
-- All widgets prepend a leading `RESET` string for consistent tmux formatting.
 
 ## Adding a theme
 
@@ -43,7 +20,7 @@ A clean, multi-palette tmux theme with Nerd Font icons, semantic colors, and opt
 3. `flavors.tmux:23` — `VALID_THEMES` array
 
 ### Custom user theme (JSON, no code changes)
-Create `~/.config/flavors-tmux/themes/<name>.json` with any subset of the 27 theme fields. Missing keys fall back to defaults. Zig `byName()` checks custom themes first; Bash `load_theme()` checks via `jq` if available. No registry edits needed.
+Create `~/.config/flavors-tmux/themes/<name>.json` with any subset of the 22 theme fields. Missing keys fall back to defaults. Zig `byName()` checks custom themes first; Bash `load_theme()` checks via `jq` if available. No registry edits needed.
 
 ## Color contrast requirements
 - All foreground-on-background pairs must meet **WCAG AA** (≥4.5:1 for normal text, ≥3:1 for bold/large text)

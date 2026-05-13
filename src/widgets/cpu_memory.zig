@@ -187,14 +187,7 @@ pub fn run(
     const cpu_color = getCpuColor(stats.cpu_percent, theme);
     const mem_color = getMemColor(stats.mem_percent, theme);
 
-    const reset = try std.fmt.allocPrint(allocator, "#[fg={s},bg={s},nobold,noitalics,nounderscore,nodim]", .{
-        theme.foreground,
-        theme.background,
-    });
-    defer allocator.free(reset);
-
-    try writer.print("{s}#[fg={s},bg={s},bold]▒ 󰍛 {d}% #[fg={s},bg={s},bold]󰘚 {d}%", .{
-        reset,
+    try writer.print("#[fg={s},bg={s},bold]▒ 󰍛 {d}% #[fg={s},bg={s},bold]󰘚 {d}%", .{
         cpu_color, theme.background, stats.cpu_percent,
         mem_color, theme.background, stats.mem_percent,
     });
