@@ -251,28 +251,29 @@ $window_number\
 
 SEPARATOR="#[fg=${THEME[surface]},bg=${THEME[surface_alt]}] ▒"
 
-right_status="\
-#[fg=${THEME[emphasis]},bg=${THEME[surface_alt]}]$cwd_status\
-$SEPARATOR \
-#[fg=${THEME[success]},bg=${THEME[surface_alt]}]$git_status\
-$SEPARATOR \
-#[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$wb_git_status\
-$SEPARATOR \
-#[fg=${THEME[info]},bg=${THEME[surface_alt]}]$docker_status\
-$SEPARATOR \
-#[fg=${THEME[danger]},bg=${THEME[surface_alt]}]$battery_status\
-$SEPARATOR \
-#[fg=${THEME[info]},bg=${THEME[surface_alt]}]$hostname_status\
-$SEPARATOR \
-#[fg=${THEME[accent_bright]},bg=${THEME[surface_alt]}]$cpu_memory_status\
-$SEPARATOR \
-#[fg=${THEME[info]},bg=${THEME[surface_alt]}]$kubernetes_status\
-$SEPARATOR \
-#[fg=${THEME[primary]},bg=${THEME[surface_alt]}]$terraform_status\
-$SEPARATOR \
-#[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$yadm_status\
-$SEPARATOR \
-#[fg=${THEME[warning]},bg=${THEME[surface_alt]}]$date_and_time"
+append_widget() {
+    local widget="$1"
+    local color="$2"
+    if [[ -n "$widget" ]]; then
+        if [[ -n "$right_status" ]]; then
+            right_status="${right_status}${SEPARATOR} "
+        fi
+        right_status="${right_status}#[fg=${color},bg=${THEME[surface_alt]}]${widget}"
+    fi
+}
+
+right_status=""
+append_widget "$cwd_status" "${THEME[emphasis]}"
+append_widget "$git_status" "${THEME[success]}"
+append_widget "$wb_git_status" "${THEME[accent]}"
+append_widget "$docker_status" "${THEME[info]}"
+append_widget "$battery_status" "${THEME[danger]}"
+append_widget "$hostname_status" "${THEME[info]}"
+append_widget "$cpu_memory_status" "${THEME[accent_bright]}"
+append_widget "$kubernetes_status" "${THEME[info]}"
+append_widget "$terraform_status" "${THEME[primary]}"
+append_widget "$yadm_status" "${THEME[accent]}"
+append_widget "$date_and_time" "${THEME[warning]}"
 
 tmux set -g status-right "$right_status"
 
