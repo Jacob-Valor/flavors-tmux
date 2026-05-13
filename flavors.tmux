@@ -224,7 +224,8 @@ tmux set -g status-left "\
 #{?client_prefix,\
 #[fg=${THEME[on_primary]}#,bg=${THEME[warning]}][ 󰠠 PREFIX ],\
 #[fg=${THEME[muted]}#,bg=${THEME[background]}][ 󰠠 ]}\
- #[fg=${THEME[foreground]},bg=${THEME[background]},bold,nodim][ #S ]"
+ #[fg=${THEME[foreground]},bg=${THEME[background]},bold,nodim][ #S ]\
+ ${cwd_status}"
 
 tmux set -g window-status-current-format "\
 $RESET\
@@ -255,7 +256,6 @@ right_status="\
 #[fg=${THEME[danger]},bg=${THEME[surface_alt]}]$battery_status\
 #[fg=${THEME[info]},bg=${THEME[surface_alt]}]$hostname_status\
 #[fg=${THEME[accent_bright]},bg=${THEME[surface_alt]}]$cpu_memory_status\
-#[fg=${THEME[emphasis]},bg=${THEME[surface_alt]}]$cwd_status\
 #[fg=${THEME[info]},bg=${THEME[surface_alt]}]$kubernetes_status\
 #[fg=${THEME[primary]},bg=${THEME[surface_alt]}]$terraform_status\
 #[fg=${THEME[info]},bg=${THEME[surface_alt]}]$docker_status\
