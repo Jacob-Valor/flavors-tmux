@@ -47,6 +47,12 @@ battery_low="$(tmux show-option -gv @flavors-tmux_battery_low_threshold 2>/dev/n
 show_battery_widget="$(tmux show-option -gv @flavors-tmux_show_battery_widget 2>/dev/null || echo "0")"
 show_hostname="$(tmux show-option -gv @flavors-tmux_show_hostname 2>/dev/null || echo "0")"
 show_cpu_memory="$(tmux show-option -gv @flavors-tmux_show_cpu_memory 2>/dev/null || echo "0")"
+show_kubernetes="$(tmux show-option -gv @flavors-tmux_show_kubernetes 2>/dev/null || echo "0")"
+show_cwd="$(tmux show-option -gv @flavors-tmux_show_cwd 2>/dev/null || echo "0")"
+show_terraform="$(tmux show-option -gv @flavors-tmux_show_terraform 2>/dev/null || echo "0")"
+show_docker="$(tmux show-option -gv @flavors-tmux_show_docker 2>/dev/null || echo "0")"
+show_git_worktree="$(tmux show-option -gv @flavors-tmux_show_git_worktree 2>/dev/null || echo "0")"
+show_yadm="$(tmux show-option -gv @flavors-tmux_show_yadm 2>/dev/null || echo "0")"
 forge_cache_ttl="$(tmux show-option -gv @flavors-tmux_forge_cache_ttl 2>/dev/null || echo "300")"
 transparent_arg=""
 [[ "$TRANSPARENT_THEME" == "1" ]] && transparent_arg="--transparent"
@@ -120,6 +126,30 @@ if [[ -x "$BINARY_PATH" ]]; then
         [[ "$show_cpu_memory" == "1" ]] || return
         echo "#($BINARY_PATH cpu-memory --theme $SELECTED_THEME $transparent_arg)"
     }
+    kubernetes_cmd() {
+        [[ "$show_kubernetes" == "1" ]] || return
+        echo "#($BINARY_PATH kubernetes --theme $SELECTED_THEME $transparent_arg)"
+    }
+    cwd_cmd() {
+        [[ "$show_cwd" == "1" ]] || return
+        echo "#($BINARY_PATH cwd --theme $SELECTED_THEME $transparent_arg #{q:pane_current_path})"
+    }
+    terraform_cmd() {
+        [[ "$show_terraform" == "1" ]] || return
+        echo "#($BINARY_PATH terraform --theme $SELECTED_THEME $transparent_arg #{q:pane_current_path})"
+    }
+    docker_cmd() {
+        [[ "$show_docker" == "1" ]] || return
+        echo "#($BINARY_PATH docker --theme $SELECTED_THEME $transparent_arg)"
+    }
+    git_worktree_cmd() {
+        [[ "$show_git_worktree" == "1" ]] || return
+        echo "#($BINARY_PATH git-worktree --theme $SELECTED_THEME $transparent_arg #{q:pane_current_path})"
+    }
+    yadm_cmd() {
+        [[ "$show_yadm" == "1" ]] || return
+        echo "#($BINARY_PATH yadm --theme $SELECTED_THEME $transparent_arg)"
+    }
 else
     custom_number_cmd() {
         custom_number_format "$1" "$2"
@@ -143,6 +173,30 @@ else
     cpu_memory_cmd() {
         [[ "$show_cpu_memory" == "1" ]] || return
         echo "#($SCRIPTS_PATH/cpu-memory.sh)"
+    }
+    kubernetes_cmd() {
+        [[ "$show_kubernetes" == "1" ]] || return
+        echo "#($SCRIPTS_PATH/kubernetes.sh)"
+    }
+    cwd_cmd() {
+        [[ "$show_cwd" == "1" ]] || return
+        echo "#($SCRIPTS_PATH/cwd.sh #{q:pane_current_path})"
+    }
+    terraform_cmd() {
+        [[ "$show_terraform" == "1" ]] || return
+        echo "#($SCRIPTS_PATH/terraform.sh #{q:pane_current_path})"
+    }
+    docker_cmd() {
+        [[ "$show_docker" == "1" ]] || return
+        echo "#($SCRIPTS_PATH/docker.sh)"
+    }
+    git_worktree_cmd() {
+        [[ "$show_git_worktree" == "1" ]] || return
+        echo "#($SCRIPTS_PATH/git-worktree.sh #{q:pane_current_path})"
+    }
+    yadm_cmd() {
+        [[ "$show_yadm" == "1" ]] || return
+        echo "#($SCRIPTS_PATH/yadm.sh)"
     }
 fi
 
@@ -169,6 +223,12 @@ date_and_time="$(datetime_cmd)"
 battery_status="$(battery_cmd)"
 hostname_status="$(hostname_cmd)"
 cpu_memory_status="$(cpu_memory_cmd)"
+kubernetes_status="$(kubernetes_cmd)"
+cwd_status="$(cwd_cmd)"
+terraform_status="$(terraform_cmd)"
+docker_status="$(docker_cmd)"
+git_worktree_status="$(git_worktree_cmd)"
+yadm_status="$(yadm_cmd)"
 
 tmux set -g status-left "\
 #{?client_prefix,\
@@ -205,6 +265,12 @@ right_status="\
 #[fg=${THEME[danger]},bg=${THEME[surface_alt]}]$battery_status\
 #[fg=${THEME[info]},bg=${THEME[surface_alt]}]$hostname_status\
 #[fg=${THEME[accent_bright]},bg=${THEME[surface_alt]}]$cpu_memory_status\
+#[fg=${THEME[emphasis]},bg=${THEME[surface_alt]}]$cwd_status\
+#[fg=${THEME[warning]},bg=${THEME[surface_alt]}]$git_worktree_status\
+#[fg=${THEME[info]},bg=${THEME[surface_alt]}]$kubernetes_status\
+#[fg=${THEME[primary]},bg=${THEME[surface_alt]}]$terraform_status\
+#[fg=${THEME[info]},bg=${THEME[surface_alt]}]$docker_status\
+#[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$yadm_status\
 #[fg=${THEME[warning]},bg=${THEME[surface_alt]}]$date_and_time"
 
 tmux set -g status-right "$right_status"
