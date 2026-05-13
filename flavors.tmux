@@ -263,11 +263,23 @@ right_status_parts=()
 [[ -n "$date_and_time" ]] && right_status_parts+=("#[fg=${THEME[warning]},bg=${THEME[surface_alt]}]$date_and_time")
 
 right_status=""
+prev_is_no_sep=false
 for part in "${right_status_parts[@]}"; do
+    # Check if current part is docker or github (wb-git-status) widget
+    is_no_sep=false
+    if [[ "$part" == *" docker "* ]] || [[ "$part" == *"docker.sh"* ]] || \
+       [[ "$part" == *" wb-git-status "* ]] || [[ "$part" == *"wb-git-status.sh"* ]]; then
+        is_no_sep=true
+    fi
+
     if [[ -n "$right_status" ]]; then
-        right_status="${right_status} "
+        # Skip separator if current or previous widget is docker/github
+        if [[ "$is_no_sep" == false && "$prev_is_no_sep" == false ]]; then
+            right_status="${right_status} "
+        fi
     fi
     right_status="${right_status}${part}"
+    prev_is_no_sep="$is_no_sep"
 done
 
 tmux set -g status-right "$right_status"
