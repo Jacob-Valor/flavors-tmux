@@ -249,31 +249,26 @@ $window_number\
 #[fg=${THEME[warning]}]\
 #{?window_last_flag, ,}"
 
-SEPARATOR="#[fg=${THEME[surface]},bg=${THEME[surface_alt]}] ▒"
-
-append_widget() {
-    local widget="$1"
-    local color="$2"
-    if [[ -n "$widget" ]]; then
-        if [[ -n "$right_status" ]]; then
-            right_status="${right_status}${SEPARATOR} "
-        fi
-        right_status="${right_status}#[fg=${color},bg=${THEME[surface_alt]}]${widget}"
-    fi
-}
+right_status_parts=()
+[[ -n "$cwd_status" ]] && right_status_parts+=("#[fg=${THEME[emphasis]},bg=${THEME[surface_alt]}]$cwd_status")
+[[ -n "$git_status" ]] && right_status_parts+=("#[fg=${THEME[success]},bg=${THEME[surface_alt]}]$git_status")
+[[ -n "$wb_git_status" ]] && right_status_parts+=("#[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$wb_git_status")
+[[ -n "$docker_status" ]] && right_status_parts+=("#[fg=${THEME[info]},bg=${THEME[surface_alt]}]$docker_status")
+[[ -n "$battery_status" ]] && right_status_parts+=("#[fg=${THEME[danger]},bg=${THEME[surface_alt]}]$battery_status")
+[[ -n "$hostname_status" ]] && right_status_parts+=("#[fg=${THEME[info]},bg=${THEME[surface_alt]}]$hostname_status")
+[[ -n "$cpu_memory_status" ]] && right_status_parts+=("#[fg=${THEME[accent_bright]},bg=${THEME[surface_alt]}]$cpu_memory_status")
+[[ -n "$kubernetes_status" ]] && right_status_parts+=("#[fg=${THEME[info]},bg=${THEME[surface_alt]}]$kubernetes_status")
+[[ -n "$terraform_status" ]] && right_status_parts+=("#[fg=${THEME[primary]},bg=${THEME[surface_alt]}]$terraform_status")
+[[ -n "$yadm_status" ]] && right_status_parts+=("#[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$yadm_status")
+[[ -n "$date_and_time" ]] && right_status_parts+=("#[fg=${THEME[warning]},bg=${THEME[surface_alt]}]$date_and_time")
 
 right_status=""
-append_widget "$cwd_status" "${THEME[emphasis]}"
-append_widget "$git_status" "${THEME[success]}"
-append_widget "$wb_git_status" "${THEME[accent]}"
-append_widget "$docker_status" "${THEME[info]}"
-append_widget "$battery_status" "${THEME[danger]}"
-append_widget "$hostname_status" "${THEME[info]}"
-append_widget "$cpu_memory_status" "${THEME[accent_bright]}"
-append_widget "$kubernetes_status" "${THEME[info]}"
-append_widget "$terraform_status" "${THEME[primary]}"
-append_widget "$yadm_status" "${THEME[accent]}"
-append_widget "$date_and_time" "${THEME[warning]}"
+for part in "${right_status_parts[@]}"; do
+    if [[ -n "$right_status" ]]; then
+        right_status="${right_status} "
+    fi
+    right_status="${right_status}${part}"
+done
 
 tmux set -g status-right "$right_status"
 
