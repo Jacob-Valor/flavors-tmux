@@ -164,8 +164,8 @@ pub fn run(
     });
     defer allocator.free(reset);
 
-    // Branch name
-    try writer.print("{s}#[fg={s},bg={s},bold] {s}", .{ reset, theme.danger, theme.background, display_branch });
+    // Branch name with padding for better visual spacing
+    try writer.print("{s} #[fg={s},bg={s},bold] {s} ", .{ reset, theme.danger, theme.background, display_branch });
 
     // Changed files
     if (info.changed > 0) {
