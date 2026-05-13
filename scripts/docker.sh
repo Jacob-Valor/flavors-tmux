@@ -25,4 +25,4 @@ else
   COLOR="${THEME[info]}"
 fi
 
-echo "${RESET}#[fg=${COLOR},bg=${THEME[background]},bold]󰡨 ${CONTEXT}"
+echo "${RESET}#[fg=${COLOR},bg=${THEME[background]},bold] ${CONTEXT}"
