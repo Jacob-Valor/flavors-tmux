@@ -46,7 +46,7 @@ pub fn run(
     // Color-code: default = muted, else = info
     const color = if (std.mem.eql(u8, ctx, "default")) theme.muted else theme.info;
 
-    try writer.print("{s}#[fg={s},bg={s},bold]󰡨 {s}", .{
+    try writer.print("{s}#[fg={s},bg={s},bold] {s}", .{
         reset,
         color,
         theme.background,
