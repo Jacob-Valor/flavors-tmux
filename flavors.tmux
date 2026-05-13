@@ -224,8 +224,7 @@ tmux set -g status-left "\
 #{?client_prefix,\
 #[fg=${THEME[on_primary]}#,bg=${THEME[warning]}][ 󰠠 PREFIX ],\
 #[fg=${THEME[muted]}#,bg=${THEME[background]}][ 󰠠 ]}\
- #[fg=${THEME[foreground]},bg=${THEME[background]},bold,nodim][ #S ]\
- ${cwd_status}"
+ #[fg=${THEME[foreground]},bg=${THEME[background]},bold,nodim][ #S ]"
 
 tmux set -g window-status-current-format "\
 $RESET\
@@ -251,6 +250,7 @@ $window_number\
 #{?window_last_flag, ,}"
 
 right_status="\
+#[fg=${THEME[emphasis]},bg=${THEME[surface_alt]}]$cwd_status\
 #[fg=${THEME[success]},bg=${THEME[surface_alt]}]$git_status\
 #[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$wb_git_status\
 #[fg=${THEME[danger]},bg=${THEME[surface_alt]}]$battery_status\
