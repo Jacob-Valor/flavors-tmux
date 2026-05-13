@@ -194,6 +194,7 @@ fn renderUncached(
     transparent: bool,
     repo_path: []const u8,
     provider_str: []const u8,
+    remote_url: ?[]const u8,
     environ_map: *std.process.Environ.Map,
 ) ![]u8 {
     const theme = (themes.byName(allocator, io, environ_map, theme_name) orelse themes.hard).withTransparentBackground(transparent);
@@ -264,12 +265,10 @@ fn renderUncached(
 
         provider_icon = " ";
 
-        // Get remote URL to parse owner/repo
-        const remote_url_opt = try getRemoteUrl(allocator, io, repo_path);
-        defer if (remote_url_opt) |url| allocator.free(url);
-        if (remote_url_opt == null) return try allocator.dupe(u8, "");
+        // Use already-fetched remote URL to parse owner/repo
+        if (remote_url == null) return try allocator.dupe(u8, "");
 
-        const owner_repo = try parseCodebergOwnerRepo(allocator, remote_url_opt.?);
+        const owner_repo = try parseCodebergOwnerRepo(allocator, remote_url.?);
         defer if (owner_repo) |or_| allocator.free(or_);
         if (owner_repo == null) return try allocator.dupe(u8, "");
 
@@ -387,7 +386,7 @@ pub fn run(
         return;
     }
 
-    const output = try renderUncached(allocator, io, theme_name, transparent, repo_path, provider.?, environ_map);
+    const output = try renderUncached(allocator, io, theme_name, transparent, repo_path, provider.?, remote_url, environ_map);
     defer allocator.free(output);
 
     if (output.len > 0) writeCache(io, path, output);

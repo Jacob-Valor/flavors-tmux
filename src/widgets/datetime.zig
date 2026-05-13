@@ -25,7 +25,14 @@ pub fn run(allocator: std.mem.Allocator, theme_name: []const u8, time_format: []
         }
     }
 
-    try writer.print("#[fg={s},bg={s}]{s} #[fg={s}]{s} {s}", .{
+    const reset = try std.fmt.allocPrint(allocator, "#[fg={s},bg={s},nobold,noitalics,nounderscore,nodim]", .{
+        theme.foreground,
+        theme.background,
+    });
+    defer allocator.free(reset);
+
+    try writer.print("{s}#[fg={s},bg={s}]{s} #[fg={s}]{s} {s}", .{
+        reset,
         theme.accent,
         theme.surface_alt,
         separator,

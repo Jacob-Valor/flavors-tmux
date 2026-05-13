@@ -10,15 +10,62 @@ source "$CURRENT_DIR/themes.sh"
 
 cd "$1" || exit 1
 RESET="#[fg=${THEME[foreground]},bg=${THEME[background]},nobold,noitalics,nounderscore,nodim]"
-BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-STATUS=$(git status --porcelain 2>/dev/null | grep -cE "^(M| M)")
 
-SYNC_MODE=0
-
-if [[ ${#BRANCH} -gt 25 ]]; then
-  BRANCH="${BRANCH:0:25}…"
+# Single batched git status call for branch, changes, ahead/behind, untracked, conflicts
+GIT_STATUS_V2=$(git status --porcelain=v2 --branch --untracked-files=all 2>/dev/null)
+if [[ -z $GIT_STATUS_V2 ]]; then
+  exit 0
 fi
 
+BRANCH=""
+AHEAD_COUNT=0
+BEHIND_COUNT=0
+CHANGED_COUNT=0
+UNTRACKED_COUNT=0
+CONFLICT_COUNT=0
+
+while IFS= read -r line; do
+  case "$line" in
+    "# branch.head "*)
+      BRANCH="${line#\# branch.head }"
+      ;;
+    "# branch.ab "*)
+      # Format: # branch.ab +<ahead> -<behind>
+      read -r _ _ ahead_raw behind_raw <<< "$line"
+      AHEAD_COUNT="${ahead_raw#+}"
+      BEHIND_COUNT="${behind_raw#-}"
+      ;;
+    "1 "*)
+      # Ordinary change: 1 <XY> <sub> <mH> <mI> ...
+      xy="${line:2:2}"
+      if [[ "$xy" != ".." ]]; then
+        CHANGED_COUNT=$((CHANGED_COUNT + 1))
+      fi
+      ;;
+    "2 "*)
+      # Renamed or copied
+      CHANGED_COUNT=$((CHANGED_COUNT + 1))
+      ;;
+    "u "*)
+      # Unmerged (conflict)
+      CONFLICT_COUNT=$((CONFLICT_COUNT + 1))
+      ;;
+    "? "*)
+      # Untracked
+      UNTRACKED_COUNT=$((UNTRACKED_COUNT + 1))
+      ;;
+  esac
+done <<< "$GIT_STATUS_V2"
+
+if [[ -z $BRANCH || "$BRANCH" == "HEAD" || "$BRANCH" == "(detached)" ]]; then
+  exit 0
+fi
+
+if [[ ${#BRANCH} -gt 25 ]]; then
+  BRANCH="${BRANCH:0:25}..."
+fi
+
+SYNC_MODE=0
 STATUS_CHANGED=""
 STATUS_INSERTIONS=""
 STATUS_DELETIONS=""
@@ -28,36 +75,26 @@ STATUS_CONFLICT=""
 STATUS_AHEAD=""
 STATUS_BEHIND=""
 
-if [[ $STATUS -ne 0 ]]; then
-  DIFF_COUNTS=($(git diff --numstat 2>/dev/null | awk 'NF==3 {changed+=1; ins+=$1; del+=$2} END {printf("%d %d %d", changed, ins, del)}'))
+if [[ $CHANGED_COUNT -ne 0 ]]; then
+  DIFF_COUNTS=($(git diff --numstat HEAD 2>/dev/null | awk 'NF==3 {changed+=1; ins+=$1; del+=$2} END {printf("%d %d %d", changed, ins, del)}'))
   CHANGED_COUNT=${DIFF_COUNTS[0]}
   INSERTIONS_COUNT=${DIFF_COUNTS[1]}
   DELETIONS_COUNT=${DIFF_COUNTS[2]}
-
   SYNC_MODE=1
 fi
 
-UNTRACKED_COUNT="$(git ls-files --other --directory --exclude-standard | wc -l)"
 STASH_COUNT="$(git stash list 2>/dev/null | wc -l)"
-CONFLICT_COUNT="$(git diff --name-only --diff-filter=U 2>/dev/null | wc -l)"
-
-AHEAD_BEHIND=$(git rev-list --left-right --count HEAD...@{upstream} 2>/dev/null)
-AHEAD_COUNT=0
-BEHIND_COUNT=0
-if [[ -n $AHEAD_BEHIND ]]; then
-  AHEAD_COUNT=$(echo "$AHEAD_BEHIND" | awk '{print $1}')
-  BEHIND_COUNT=$(echo "$AHEAD_BEHIND" | awk '{print $2}')
-fi
+STASH_COUNT="${STASH_COUNT#\ *}"
 
 if [[ $CHANGED_COUNT -gt 0 ]]; then
   STATUS_CHANGED=" ${RESET}#[fg=${THEME[warning]},bg=${THEME[background]},bold] ${CHANGED_COUNT}"
 fi
 
-if [[ $INSERTIONS_COUNT -gt 0 ]]; then
+if [[ ${INSERTIONS_COUNT:-0} -gt 0 ]]; then
   STATUS_INSERTIONS=" ${RESET}#[fg=${THEME[success]},bg=${THEME[background]},bold] ${INSERTIONS_COUNT}"
 fi
 
-if [[ $DELETIONS_COUNT -gt 0 ]]; then
+if [[ ${DELETIONS_COUNT:-0} -gt 0 ]]; then
   STATUS_DELETIONS=" ${RESET}#[fg=${THEME[danger]},bg=${THEME[background]},bold] ${DELETIONS_COUNT}"
 fi
 
@@ -96,6 +133,4 @@ case "$SYNC_MODE" in
   ;;
 esac
 
-if [[ -n $BRANCH ]]; then
-  echo "$REMOTE_STATUS $RESET$BRANCH$STATUS_CHANGED$STATUS_INSERTIONS$STATUS_DELETIONS$STATUS_UNTRACKED$STATUS_STASH$STATUS_CONFLICT "
-fi
+echo "$REMOTE_STATUS ${RESET}#[fg=${THEME[danger]},bg=${THEME[background]},bold] ${BRANCH}${STATUS_CHANGED}${STATUS_INSERTIONS}${STATUS_DELETIONS}${STATUS_UNTRACKED}${STATUS_STASH}${STATUS_CONFLICT} "

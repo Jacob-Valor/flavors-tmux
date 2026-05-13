@@ -78,3 +78,38 @@ test "formatNumber invalid format" {
     const gpa = std.testing.allocator;
     try std.testing.expectError(error.InvalidFormat, formatNumber(gpa, "1", "nope"));
 }
+
+test "formatNumber fsquare" {
+    const gpa = std.testing.allocator;
+    const result = try formatNumber(gpa, "0", "fsquare");
+    defer gpa.free(result);
+    try std.testing.expect(result.len > 0);
+}
+
+test "formatNumber super" {
+    const gpa = std.testing.allocator;
+    const result = try formatNumber(gpa, "123", "super");
+    defer gpa.free(result);
+    try std.testing.expectEqualStrings("¹²³ ", result);
+}
+
+test "formatNumber sub" {
+    const gpa = std.testing.allocator;
+    const result = try formatNumber(gpa, "45", "sub");
+    defer gpa.free(result);
+    try std.testing.expectEqualStrings("₄₅ ", result);
+}
+
+test "formatNumber earabic" {
+    const gpa = std.testing.allocator;
+    const result = try formatNumber(gpa, "789", "earabic");
+    defer gpa.free(result);
+    try std.testing.expectEqualStrings("٧٨٩ ", result);
+}
+
+test "formatNumber ignores non-digit characters" {
+    const gpa = std.testing.allocator;
+    const result = try formatNumber(gpa, "a1b2c", "arabic");
+    defer gpa.free(result);
+    try std.testing.expectEqualStrings("1 2 ", result);
+}

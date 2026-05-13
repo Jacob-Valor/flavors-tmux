@@ -9,11 +9,13 @@ and time.
 It started from a Gruvbox-inspired style and now includes several familiar
 flavors: Gruvbox Hard, Medium, Soft, Light, Tokyo Night, Catppuccin, Dracula,
 Nord, GitHub Dark, One Dark, Solarized Dark, Solarized Light, Monokai,
-Monokai Nebula, GitHub Light, Ayu Dark, Ayu Light, Flexoki Dark, and Flexoki Light.
+Monokai Nebula, GitHub Light, Ayu Dark, Ayu Light, Flexoki Dark, Flexoki Light,
+Rose Pine, Rose Pine Moon, Rose Pine Dawn, Kanagawa, Kanagawa Dragon,
+Kanagawa Lotus, Everforest Dark, and Everforest Light.
 
 ## Features
 
-- Nineteen built-in color flavors plus user-defined custom themes via JSON
+- Twenty-seven built-in color flavors plus user-defined custom themes via JSON
 - Optional transparent status bar background
 - Git branch, change, insert, delete, untracked, stash, conflict, ahead/behind, push, and pull indicators
 - Optional GitHub/GitLab widget for pull requests, reviews, issues, and bugs
@@ -294,10 +296,18 @@ set -g @flavors-tmux_battery_name "BAT0"
 set -g @flavors-tmux_battery_low_threshold 20
 ```
 
+Works on Linux (`/sys/class/power_supply`) and macOS (`pmset`).
+
 On Linux, run this to find your battery name:
 
 ```sh
 ls /sys/class/power_supply
+```
+
+On macOS, the default battery name is `InternalBattery-0`. Run this to verify:
+
+```sh
+pmset -g batt | grep -o 'InternalBattery-[0-9]\+'
 ```
 
 ### Current Working Directory
