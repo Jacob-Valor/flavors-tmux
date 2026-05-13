@@ -51,7 +51,6 @@ show_kubernetes="$(tmux show-option -gv @flavors-tmux_show_kubernetes 2>/dev/nul
 show_cwd="$(tmux show-option -gv @flavors-tmux_show_cwd 2>/dev/null || echo "0")"
 show_terraform="$(tmux show-option -gv @flavors-tmux_show_terraform 2>/dev/null || echo "0")"
 show_docker="$(tmux show-option -gv @flavors-tmux_show_docker 2>/dev/null || echo "0")"
-show_git_worktree="$(tmux show-option -gv @flavors-tmux_show_git_worktree 2>/dev/null || echo "0")"
 show_yadm="$(tmux show-option -gv @flavors-tmux_show_yadm 2>/dev/null || echo "0")"
 forge_cache_ttl="$(tmux show-option -gv @flavors-tmux_forge_cache_ttl 2>/dev/null || echo "300")"
 transparent_arg=""
@@ -142,10 +141,6 @@ if [[ -x "$BINARY_PATH" ]]; then
         [[ "$show_docker" == "1" ]] || return
         echo "#($BINARY_PATH docker --theme $SELECTED_THEME $transparent_arg)"
     }
-    git_worktree_cmd() {
-        [[ "$show_git_worktree" == "1" ]] || return
-        echo "#($BINARY_PATH git-worktree --theme $SELECTED_THEME $transparent_arg #{q:pane_current_path})"
-    }
     yadm_cmd() {
         [[ "$show_yadm" == "1" ]] || return
         echo "#($BINARY_PATH yadm --theme $SELECTED_THEME $transparent_arg)"
@@ -190,10 +185,6 @@ else
         [[ "$show_docker" == "1" ]] || return
         echo "#($SCRIPTS_PATH/docker.sh)"
     }
-    git_worktree_cmd() {
-        [[ "$show_git_worktree" == "1" ]] || return
-        echo "#($SCRIPTS_PATH/git-worktree.sh #{q:pane_current_path})"
-    }
     yadm_cmd() {
         [[ "$show_yadm" == "1" ]] || return
         echo "#($SCRIPTS_PATH/yadm.sh)"
@@ -227,7 +218,6 @@ kubernetes_status="$(kubernetes_cmd)"
 cwd_status="$(cwd_cmd)"
 terraform_status="$(terraform_cmd)"
 docker_status="$(docker_cmd)"
-git_worktree_status="$(git_worktree_cmd)"
 yadm_status="$(yadm_cmd)"
 
 tmux set -g status-left "\
@@ -266,7 +256,6 @@ right_status="\
 #[fg=${THEME[info]},bg=${THEME[surface_alt]}]$hostname_status\
 #[fg=${THEME[accent_bright]},bg=${THEME[surface_alt]}]$cpu_memory_status\
 #[fg=${THEME[emphasis]},bg=${THEME[surface_alt]}]$cwd_status\
-#[fg=${THEME[warning]},bg=${THEME[surface_alt]}]$git_worktree_status\
 #[fg=${THEME[info]},bg=${THEME[surface_alt]}]$kubernetes_status\
 #[fg=${THEME[primary]},bg=${THEME[surface_alt]}]$terraform_status\
 #[fg=${THEME[info]},bg=${THEME[surface_alt]}]$docker_status\

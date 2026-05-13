@@ -14,7 +14,6 @@ const kubernetes = @import("widgets/kubernetes.zig");
 const cwd = @import("widgets/cwd.zig");
 const terraform = @import("widgets/terraform.zig");
 const docker = @import("widgets/docker.zig");
-const git_worktree = @import("widgets/git_worktree.zig");
 const yadm = @import("widgets/yadm.zig");
 
 const usage =
@@ -32,7 +31,6 @@ const usage =
     \\  cwd --theme <name> <path>           Render current working directory widget
     \\  terraform --theme <name> <path>     Render Terraform workspace widget
     \\  docker --theme <name>               Render Docker context widget
-    \\  git-worktree --theme <name> <path>  Render Git worktree indicator widget
     \\  yadm --theme <name>                 Render YADM dotfiles status widget
     \\  theme <name> <key>                  Look up a theme color
     \\  theme-list                          List available themes
@@ -104,12 +102,6 @@ fn run(init: std.process.Init) !void {
         try terraform.run(arena, io, args.theme, args.transparent, init.environ_map, args.positional.items[0], stdout_writer);
     } else if (std.mem.eql(u8, args.command, "docker")) {
         try docker.run(arena, io, args.theme, args.transparent, init.environ_map, stdout_writer);
-    } else if (std.mem.eql(u8, args.command, "git-worktree")) {
-        if (args.positional.items.len < 1) {
-            std.debug.print("Usage: flavors-tmux git-worktree --theme <name> <path>\n", .{});
-            return error.Usage;
-        }
-        try git_worktree.run(arena, io, args.theme, args.transparent, init.environ_map, args.positional.items[0], stdout_writer);
     } else if (std.mem.eql(u8, args.command, "yadm")) {
         try yadm.run(arena, io, args.theme, args.transparent, init.environ_map, stdout_writer);
     } else if (std.mem.eql(u8, args.command, "theme")) {
