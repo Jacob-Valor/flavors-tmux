@@ -93,12 +93,10 @@ fn readDarwinBattery(allocator: std.mem.Allocator, io: std.Io, name: []const u8)
             }
         }
 
-        if (pct > 0) {
-            return BatteryInfo{
-                .status = try allocator.dupe(u8, status_slice),
-                .percentage = pct,
-            };
-        }
+        return BatteryInfo{
+            .status = try allocator.dupe(u8, status_slice),
+            .percentage = pct,
+        };
     }
 
     return error.NoBattery;
@@ -139,7 +137,7 @@ pub fn run(
 
     const icon = blk: {
         const s = std.mem.trim(u8, info.status, " \n\r\t");
-        if (std.mem.eql(u8, s, "Charging") or std.mem.eql(u8, s, "Charged") or std.mem.eql(u8, s, "charging") or std.mem.eql(u8, s, "Charged")) {
+        if (std.mem.eql(u8, s, "Charging") or std.mem.eql(u8, s, "Charged") or std.mem.eql(u8, s, "charging")) {
             break :blk charging_icons[idx];
         } else if (std.mem.eql(u8, s, "Discharging") or std.mem.eql(u8, s, "discharging")) {
             break :blk discharging_icons[idx];

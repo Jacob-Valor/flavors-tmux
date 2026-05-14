@@ -25,20 +25,12 @@ fn parseLineValue(content: []const u8, prefix: []const u8) !usize {
     return 0;
 }
 
-fn readLinuxStats(_: std.mem.Allocator, io: std.Io) !CpuMemStats {
-    // CPU: read /proc/stat
-    var cpu_buf: [4096]u8 = undefined;
-    const cpu_content = std.Io.Dir.readFile(.cwd(), io, "/proc/stat", &cpu_buf) catch return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
-
-    var cpu_lines = std.mem.splitScalar(u8, cpu_content, '\n');
-    const first_line = cpu_lines.next() orelse return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
-    if (!std.mem.startsWith(u8, first_line, "cpu ")) return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
-
-    var cpu_it = std.mem.splitAny(u8, first_line[4..], " \t");
+fn parseCpuStatLine(line: []const u8) struct { total: usize, idle: usize } {
+    var it = std.mem.splitAny(u8, line, " \t");
     var total: usize = 0;
     var idle: usize = 0;
     var field_idx: usize = 0;
-    while (cpu_it.next()) |token| {
+    while (it.next()) |token| {
         const trimmed = std.mem.trim(u8, token, " \t");
         if (trimmed.len == 0) continue;
         const val = std.fmt.parseInt(usize, trimmed, 10) catch continue;
@@ -47,8 +39,30 @@ fn readLinuxStats(_: std.mem.Allocator, io: std.Io) !CpuMemStats {
         if (field_idx == 4) idle += val; // iowait is 5th field, add to idle
         field_idx += 1;
     }
+    return .{ .total = total, .idle = idle };
+}
 
-    const cpu_percent: u8 = if (total > 0) @intCast(@min(100, (total - idle) * 100 / total)) else 0;
+fn readLinuxStats(_: std.mem.Allocator, io: std.Io) !CpuMemStats {
+    // CPU: take two samples of /proc/stat to calculate instantaneous usage
+    var cpu_buf: [4096]u8 = undefined;
+
+    const cpu_content_1 = std.Io.Dir.readFile(.cwd(), io, "/proc/stat", &cpu_buf) catch return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
+    var cpu_lines_1 = std.mem.splitScalar(u8, cpu_content_1, '\n');
+    const first_line_1 = cpu_lines_1.next() orelse return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
+    if (!std.mem.startsWith(u8, first_line_1, "cpu ")) return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
+    const sample_1 = parseCpuStatLine(first_line_1[4..]);
+
+    try std.Io.sleep(io, .{ .nanoseconds = 100 * std.time.ns_per_ms }, .real);
+
+    const cpu_content_2 = std.Io.Dir.readFile(.cwd(), io, "/proc/stat", &cpu_buf) catch return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
+    var cpu_lines_2 = std.mem.splitScalar(u8, cpu_content_2, '\n');
+    const first_line_2 = cpu_lines_2.next() orelse return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
+    if (!std.mem.startsWith(u8, first_line_2, "cpu ")) return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
+    const sample_2 = parseCpuStatLine(first_line_2[4..]);
+
+    const total_delta = sample_2.total - sample_1.total;
+    const idle_delta = sample_2.idle - sample_1.idle;
+    const cpu_percent: u8 = if (total_delta > 0) @intCast(@min(100, (total_delta - idle_delta) * 100 / total_delta)) else 0;
 
     // Memory: read /proc/meminfo
     var mem_buf: [4096]u8 = undefined;
