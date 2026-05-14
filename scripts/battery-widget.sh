@@ -98,7 +98,7 @@ fi
 
 # Determine icon and color based on battery status and percentage
 case "$BATTERY_STATUS" in
-"Charging" | "Charged" | "charging" | "Charged")
+"Charging" | "Charged" | "charging")
   ICON="${CHARGING_ICONS[$BATTERY_ICON_INDEX]}"
   ;;
 "Discharging" | "discharging")

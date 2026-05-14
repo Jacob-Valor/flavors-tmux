@@ -11,7 +11,7 @@ source "$CURRENT_DIR/themes.sh"
 cd "$1" || exit 1
 RESET="#[fg=${THEME[foreground]},bg=${THEME[background]},nobold,noitalics,nounderscore,nodim]"
 BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-STATUS=$(git status --porcelain 2>/dev/null | grep -cE "^(M| M)")
+STATUS=$(git status --porcelain 2>/dev/null | grep -cE "^[ MADRCU]")
 
 SYNC_MODE=0
 
@@ -29,7 +29,7 @@ STATUS_AHEAD=""
 STATUS_BEHIND=""
 
 if [[ $STATUS -ne 0 ]]; then
-  DIFF_COUNTS=($(git diff --numstat 2>/dev/null | awk 'NF==3 {changed+=1; ins+=$1; del+=$2} END {printf("%d %d %d", changed, ins, del)}'))
+  DIFF_COUNTS=($(git diff --numstat HEAD 2>/dev/null | awk 'NF==3 {changed+=1; ins+=$1; del+=$2} END {printf("%d %d %d", changed, ins, del)}'))
   CHANGED_COUNT=${DIFF_COUNTS[0]}
   INSERTIONS_COUNT=${DIFF_COUNTS[1]}
   DELETIONS_COUNT=${DIFF_COUNTS[2]}
@@ -37,7 +37,7 @@ if [[ $STATUS -ne 0 ]]; then
   SYNC_MODE=1
 fi
 
-UNTRACKED_COUNT="$(git ls-files --other --directory --exclude-standard | wc -l)"
+UNTRACKED_COUNT="$(git ls-files --other --exclude-standard | wc -l)"
 STASH_COUNT="$(git stash list 2>/dev/null | wc -l)"
 CONFLICT_COUNT="$(git diff --name-only --diff-filter=U 2>/dev/null | wc -l)"
 

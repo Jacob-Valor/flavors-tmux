@@ -102,9 +102,9 @@ if [[ -x "$BINARY_PATH" ]]; then
     battery_cmd() {
         [[ "$show_battery_widget" == "1" ]] || return
         local name_arg=""
-        [[ -n "$battery_name" ]] && name_arg="--name $battery_name"
+        [[ -n "$battery_name" ]] && name_arg="--name '$battery_name'"
         if [[ -x "$SCRIPTS_PATH/battery-fast.sh" && "$(uname -s)" == "Linux" ]]; then
-            echo "#($SCRIPTS_PATH/battery-fast.sh ${battery_name:-BAT0} ${battery_low:-20} '${THEME[danger]}' '${THEME[success]}' '${THEME[warning]}')"
+            echo "#($SCRIPTS_PATH/battery-fast.sh '${battery_name:-BAT0}' ${battery_low:-20} '${THEME[danger]}' '${THEME[success]}' '${THEME[warning]}')"
         else
             echo "#($BINARY_PATH battery --theme $SELECTED_THEME $transparent_arg $name_arg --low-threshold ${battery_low:-20})"
         fi

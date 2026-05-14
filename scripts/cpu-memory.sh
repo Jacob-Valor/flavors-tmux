@@ -10,11 +10,21 @@ MEM_PERCENT=0
 
 case "$(uname -s)" in
     Linux)
-        read -r CPU_LABEL USER NICE SYSTEM IDLE IOWAIT IRQ SOFTIRQ STEAL REST < /proc/stat
-        TOTAL=$((USER + NICE + SYSTEM + IDLE + IOWAIT + IRQ + SOFTIRQ + STEAL))
-        IDLE_TOTAL=$((IDLE + IOWAIT))
-        if [[ $TOTAL -gt 0 ]]; then
-            CPU_PERCENT=$(( (TOTAL - IDLE_TOTAL) * 100 / TOTAL ))
+        # Take two samples to calculate instantaneous CPU usage
+        read -r CPU_LABEL1 USER1 NICE1 SYSTEM1 IDLE1 IOWAIT1 IRQ1 SOFTIRQ1 STEAL1 REST1 < /proc/stat
+        TOTAL1=$((USER1 + NICE1 + SYSTEM1 + IDLE1 + IOWAIT1 + IRQ1 + SOFTIRQ1 + STEAL1))
+        IDLE_TOTAL1=$((IDLE1 + IOWAIT1))
+
+        sleep 0.1
+
+        read -r CPU_LABEL2 USER2 NICE2 SYSTEM2 IDLE2 IOWAIT2 IRQ2 SOFTIRQ2 STEAL2 REST2 < /proc/stat
+        TOTAL2=$((USER2 + NICE2 + SYSTEM2 + IDLE2 + IOWAIT2 + IRQ2 + SOFTIRQ2 + STEAL2))
+        IDLE_TOTAL2=$((IDLE2 + IOWAIT2))
+
+        TOTAL_DELTA=$((TOTAL2 - TOTAL1))
+        IDLE_DELTA=$((IDLE_TOTAL2 - IDLE_TOTAL1))
+        if [[ $TOTAL_DELTA -gt 0 ]]; then
+            CPU_PERCENT=$(( (TOTAL_DELTA - IDLE_DELTA) * 100 / TOTAL_DELTA ))
         fi
 
         MEM_TOTAL=$(grep "^MemTotal:" /proc/meminfo | awk '{print $2}')

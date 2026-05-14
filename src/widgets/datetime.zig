@@ -1,15 +1,21 @@
 const std = @import("std");
 const themes = @import("../themes/registry.zig");
 
-pub fn run(allocator: std.mem.Allocator, theme_name: []const u8, time_format: []const u8, transparent: bool, io: std.Io, environ_map: *std.process.Environ.Map, writer: *std.Io.Writer) !void {
+const TimeFormat = @import("../cli/args.zig").TimeFormat;
+
+pub fn run(allocator: std.mem.Allocator, theme_name: []const u8, time_format: TimeFormat, transparent: bool, io: std.Io, environ_map: *std.process.Environ.Map, writer: *std.Io.Writer) !void {
     const theme = (themes.byName(allocator, io, environ_map, theme_name) orelse themes.hard).withTransparentBackground(transparent);
 
     const separator = "▒";
     const time_icon = "󰥔";
 
     var time_str: []const u8 = "";
-    if (!std.mem.eql(u8, time_format, "hide")) {
-        const fmt = if (std.mem.eql(u8, time_format, "12H")) "+%I:%M %p " else "+%H:%M ";
+    if (time_format != .hide) {
+        const fmt = switch (time_format) {
+            .H12 => "+%I:%M %p ",
+            .H24 => "+%H:%M ",
+            .hide => unreachable,
+        };
 
         var buf: [4096]u8 = undefined;
         var fba = std.heap.FixedBufferAllocator.init(&buf);

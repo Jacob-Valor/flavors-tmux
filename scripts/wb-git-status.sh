@@ -41,9 +41,9 @@ if [[ $PROVIDER == "github.com" ]]; then
     exit 1
   fi
   PROVIDER_ICON="$RESET#[fg=${THEME[forge_github]}] "
-  PR_COUNT=$(gh pr list --json number --jq 'length')
-  REVIEW_COUNT=$(gh pr status --json reviewRequests --jq '.needsReview | length')
-  RES=$(gh issue list --json "assignees,labels" --assignee @me)
+  PR_COUNT=$(gh pr list --json number --limit 100 --jq 'length')
+  REVIEW_COUNT=$(gh pr list --reviewer @me --json number --limit 100 --jq 'length')
+  RES=$(gh issue list --json "assignees,labels" --assignee @me --limit 100)
   ISSUE_COUNT=$(echo "$RES" | jq 'length')
   BUG_COUNT=$(echo "$RES" | jq 'map(select(any(.labels[]?; .name == "bug"))) | length')
   ISSUE_COUNT=$((ISSUE_COUNT - BUG_COUNT))
@@ -75,9 +75,9 @@ elif [[ $PROVIDER == "codeberg.org" ]]; then
   PROVIDER_ICON="$RESET#[fg=${THEME[forge_codeberg]}] "
   API_BASE="https://codeberg.org/api/v1"
   PR_COUNT=$(curl -s -H "Authorization: token ${CODEBERG_TOKEN}" \
-    "${API_BASE}/repos/${OWNER}/${REPO}/pulls?state=open&limit=1" | jq 'length')
+    "${API_BASE}/repos/${OWNER}/${REPO}/pulls?state=open&limit=100" | jq 'length')
   ISSUE_COUNT=$(curl -s -H "Authorization: token ${CODEBERG_TOKEN}" \
-    "${API_BASE}/repos/${OWNER}/${REPO}/issues?state=open&limit=1" | jq 'length')
+    "${API_BASE}/repos/${OWNER}/${REPO}/issues?state=open&limit=100" | jq 'length')
 else
   exit 0
 fi
