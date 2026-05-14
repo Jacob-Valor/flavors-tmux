@@ -50,7 +50,7 @@ fn getDiffStats(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8)
 }
 
 fn countUntracked(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !usize {
-    const stdout = runGitCommand(allocator, io, &.{ "git", "ls-files", "--other", "--directory", "--exclude-standard" }, repo_path) catch return 0;
+    const stdout = runGitCommand(allocator, io, &.{ "git", "ls-files", "--other", "--exclude-standard" }, repo_path) catch return 0;
     defer allocator.free(stdout);
 
     var count: usize = 0;

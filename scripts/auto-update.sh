@@ -42,8 +42,6 @@ if (( now - last_check < interval_seconds )); then
     exit 0
 fi
 
-echo "$now" > "$CACHE_FILE"
-
 # ---------------------------------------------------------------------------
 # Check for updates
 # ---------------------------------------------------------------------------
@@ -55,13 +53,19 @@ if ! git rev-parse --git-dir &>/dev/null; then
     exit 0
 fi
 
-remote_url=$(git config --get remote.origin.url 2>/dev/null || true)
+# Detect remote name (not hardcoded to origin)
+remote_name=$(git remote 2>/dev/null | head -n 1)
+if [[ -z "$remote_name" ]]; then
+    exit 0
+fi
+
+remote_url=$(git config --get "remote.${remote_name}.url" 2>/dev/null || true)
 if [[ -z "$remote_url" ]]; then
     exit 0
 fi
 
 local_head=$(git rev-parse HEAD 2>/dev/null || true)
-remote_head=$(git ls-remote --heads origin "$BRANCH" 2>/dev/null | awk '{print $1}')
+remote_head=$(git ls-remote --heads "$remote_name" "$BRANCH" 2>/dev/null | awk '{print $1}')
 
 if [[ -z "$local_head" || -z "$remote_head" ]]; then
     exit 0
@@ -70,6 +74,9 @@ fi
 if [[ "$local_head" == "$remote_head" ]]; then
     exit 0
 fi
+
+# Only update cache after successful validation
+echo "$now" > "$CACHE_FILE"
 
 # ---------------------------------------------------------------------------
 # Notify user or auto-pull

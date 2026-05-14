@@ -218,20 +218,18 @@ fn renderUncached(
         if (!commandWorks(allocator, io, &.{ "gh", "--version" })) return try allocator.dupe(u8, "");
         provider_icon = " ";
 
-        // PR count: gh pr list --json number --jq 'length'
-        const pr_json = runGhCommand(allocator, io, &.{ "gh", "pr", "list", "--json", "number" }, repo_path) catch "";
+        // PR count: gh pr list --json number --limit 100 --jq 'length'
+        const pr_json = runGhCommand(allocator, io, &.{ "gh", "pr", "list", "--json", "number", "--limit", "100" }, repo_path) catch "";
         defer if (pr_json.len > 0) allocator.free(pr_json);
         pr_count = countJsonArrayItems(allocator, pr_json) catch 0;
 
-        // Review count: gh pr status --json reviewRequests --jq '.needsReview | length'
-        // Actually the bash script uses: gh pr status --json reviewRequests --jq '.needsReview | length'
-        // But gh pr status doesn't accept --json. Let's use: gh pr list --reviewer @me --json number
-        const review_json = runGhCommand(allocator, io, &.{ "gh", "pr", "list", "--reviewer", "@me", "--json", "number" }, repo_path) catch "";
+        // Review count: gh pr list --reviewer @me --json number --limit 100
+        const review_json = runGhCommand(allocator, io, &.{ "gh", "pr", "list", "--reviewer", "@me", "--json", "number", "--limit", "100" }, repo_path) catch "";
         defer if (review_json.len > 0) allocator.free(review_json);
         review_count = countJsonArrayItems(allocator, review_json) catch 0;
 
         // Issues assigned to me
-        const issue_json = runGhCommand(allocator, io, &.{ "gh", "issue", "list", "--json", "assignees,labels", "--assignee", "@me" }, repo_path) catch "";
+        const issue_json = runGhCommand(allocator, io, &.{ "gh", "issue", "list", "--json", "assignees,labels", "--assignee", "@me", "--limit", "100" }, repo_path) catch "";
         defer if (issue_json.len > 0) allocator.free(issue_json);
         const total_issues = countJsonArrayItems(allocator, issue_json) catch 0;
         const bugs = countJsonArrayItemsWithBugLabel(allocator, issue_json) catch 0;
