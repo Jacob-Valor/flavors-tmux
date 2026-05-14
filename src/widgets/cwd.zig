@@ -37,7 +37,7 @@ pub fn run(
                 const repo_name = std.fs.path.basename(repo_root);
                 if (repo_name.len > 0) {
                     if (std.mem.eql(u8, repo_name, basename)) {
-                        display_path = repo_name;
+                        display_path = basename;
                     } else {
                         const rel = try std.fmt.allocPrint(allocator, "{s}/{s}", .{ repo_name, basename });
                         display_path = rel;
