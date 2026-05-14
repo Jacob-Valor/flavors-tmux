@@ -16,7 +16,11 @@ BASENAME=$(basename "$PATH_ARG")
 GIT_ROOT=$(cd "$PATH_ARG" && git rev-parse --show-toplevel 2>/dev/null)
 if [ -n "$GIT_ROOT" ]; then
   REPO_NAME=$(basename "$GIT_ROOT")
-  DISPLAY="${REPO_NAME}/${BASENAME}"
+  if [ "$REPO_NAME" = "$BASENAME" ]; then
+    DISPLAY="$REPO_NAME"
+  else
+    DISPLAY="${REPO_NAME}/${BASENAME}"
+  fi
 else
   DISPLAY="$BASENAME"
 fi
