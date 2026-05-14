@@ -1,10 +1,31 @@
 const std = @import("std");
 
+pub const TimeFormat = enum {
+    H12,
+    H24,
+    hide,
+
+    pub fn fromString(s: []const u8) ?TimeFormat {
+        if (std.mem.eql(u8, s, "12H")) return .H12;
+        if (std.mem.eql(u8, s, "24H")) return .H24;
+        if (std.mem.eql(u8, s, "hide")) return .hide;
+        return null;
+    }
+
+    pub fn toString(self: TimeFormat) []const u8 {
+        return switch (self) {
+            .H12 => "12H",
+            .H24 => "24H",
+            .hide => "hide",
+        };
+    }
+};
+
 pub const Args = struct {
     command: []const u8 = "",
     positional: std.ArrayList([]const u8),
     theme: []const u8 = "hard",
-    time_format: []const u8 = "24H",
+    time_format: TimeFormat = .H24,
     battery_name: ?[]const u8 = null,
     low_threshold: u8 = 20,
     cache_ttl: u64 = 300,
@@ -36,7 +57,8 @@ pub fn parseArgs(allocator: std.mem.Allocator, raw_args: []const []const u8) !Ar
         } else if (std.mem.eql(u8, arg, "--format")) {
             i += 1;
             if (i >= raw_args.len) return error.MissingValue;
-            args.time_format = raw_args[i];
+            const format_str = raw_args[i];
+            args.time_format = TimeFormat.fromString(format_str) orelse return error.InvalidFormat;
         } else if (std.mem.eql(u8, arg, "--name")) {
             i += 1;
             if (i >= raw_args.len) return error.MissingValue;
@@ -59,4 +81,38 @@ pub fn parseArgs(allocator: std.mem.Allocator, raw_args: []const []const u8) !Ar
     }
 
     return args;
+}
+
+test "TimeFormat fromString valid values" {
+    try std.testing.expectEqual(TimeFormat.H12, TimeFormat.fromString("12H").?);
+    try std.testing.expectEqual(TimeFormat.H24, TimeFormat.fromString("24H").?);
+    try std.testing.expectEqual(TimeFormat.hide, TimeFormat.fromString("hide").?);
+    try std.testing.expect(TimeFormat.fromString("invalid") == null);
+    try std.testing.expect(TimeFormat.fromString("") == null);
+}
+
+test "TimeFormat toString" {
+    try std.testing.expectEqualStrings("12H", TimeFormat.H12.toString());
+    try std.testing.expectEqualStrings("24H", TimeFormat.H24.toString());
+    try std.testing.expectEqualStrings("hide", TimeFormat.hide.toString());
+}
+
+test "parseArgs validates time format" {
+    const gpa = std.testing.allocator;
+    
+    const valid_args = &.{ "datetime", "--format", "12H" };
+    const args = try parseArgs(gpa, valid_args);
+    defer args.deinit(gpa);
+    try std.testing.expectEqual(TimeFormat.H12, args.time_format);
+    
+    const invalid_args = &.{ "datetime", "--format", "invalid" };
+    try std.testing.expectError(error.InvalidFormat, parseArgs(gpa, invalid_args));
+}
+
+test "parseArgs default time format is 24H" {
+    const gpa = std.testing.allocator;
+    const raw_args = &.{ "datetime" };
+    const args = try parseArgs(gpa, raw_args);
+    defer args.deinit(gpa);
+    try std.testing.expectEqual(TimeFormat.H24, args.time_format);
 }

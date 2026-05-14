@@ -182,6 +182,43 @@ fn getMemColor(percent: u8, theme: Theme) []const u8 {
     return theme.success;
 }
 
+test "parseCpuStatLine calculates total and idle correctly" {
+    const result = parseCpuStatLine("  100 50 25 200 10 5 3 2");
+    try std.testing.expectEqual(@as(usize, 395), result.total);
+    try std.testing.expectEqual(@as(usize, 210), result.idle);
+}
+
+test "parseLineValue finds value in content" {
+    const content = "MemTotal:    16384000 kB\nMemAvailable: 8192000 kB\n";
+    const total = try parseLineValue(content, "MemTotal:");
+    try std.testing.expectEqual(@as(usize, 16384000), total);
+    const available = try parseLineValue(content, "MemAvailable:");
+    try std.testing.expectEqual(@as(usize, 8192000), available);
+}
+
+test "parseLineValue returns 0 for missing key" {
+    const content = "MemTotal: 1000 kB\n";
+    const result = try parseLineValue(content, "MissingKey:");
+    try std.testing.expectEqual(@as(usize, 0), result);
+}
+
+test "getCpuColor returns correct thresholds" {
+    const theme = themes.hard;
+    try std.testing.expectEqualStrings(theme.danger, getCpuColor(80, theme));
+    try std.testing.expectEqualStrings(theme.danger, getCpuColor(100, theme));
+    try std.testing.expectEqualStrings(theme.warning, getCpuColor(50, theme));
+    try std.testing.expectEqualStrings(theme.warning, getCpuColor(79, theme));
+    try std.testing.expectEqualStrings(theme.success, getCpuColor(49, theme));
+    try std.testing.expectEqualStrings(theme.success, getCpuColor(0, theme));
+}
+
+test "getMemColor returns correct thresholds" {
+    const theme = themes.hard;
+    try std.testing.expectEqualStrings(theme.danger, getMemColor(80, theme));
+    try std.testing.expectEqualStrings(theme.warning, getMemColor(50, theme));
+    try std.testing.expectEqualStrings(theme.success, getMemColor(0, theme));
+}
+
 pub fn run(
     allocator: std.mem.Allocator,
     io: std.Io,

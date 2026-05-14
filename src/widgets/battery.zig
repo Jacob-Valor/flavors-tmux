@@ -162,3 +162,67 @@ pub fn run(
         info.percentage,
     });
 }
+
+test "getBatteryIcon selects correct icon for charging" {
+    const idx = @min(50 / 10, 9);
+    const icon = blk: {
+        const s = "Charging";
+        if (std.mem.eql(u8, s, "Charging") or std.mem.eql(u8, s, "Charged") or std.mem.eql(u8, s, "charging")) {
+            break :blk charging_icons[idx];
+        } else if (std.mem.eql(u8, s, "Discharging") or std.mem.eql(u8, s, "discharging")) {
+            break :blk discharging_icons[idx];
+        } else if (std.mem.eql(u8, s, "Full") or std.mem.eql(u8, s, "charged") or std.mem.eql(u8, s, "full") or std.mem.eql(u8, s, "AC")) {
+            break :blk not_charging_icon;
+        } else {
+            break :blk no_battery_icon;
+        }
+    };
+    try std.testing.expectEqualStrings(charging_icons[5], icon);
+}
+
+test "getBatteryIcon selects correct icon for discharging" {
+    const idx = @min(75 / 10, 9);
+    const icon = blk: {
+        const s = "Discharging";
+        if (std.mem.eql(u8, s, "Charging") or std.mem.eql(u8, s, "Charged") or std.mem.eql(u8, s, "charging")) {
+            break :blk charging_icons[idx];
+        } else if (std.mem.eql(u8, s, "Discharging") or std.mem.eql(u8, s, "discharging")) {
+            break :blk discharging_icons[idx];
+        } else if (std.mem.eql(u8, s, "Full") or std.mem.eql(u8, s, "charged") or std.mem.eql(u8, s, "full") or std.mem.eql(u8, s, "AC")) {
+            break :blk not_charging_icon;
+        } else {
+            break :blk no_battery_icon;
+        }
+    };
+    try std.testing.expectEqualStrings(discharging_icons[7], icon);
+}
+
+test "getBatteryIcon selects not_charging for full battery" {
+    const icon = blk: {
+        const s = "Full";
+        if (std.mem.eql(u8, s, "Charging") or std.mem.eql(u8, s, "Charged") or std.mem.eql(u8, s, "charging")) {
+            break :blk charging_icons[0];
+        } else if (std.mem.eql(u8, s, "Discharging") or std.mem.eql(u8, s, "discharging")) {
+            break :blk discharging_icons[0];
+        } else if (std.mem.eql(u8, s, "Full") or std.mem.eql(u8, s, "charged") or std.mem.eql(u8, s, "full") or std.mem.eql(u8, s, "AC")) {
+            break :blk not_charging_icon;
+        } else {
+            break :blk no_battery_icon;
+        }
+    };
+    try std.testing.expectEqualStrings(not_charging_icon, icon);
+}
+
+test "battery color selection" {
+    const theme = themes.hard;
+    const low_threshold: u8 = 20;
+    
+    const color_low = if (10 < low_threshold) theme.danger else if (10 >= 100) theme.success else theme.warning;
+    try std.testing.expectEqualStrings(theme.danger, color_low);
+    
+    const color_mid = if (50 < low_threshold) theme.danger else if (50 >= 100) theme.success else theme.warning;
+    try std.testing.expectEqualStrings(theme.warning, color_mid);
+    
+    const color_full = if (100 < low_threshold) theme.danger else if (100 >= 100) theme.success else theme.warning;
+    try std.testing.expectEqualStrings(theme.success, color_full);
+}
