@@ -1,5 +1,5 @@
 const std = @import("std");
-const themes = @import("../themes/registry.zig");
+const WidgetContext = @import("../core/widget.zig").WidgetContext;
 
 pub fn run(
     allocator: std.mem.Allocator,
@@ -10,7 +10,10 @@ pub fn run(
     cwd: []const u8,
     writer: *std.Io.Writer,
 ) !void {
-    const theme = (themes.byName(allocator, io, environ_map, theme_name) orelse themes.hard).withTransparentBackground(transparent);
+    var ctx = try WidgetContext.init(allocator, io, environ_map, theme_name, transparent);
+    defer ctx.deinit();
+    const theme = ctx.theme;
+    const reset = ctx.reset;
 
     const path = if (cwd.len > 0) cwd else return;
 
@@ -31,6 +34,7 @@ pub fn run(
 
     if (git_result) |result| {
         defer allocator.free(result.stderr);
+        defer allocator.free(result.stdout);
         if (result.term == .exited and result.term.exited == 0) {
             const repo_root = std.mem.trim(u8, result.stdout, " \n\r\t");
             if (repo_root.len > 0) {
@@ -46,15 +50,8 @@ pub fn run(
                 }
             }
         }
-        allocator.free(result.stdout);
     }
     defer if (display_owned) allocator.free(display_path);
-
-    const reset = try std.fmt.allocPrint(allocator, "#[fg={s},bg={s},nobold,noitalics,nounderscore,nodim]", .{
-        theme.foreground,
-        theme.background,
-    });
-    defer allocator.free(reset);
 
     try writer.print("{s}#[fg={s},bg={s},bold]󰉋 {s}", .{
         reset,

@@ -48,84 +48,143 @@ const usage =
     \\
 ;
 
+const HandlerFn = *const fn(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    environ_map: *std.process.Environ.Map,
+    args: *const cli.Args,
+    stderr_writer: *std.Io.Writer,
+    stdout_writer: *std.Io.Writer,
+) anyerror!void;
+
+fn handleCustomNumber(arena: std.mem.Allocator, _: std.Io, _: *std.process.Environ.Map, args: *const cli.Args, _: *std.Io.Writer, stdout: *std.Io.Writer) !void {
+    try custom_number.run(arena, args.positional.items, stdout);
+}
+
+fn handleDatetime(arena: std.mem.Allocator, io: std.Io, env: *std.process.Environ.Map, args: *const cli.Args, _: *std.Io.Writer, stdout: *std.Io.Writer) !void {
+    try datetime.run(arena, args.theme, args.time_format, args.transparent, io, env, stdout);
+}
+
+fn handleBattery(arena: std.mem.Allocator, io: std.Io, env: *std.process.Environ.Map, args: *const cli.Args, _: *std.Io.Writer, stdout: *std.Io.Writer) !void {
+    try battery.run(arena, io, env, args.theme, args.transparent, args.battery_name, args.low_threshold, stdout);
+}
+
+fn handleGitStatus(arena: std.mem.Allocator, io: std.Io, env: *std.process.Environ.Map, args: *const cli.Args, stderr: *std.Io.Writer, stdout: *std.Io.Writer) !void {
+    if (args.positional.items.len < 1) {
+        try stderr.print("Usage: flavors-tmux git-status --theme <name> <repo-path>\n", .{});
+        return error.Usage;
+    }
+    try git_status.run(arena, io, env, args.theme, args.transparent, args.positional.items[0], stdout);
+}
+
+fn handleWbGitStatus(arena: std.mem.Allocator, io: std.Io, env: *std.process.Environ.Map, args: *const cli.Args, stderr: *std.Io.Writer, stdout: *std.Io.Writer) !void {
+    if (args.positional.items.len < 1) {
+        try stderr.print("Usage: flavors-tmux wb-git-status --theme <name> <repo-path>\n", .{});
+        return error.Usage;
+    }
+    try wb_git_status.run(arena, io, env, args.theme, args.transparent, args.positional.items[0], args.cache_ttl, stdout);
+}
+
+fn handleHostname(arena: std.mem.Allocator, io: std.Io, env: *std.process.Environ.Map, args: *const cli.Args, _: *std.Io.Writer, stdout: *std.Io.Writer) !void {
+    try hostname.run(arena, io, args.theme, args.transparent, env, stdout);
+}
+
+fn handleCpuMemory(arena: std.mem.Allocator, io: std.Io, env: *std.process.Environ.Map, args: *const cli.Args, _: *std.Io.Writer, stdout: *std.Io.Writer) !void {
+    try cpu_memory.run(arena, io, env, args.theme, args.transparent, stdout);
+}
+
+fn handleKubernetes(arena: std.mem.Allocator, io: std.Io, env: *std.process.Environ.Map, args: *const cli.Args, _: *std.Io.Writer, stdout: *std.Io.Writer) !void {
+    try kubernetes.run(arena, io, args.theme, args.transparent, env, stdout);
+}
+
+fn handleCwd(arena: std.mem.Allocator, io: std.Io, env: *std.process.Environ.Map, args: *const cli.Args, stderr: *std.Io.Writer, stdout: *std.Io.Writer) !void {
+    if (args.positional.items.len < 1) {
+        try stderr.print("Usage: flavors-tmux cwd --theme <name> <path>\n", .{});
+        return error.Usage;
+    }
+    try cwd.run(arena, io, args.theme, args.transparent, env, args.positional.items[0], stdout);
+}
+
+fn handleTerraform(arena: std.mem.Allocator, io: std.Io, env: *std.process.Environ.Map, args: *const cli.Args, stderr: *std.Io.Writer, stdout: *std.Io.Writer) !void {
+    if (args.positional.items.len < 1) {
+        try stderr.print("Usage: flavors-tmux terraform --theme <name> <path>\n", .{});
+        return error.Usage;
+    }
+    try terraform.run(arena, io, args.theme, args.transparent, env, args.positional.items[0], stdout);
+}
+
+fn handleDocker(arena: std.mem.Allocator, io: std.Io, env: *std.process.Environ.Map, args: *const cli.Args, _: *std.Io.Writer, stdout: *std.Io.Writer) !void {
+    try docker.run(arena, io, args.theme, args.transparent, env, stdout);
+}
+
+fn handleYadm(arena: std.mem.Allocator, io: std.Io, env: *std.process.Environ.Map, args: *const cli.Args, _: *std.Io.Writer, stdout: *std.Io.Writer) !void {
+    try yadm.run(arena, io, args.theme, args.transparent, env, stdout);
+}
+
+fn handleTheme(arena: std.mem.Allocator, io: std.Io, env: *std.process.Environ.Map, args: *const cli.Args, stderr: *std.Io.Writer, stdout: *std.Io.Writer) !void {
+    if (args.positional.items.len < 2) {
+        try stderr.print("Usage: flavors-tmux theme <name> <key>\n", .{});
+        return error.Usage;
+    }
+    const theme = themes.byName(arena, io, env, args.positional.items[0]) orelse {
+        try stderr.print("Unknown theme: {s}\n", .{args.positional.items[0]});
+        return error.UnknownTheme;
+    };
+    const value = theme.lookup(args.positional.items[1]) orelse {
+        try stderr.print("Unknown key: {s}\n", .{args.positional.items[1]});
+        return error.UnknownKey;
+    };
+    try stdout.print("{s}\n", .{value});
+}
+
+fn handleThemeList(_: std.mem.Allocator, _: std.Io, _: *std.process.Environ.Map, _: *const cli.Args, _: *std.Io.Writer, stdout: *std.Io.Writer) !void {
+    for (themes.names) |name| {
+        try stdout.print("{s}\n", .{name});
+    }
+}
+
+const handlers = std.StaticStringMap(HandlerFn).initComptime(.{
+    .{ "custom-number", &handleCustomNumber },
+    .{ "datetime", &handleDatetime },
+    .{ "battery", &handleBattery },
+    .{ "git-status", &handleGitStatus },
+    .{ "wb-git-status", &handleWbGitStatus },
+    .{ "hostname", &handleHostname },
+    .{ "cpu-memory", &handleCpuMemory },
+    .{ "kubernetes", &handleKubernetes },
+    .{ "cwd", &handleCwd },
+    .{ "terraform", &handleTerraform },
+    .{ "docker", &handleDocker },
+    .{ "yadm", &handleYadm },
+    .{ "theme", &handleTheme },
+    .{ "theme-list", &handleThemeList },
+});
+
 fn run(init: std.process.Init) !void {
     const arena = init.arena.allocator();
     const raw_args = try init.minimal.args.toSlice(arena);
 
+    const io = init.io;
+    var stderr_buffer: [4096]u8 = undefined;
+    var stderr_file_writer: Io.File.Writer = .init(.stderr(), io, &stderr_buffer);
+    const stderr_writer = &stderr_file_writer.interface;
+
     if (raw_args.len < 2) {
-        std.debug.print("{s}", .{usage});
+        try stderr_writer.print("{s}", .{usage});
         return error.Usage;
     }
 
     const args = try cli.parseArgs(arena, raw_args[1..]);
 
-    const io = init.io;
     var stdout_buffer: [4096]u8 = undefined;
     var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
     const stdout_writer = &stdout_file_writer.interface;
 
-    if (std.mem.eql(u8, args.command, "custom-number")) {
-        try custom_number.run(arena, args.positional.items, stdout_writer);
-    } else if (std.mem.eql(u8, args.command, "datetime")) {
-        try datetime.run(arena, args.theme, args.time_format, args.transparent, io, init.environ_map, stdout_writer);
-    } else if (std.mem.eql(u8, args.command, "battery")) {
-        try battery.run(arena, io, init.environ_map, args.theme, args.transparent, args.battery_name, args.low_threshold, stdout_writer);
-    } else if (std.mem.eql(u8, args.command, "git-status")) {
-        if (args.positional.items.len < 1) {
-            std.debug.print("Usage: flavors-tmux git-status --theme <name> <repo-path>\n", .{});
-            return error.Usage;
-        }
-        try git_status.run(arena, io, init.environ_map, args.theme, args.transparent, args.positional.items[0], stdout_writer);
-    } else if (std.mem.eql(u8, args.command, "wb-git-status")) {
-        if (args.positional.items.len < 1) {
-            std.debug.print("Usage: flavors-tmux wb-git-status --theme <name> <repo-path>\n", .{});
-            return error.Usage;
-        }
-        try wb_git_status.run(arena, io, init.environ_map, args.theme, args.transparent, args.positional.items[0], args.cache_ttl, stdout_writer);
-    } else if (std.mem.eql(u8, args.command, "hostname")) {
-        try hostname.run(arena, io, args.theme, args.transparent, init.environ_map, stdout_writer);
-    } else if (std.mem.eql(u8, args.command, "cpu-memory")) {
-        try cpu_memory.run(arena, io, init.environ_map, args.theme, args.transparent, stdout_writer);
-    } else if (std.mem.eql(u8, args.command, "kubernetes")) {
-        try kubernetes.run(arena, io, args.theme, args.transparent, init.environ_map, stdout_writer);
-    } else if (std.mem.eql(u8, args.command, "cwd")) {
-        if (args.positional.items.len < 1) {
-            std.debug.print("Usage: flavors-tmux cwd --theme <name> <path>\n", .{});
-            return error.Usage;
-        }
-        try cwd.run(arena, io, args.theme, args.transparent, init.environ_map, args.positional.items[0], stdout_writer);
-    } else if (std.mem.eql(u8, args.command, "terraform")) {
-        if (args.positional.items.len < 1) {
-            std.debug.print("Usage: flavors-tmux terraform --theme <name> <path>\n", .{});
-            return error.Usage;
-        }
-        try terraform.run(arena, io, args.theme, args.transparent, init.environ_map, args.positional.items[0], stdout_writer);
-    } else if (std.mem.eql(u8, args.command, "docker")) {
-        try docker.run(arena, io, args.theme, args.transparent, init.environ_map, stdout_writer);
-    } else if (std.mem.eql(u8, args.command, "yadm")) {
-        try yadm.run(arena, io, args.theme, args.transparent, init.environ_map, stdout_writer);
-    } else if (std.mem.eql(u8, args.command, "theme")) {
-        if (args.positional.items.len < 2) {
-            std.debug.print("Usage: flavors-tmux theme <name> <key>\n", .{});
-            return error.Usage;
-        }
-        const theme = themes.byName(arena, io, init.environ_map, args.positional.items[0]) orelse {
-            std.debug.print("Unknown theme: {s}\n", .{args.positional.items[0]});
-            return error.UnknownTheme;
-        };
-        const value = theme.lookup(args.positional.items[1]) orelse {
-            std.debug.print("Unknown key: {s}\n", .{args.positional.items[1]});
-            return error.UnknownKey;
-        };
-        try stdout_writer.print("{s}\n", .{value});
-    } else if (std.mem.eql(u8, args.command, "theme-list")) {
-        for (themes.names) |name| {
-            try stdout_writer.print("{s}\n", .{name});
-        }
-    } else {
-        std.debug.print("Unknown command: {s}\n{s}", .{ args.command, usage });
+    const handler = handlers.get(args.command) orelse {
+        try stderr_writer.print("Unknown command: {s}\n{s}", .{ args.command, usage });
         return error.UnknownCommand;
-    }
+    };
+    try handler(arena, io, init.environ_map, &args, stderr_writer, stdout_writer);
 
     try stdout_writer.flush();
 }
