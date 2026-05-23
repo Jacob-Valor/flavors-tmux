@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-SHOW_NETSPEED=$(tmux show-option -gv @flavors-tmux_show_git 2>/dev/null || echo 1)
-if [ "$SHOW_NETSPEED" == "0" ]; then
+SHOW_GIT=$(tmux show-option -gv @flavors-tmux_show_git 2>/dev/null || echo 1)
+if [ "$SHOW_GIT" == "0" ]; then
   exit 0
 fi
 

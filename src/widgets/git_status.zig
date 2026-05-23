@@ -1,28 +1,15 @@
 const std = @import("std");
-const themes = @import("../themes/registry.zig");
 const util = @import("../core/util.zig");
+const WidgetContext = @import("../core/widget.zig").WidgetContext;
 const runGitCommand = util.runGitCommand;
 const trimBranchName = util.trimBranchName;
 
-fn countChangedFiles(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !usize {
-    const stdout = runGitCommand(allocator, io, &.{ "git", "status", "--porcelain" }, repo_path) catch return 0;
-    defer allocator.free(stdout);
-
-    var count: usize = 0;
-    var lines = std.mem.splitScalar(u8, stdout, '\n');
-    while (lines.next()) |line| {
-        if (line.len < 2) continue;
-        // Match lines starting with M,  M, A, D, R, C, U
-        const first = line[0];
-        const second = line[1];
-        if (first == 'M' or first == 'A' or first == 'D' or first == 'R' or first == 'C' or first == 'U' or
-            second == 'M' or second == 'A' or second == 'D')
-        {
-            count += 1;
-        }
-    }
-    return count;
-}
+const SyncMode = enum {
+    clean,
+    dirty,
+    ahead,
+    behind,
+};
 
 fn getDiffStats(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !struct { changed: usize, insertions: usize, deletions: usize } {
     const stdout = runGitCommand(allocator, io, &.{ "git", "diff", "--numstat", "HEAD" }, repo_path) catch return .{ .changed = 0, .insertions = 0, .deletions = 0 };
@@ -49,16 +36,10 @@ fn getDiffStats(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8)
     return .{ .changed = changed, .insertions = insertions, .deletions = deletions };
 }
 
-fn countUntracked(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !usize {
-    const stdout = runGitCommand(allocator, io, &.{ "git", "ls-files", "--other", "--exclude-standard" }, repo_path) catch return 0;
+fn getStatusInfo(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !util.PorcelainStatus {
+    const stdout = runGitCommand(allocator, io, &.{ "git", "status", "--porcelain" }, repo_path) catch return util.PorcelainStatus{ .changed = 0, .untracked = 0 };
     defer allocator.free(stdout);
-
-    var count: usize = 0;
-    var lines = std.mem.splitScalar(u8, stdout, '\n');
-    while (lines.next()) |line| {
-        if (line.len > 0) count += 1;
-    }
-    return count;
+    return util.parsePorcelain(stdout);
 }
 
 fn countStashes(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !usize {
@@ -107,7 +88,10 @@ pub fn run(
     repo_path: []const u8,
     writer: *std.Io.Writer,
 ) !void {
-    const theme = (themes.byName(allocator, io, environ_map, theme_name) orelse themes.hard).withTransparentBackground(transparent);
+    var ctx = try WidgetContext.init(allocator, io, environ_map, theme_name, transparent);
+    defer ctx.deinit();
+    const theme = ctx.theme;
+    const reset = ctx.reset;
 
     // Get branch name
     const branch_raw = runGitCommand(allocator, io, &.{ "git", "rev-parse", "--abbrev-ref", "HEAD" }, repo_path) catch {
@@ -121,10 +105,10 @@ pub fn run(
     const display_branch = try trimBranchName(allocator, branch);
     defer allocator.free(display_branch);
 
-    // Check for changes
-    const changed_count = try countChangedFiles(allocator, io, repo_path);
+    // Single `git status --porcelain` gives both changed and untracked counts
+    const status_info = try getStatusInfo(allocator, io, repo_path);
 
-    var sync_mode: u2 = 0;
+    var sync_mode: SyncMode = .clean;
     var changed: usize = 0;
     var insertions: usize = 0;
     var deletions: usize = 0;
@@ -132,114 +116,69 @@ pub fn run(
     var ahead: usize = 0;
     var behind: usize = 0;
 
-    if (changed_count > 0) {
+    if (status_info.changed > 0) {
         const stats = try getDiffStats(allocator, io, repo_path);
         changed = stats.changed;
         insertions = stats.insertions;
         deletions = stats.deletions;
-        sync_mode = 1;
-    } else {
-        // Check push/pull status with numeric counts
-        const ab = try getAheadBehind(allocator, io, repo_path);
-        ahead = ab.ahead;
-        behind = ab.behind;
-        if (ahead > 0) {
-            sync_mode = 2;
-        } else if (behind > 0) {
-            sync_mode = 3;
-        }
+        sync_mode = .dirty;
     }
 
-    const untracked = try countUntracked(allocator, io, repo_path);
+    // Always check ahead/behind regardless of dirty state
+    const ab = try getAheadBehind(allocator, io, repo_path);
+    ahead = ab.ahead;
+    behind = ab.behind;
+    if (ahead > 0 and sync_mode == .clean) {
+        sync_mode = .ahead;
+    } else if (behind > 0 and sync_mode == .clean) {
+        sync_mode = .behind;
+    }
+
+    const untracked = status_info.untracked;
     const stash_count = try countStashes(allocator, io, repo_path);
     const conflict_count = try countConflicts(allocator, io, repo_path);
 
-    const reset = try std.fmt.allocPrint(allocator, "#[fg={s},bg={s},nobold,noitalics,nounderscore,nodim]", .{
-        theme.foreground,
-        theme.background,
-    });
-    defer allocator.free(reset);
+    // Write status segments directly to the output writer, avoiding intermediate allocations
+    switch (sync_mode) {
+        .dirty => try writer.print("{s}#[bg={s},fg={s},bold]▒ 󱓎", .{ reset, theme.background, theme.danger_bright }),
+        .ahead => try writer.print("{s}#[bg={s},fg={s},bold]▒ 󰛃", .{ reset, theme.background, theme.danger }),
+        .behind => try writer.print("{s}#[bg={s},fg={s},bold]▒ 󰛀", .{ reset, theme.background, theme.info_bright }),
+        .clean => try writer.print("{s}#[bg={s},fg={s},bold]▒ ", .{ reset, theme.background, theme.success }),
+    }
 
-    // Build status segments
-    var segments: std.ArrayList(u8) = .empty;
-    defer segments.deinit(allocator);
+    try writer.print(" {s}{s}", .{ reset, display_branch });
 
     if (changed > 0) {
-        const seg = try std.fmt.allocPrint(allocator, " {s}#[fg={s},bg={s},bold] {d}", .{
-            reset, theme.warning, theme.background, changed,
-        });
-        defer allocator.free(seg);
-        try segments.appendSlice(allocator, seg);
+        try writer.print(" {s}#[fg={s},bg={s},bold] {d}", .{ reset, theme.warning, theme.background, changed });
     }
 
     if (insertions > 0) {
-        const seg = try std.fmt.allocPrint(allocator, " {s}#[fg={s},bg={s},bold] {d}", .{
-            reset, theme.success, theme.background, insertions,
-        });
-        defer allocator.free(seg);
-        try segments.appendSlice(allocator, seg);
+        try writer.print(" {s}#[fg={s},bg={s},bold] {d}", .{ reset, theme.success, theme.background, insertions });
     }
 
     if (deletions > 0) {
-        const seg = try std.fmt.allocPrint(allocator, " {s}#[fg={s},bg={s},bold] {d}", .{
-            reset, theme.danger, theme.background, deletions,
-        });
-        defer allocator.free(seg);
-        try segments.appendSlice(allocator, seg);
+        try writer.print(" {s}#[fg={s},bg={s},bold] {d}", .{ reset, theme.danger, theme.background, deletions });
     }
 
     if (untracked > 0) {
-        const seg = try std.fmt.allocPrint(allocator, " {s}#[fg={s},bg={s},bold] {d}", .{
-            reset, theme.muted, theme.background, untracked,
-        });
-        defer allocator.free(seg);
-        try segments.appendSlice(allocator, seg);
+        try writer.print(" {s}#[fg={s},bg={s},bold] {d}", .{ reset, theme.muted, theme.background, untracked });
     }
 
     if (stash_count > 0) {
-        const seg = try std.fmt.allocPrint(allocator, " {s}#[fg={s},bg={s},bold] {d}", .{
-            reset, theme.info_bright, theme.background, stash_count,
-        });
-        defer allocator.free(seg);
-        try segments.appendSlice(allocator, seg);
+        try writer.print(" {s}#[fg={s},bg={s},bold] {d}", .{ reset, theme.info_bright, theme.background, stash_count });
     }
 
     if (conflict_count > 0) {
-        const seg = try std.fmt.allocPrint(allocator, " {s}#[fg={s},bg={s},bold]󰅘 {d}", .{
-            reset, theme.danger_bright, theme.background, conflict_count,
-        });
-        defer allocator.free(seg);
-        try segments.appendSlice(allocator, seg);
+        try writer.print(" {s}#[fg={s},bg={s},bold]󰅘 {d}", .{ reset, theme.danger_bright, theme.background, conflict_count });
     }
 
     if (ahead > 0) {
-        const seg = try std.fmt.allocPrint(allocator, " {s}#[fg={s},bg={s},bold]↑{d}", .{
-            reset, theme.info_bright, theme.background, ahead,
-        });
-        defer allocator.free(seg);
-        try segments.appendSlice(allocator, seg);
+        try writer.print(" {s}#[fg={s},bg={s},bold]↑{d}", .{ reset, theme.info_bright, theme.background, ahead });
     }
 
     if (behind > 0) {
-        const seg = try std.fmt.allocPrint(allocator, " {s}#[fg={s},bg={s},bold]↓{d}", .{
-            reset, theme.danger, theme.background, behind,
-        });
-        defer allocator.free(seg);
-        try segments.appendSlice(allocator, seg);
+        try writer.print(" {s}#[fg={s},bg={s},bold]↓{d}", .{ reset, theme.danger, theme.background, behind });
     }
 
-    const remote_status = switch (sync_mode) {
-        1 => try std.fmt.allocPrint(allocator, "{s}#[bg={s},fg={s},bold]▒ 󱓎", .{ reset, theme.background, theme.danger_bright }),
-        2 => try std.fmt.allocPrint(allocator, "{s}#[bg={s},fg={s},bold]▒ 󰛃", .{ reset, theme.background, theme.danger }),
-        3 => try std.fmt.allocPrint(allocator, "{s}#[bg={s},fg={s},bold]▒ 󰛀", .{ reset, theme.background, theme.info_bright }),
-        else => try std.fmt.allocPrint(allocator, "{s}#[bg={s},fg={s},bold]▒ ", .{ reset, theme.background, theme.success }),
-    };
-    defer allocator.free(remote_status);
-
-    try writer.print("{s} {s}{s}{s} ", .{
-        remote_status,
-        reset,
-        display_branch,
-        segments.items,
-    });
+    try writer.print(" ", .{});
 }

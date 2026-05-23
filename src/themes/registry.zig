@@ -2,6 +2,8 @@ const std = @import("std");
 const Theme = @import("../core/theme.zig").Theme;
 const theme_loader = @import("../core/theme_loader.zig");
 
+const log = std.log.scoped(.themes);
+
 const hard_mod = @import("hard.zig");
 const medium_mod = @import("medium.zig");
 const soft_mod = @import("soft.zig");
@@ -48,28 +50,36 @@ pub fn byName(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.proces
         defer allocator.free(path);
         if (theme_loader.loadFromFile(allocator, io, path)) |theme| {
             return theme;
-        } else |_| {}
+        } else |err| {
+            if (err != error.ThemeReadError) {
+                log.warn("failed to load custom theme '{s}' from {s}: {s}", .{ name, path, @errorName(err) });
+            }
+        }
     }
 
-    if (std.mem.eql(u8, name, "hard")) return hard;
-    if (std.mem.eql(u8, name, "medium")) return medium;
-    if (std.mem.eql(u8, name, "soft")) return soft;
-    if (std.mem.eql(u8, name, "light")) return light;
-    if (std.mem.eql(u8, name, "tokyonight")) return tokyonight;
-    if (std.mem.eql(u8, name, "catppuccin")) return catppuccin;
-    if (std.mem.eql(u8, name, "dracula")) return dracula;
-    if (std.mem.eql(u8, name, "nord")) return nord;
-    if (std.mem.eql(u8, name, "github_dark")) return github_dark;
-    if (std.mem.eql(u8, name, "onedark")) return onedark;
-    if (std.mem.eql(u8, name, "solarized_dark")) return solarized_dark;
-    if (std.mem.eql(u8, name, "solarized_light")) return solarized_light;
-    if (std.mem.eql(u8, name, "monokai")) return monokai;
-    if (std.mem.eql(u8, name, "monokai_nebula")) return monokai_nebula;
-    if (std.mem.eql(u8, name, "github_light")) return github_light;
-    if (std.mem.eql(u8, name, "ayu_dark")) return ayu_dark;
-    if (std.mem.eql(u8, name, "ayu_light")) return ayu_light;
-    if (std.mem.eql(u8, name, "flexoki_dark")) return flexoki_dark;
-    if (std.mem.eql(u8, name, "flexoki_light")) return flexoki_light;
+    inline for (comptime .{
+        .{ "hard", hard },
+        .{ "medium", medium },
+        .{ "soft", soft },
+        .{ "light", light },
+        .{ "tokyonight", tokyonight },
+        .{ "catppuccin", catppuccin },
+        .{ "dracula", dracula },
+        .{ "nord", nord },
+        .{ "github_dark", github_dark },
+        .{ "onedark", onedark },
+        .{ "solarized_dark", solarized_dark },
+        .{ "solarized_light", solarized_light },
+        .{ "monokai", monokai },
+        .{ "monokai_nebula", monokai_nebula },
+        .{ "github_light", github_light },
+        .{ "ayu_dark", ayu_dark },
+        .{ "ayu_light", ayu_light },
+        .{ "flexoki_dark", flexoki_dark },
+        .{ "flexoki_light", flexoki_light },
+    }) |entry| {
+        if (std.mem.eql(u8, name, entry.@"0")) return entry.@"1";
+    }
     return null;
 }
 
@@ -82,10 +92,17 @@ pub const names = [_][]const u8{
 };
 
 test "byName returns correct themes" {
-    try std.testing.expect(byName("hard").?.background[0] == '#');
-    try std.testing.expect(byName("tokyonight") != null);
-    try std.testing.expect(byName("nord") != null);
-    try std.testing.expect(byName("nonexistent") == null);
+    const gpa = std.testing.allocator;
+    const io = std.Io.threaded_global.ioBasic();
+    var env_map = std.process.Environ.Map.init(gpa);
+    defer env_map.deinit();
+
+    const hard_theme = byName(gpa, io, &env_map, "hard");
+    try std.testing.expect(hard_theme != null);
+    try std.testing.expect(hard_theme.?.background[0] == '#');
+    try std.testing.expect(byName(gpa, io, &env_map, "tokyonight") != null);
+    try std.testing.expect(byName(gpa, io, &env_map, "nord") != null);
+    try std.testing.expect(byName(gpa, io, &env_map, "nonexistent") == null);
 }
 
 test "theme lookup" {

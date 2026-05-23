@@ -84,7 +84,7 @@ echo "$now" > "$CACHE_FILE"
 
 if [[ "$AUTO_UPDATE_PULL" == "1" ]]; then
     tmux display-message "flavors-tmux: updating plugin..."
-    if git pull origin "$BRANCH" --ff-only &>/dev/null; then
+    if git pull "$remote_name" "$BRANCH" --ff-only &>/dev/null; then
         # Rebuild binary if Zig is available
         if command -v zig &>/dev/null; then
             zig build &>/dev/null || true
