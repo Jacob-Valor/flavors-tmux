@@ -1,7 +1,8 @@
 const std = @import("std");
-const themes = @import("../themes/registry.zig");
+const util = @import("../core/util.zig");
+const WidgetContext = @import("../core/widget.zig").WidgetContext;
 
-fn getYadmStatus(allocator: std.mem.Allocator, io: std.Io) !?struct { changed: usize, untracked: usize } {
+fn getYadmStatus(allocator: std.mem.Allocator, io: std.Io) !?util.PorcelainStatus {
     const result = std.process.run(allocator, io, .{
         .argv = &.{
             "yadm", "status", "--porcelain",
@@ -14,25 +15,9 @@ fn getYadmStatus(allocator: std.mem.Allocator, io: std.Io) !?struct { changed: u
         return null;
     }
 
-    var changed: usize = 0;
-    var untracked: usize = 0;
-
-    var lines = std.mem.splitScalar(u8, result.stdout, '\n');
-    while (lines.next()) |line| {
-        if (line.len < 2) continue;
-        const first = line[0];
-        const second = line[1];
-        if (first == 'M' or first == 'A' or first == 'D' or first == 'R' or first == 'C' or first == 'U' or
-            second == 'M' or second == 'A' or second == 'D')
-        {
-            changed += 1;
-        } else if (first == '?') {
-            untracked += 1;
-        }
-    }
-
+    const parsed = util.parsePorcelain(result.stdout);
     allocator.free(result.stdout);
-    return .{ .changed = changed, .untracked = untracked };
+    return parsed;
 }
 
 pub fn run(
@@ -43,16 +28,13 @@ pub fn run(
     environ_map: *std.process.Environ.Map,
     writer: *std.Io.Writer,
 ) !void {
-    const theme = (themes.byName(allocator, io, environ_map, theme_name) orelse themes.hard).withTransparentBackground(transparent);
+    var ctx = try WidgetContext.init(allocator, io, environ_map, theme_name, transparent);
+    defer ctx.deinit();
+    const theme = ctx.theme;
+    const reset = ctx.reset;
 
     const status = getYadmStatus(allocator, io) catch return;
     const st = status orelse return;
-
-    const reset = try std.fmt.allocPrint(allocator, "#[fg={s},bg={s},nobold,noitalics,nounderscore,nodim]", .{
-        theme.foreground,
-        theme.background,
-    });
-    defer allocator.free(reset);
 
     // If clean, show muted icon only
     if (st.changed == 0 and st.untracked == 0) {
@@ -64,31 +46,14 @@ pub fn run(
         return;
     }
 
-    // Build status string
-    var parts: std.ArrayList(u8) = .empty;
-    defer parts.deinit(allocator);
-
-    try parts.appendSlice(allocator, "󰃣 ");
+    // Write status directly to the output writer, avoiding intermediate allocations
+    try writer.print("{s}#[fg={s},bg={s},bold]󰃣", .{ reset, theme.muted, theme.background });
 
     if (st.changed > 0) {
-        const changed_str = try std.fmt.allocPrint(allocator, "#[fg={s},bg={s},bold] {d} ", .{
-            theme.warning,
-            theme.background,
-            st.changed,
-        });
-        defer allocator.free(changed_str);
-        try parts.appendSlice(allocator, changed_str);
+        try writer.print(" #[fg={s},bg={s},bold] {d}", .{ theme.warning, theme.background, st.changed });
     }
 
     if (st.untracked > 0) {
-        const untracked_str = try std.fmt.allocPrint(allocator, "#[fg={s},bg={s},bold] {d}", .{
-            theme.muted,
-            theme.background,
-            st.untracked,
-        });
-        defer allocator.free(untracked_str);
-        try parts.appendSlice(allocator, untracked_str);
+        try writer.print(" #[fg={s},bg={s},bold] {d}", .{ theme.muted, theme.background, st.untracked });
     }
-
-    try writer.print("{s}{s}", .{ reset, parts.items });
 }

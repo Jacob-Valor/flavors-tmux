@@ -29,7 +29,10 @@ case "$(uname -s)" in
 
         MEM_TOTAL=$(grep "^MemTotal:" /proc/meminfo | awk '{print $2}')
         MEM_AVAILABLE=$(grep "^MemAvailable:" /proc/meminfo | awk '{print $2}')
-        if [[ -n $MEM_TOTAL && $MEM_TOTAL -gt 0 ]]; then
+        if [[ -z $MEM_AVAILABLE ]]; then
+            MEM_AVAILABLE=$(grep "^MemFree:" /proc/meminfo | awk '{print $2}')
+        fi
+        if [[ -n $MEM_TOTAL && $MEM_TOTAL -gt 0 && -n $MEM_AVAILABLE ]]; then
             MEM_PERCENT=$(( (MEM_TOTAL - MEM_AVAILABLE) * 100 / MEM_TOTAL ))
         fi
         ;;

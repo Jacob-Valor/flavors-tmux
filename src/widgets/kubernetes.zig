@@ -1,6 +1,7 @@
 const std = @import("std");
 const themes = @import("../themes/registry.zig");
 const Theme = @import("../core/theme.zig").Theme;
+const WidgetContext = @import("../core/widget.zig").WidgetContext;
 
 fn getKubectlOutput(allocator: std.mem.Allocator, io: std.Io, argv: []const []const u8) !?[]u8 {
     const result = std.process.run(allocator, io, .{
@@ -22,23 +23,20 @@ fn getKubectlOutput(allocator: std.mem.Allocator, io: std.Io, argv: []const []co
     return try allocator.dupe(u8, trimmed);
 }
 
+fn contextContains(theme: Theme, context: []const u8, needle: []const u8) ?[]const u8 {
+    if (std.ascii.indexOfIgnoreCase(context, needle) != null) return theme.danger;
+    return null;
+}
+
 fn contextColor(theme: Theme, context: []const u8) []const u8 {
-    var buf: [256]u8 = undefined;
-    const ctx_lower = std.ascii.lowerString(&buf, context);
     // Check for production-like names
-    if (std.mem.indexOf(u8, ctx_lower, "prod") != null or
-        std.mem.indexOf(u8, ctx_lower, "production") != null)
-    {
-        return theme.danger;
-    }
+    if (contextContains(theme, context, "prod")) |color| return color;
+    if (contextContains(theme, context, "production")) |color| return color;
     // Check for staging-like names
-    if (std.mem.indexOf(u8, ctx_lower, "stage") != null or
-        std.mem.indexOf(u8, ctx_lower, "staging") != null or
-        std.mem.indexOf(u8, ctx_lower, "dev") != null or
-        std.mem.indexOf(u8, ctx_lower, "development") != null)
-    {
-        return theme.warning;
-    }
+    if (contextContains(theme, context, "stage")) |color| return color;
+    if (contextContains(theme, context, "staging")) |color| return color;
+    if (contextContains(theme, context, "dev")) |color| return color;
+    if (contextContains(theme, context, "development")) |color| return color;
     return theme.info;
 }
 
@@ -50,7 +48,10 @@ pub fn run(
     environ_map: *std.process.Environ.Map,
     writer: *std.Io.Writer,
 ) !void {
-    const theme = (themes.byName(allocator, io, environ_map, theme_name) orelse themes.hard).withTransparentBackground(transparent);
+    var ctx_widget = try WidgetContext.init(allocator, io, environ_map, theme_name, transparent);
+    defer ctx_widget.deinit();
+    const theme = ctx_widget.theme;
+    const reset = ctx_widget.reset;
 
     const context = getKubectlOutput(allocator, io, &.{
         "kubectl", "config", "current-context",
@@ -63,12 +64,6 @@ pub fn run(
     }) catch null;
     defer if (ns_opt) |ns| allocator.free(ns);
     const namespace = ns_opt orelse "default";
-
-    const reset = try std.fmt.allocPrint(allocator, "#[fg={s},bg={s},nobold,noitalics,nounderscore,nodim]", .{
-        theme.foreground,
-        theme.background,
-    });
-    defer allocator.free(reset);
 
     const color = contextColor(theme, ctx);
 

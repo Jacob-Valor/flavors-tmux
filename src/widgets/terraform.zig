@@ -1,5 +1,5 @@
 const std = @import("std");
-const themes = @import("../themes/registry.zig");
+const WidgetContext = @import("../core/widget.zig").WidgetContext;
 
 fn getTerraformWorkspace(allocator: std.mem.Allocator, io: std.Io, cwd: []const u8) !?[]u8 {
     const result = std.process.run(allocator, io, .{
@@ -33,19 +33,16 @@ pub fn run(
     cwd: []const u8,
     writer: *std.Io.Writer,
 ) !void {
-    const theme = (themes.byName(allocator, io, environ_map, theme_name) orelse themes.hard).withTransparentBackground(transparent);
+    var ctx = try WidgetContext.init(allocator, io, environ_map, theme_name, transparent);
+    defer ctx.deinit();
+    const theme = ctx.theme;
+    const reset = ctx.reset;
 
     const path = if (cwd.len > 0) cwd else return;
 
     const workspace = getTerraformWorkspace(allocator, io, path) catch return;
     defer if (workspace) |w| allocator.free(w);
     const ws = workspace orelse return;
-
-    const reset = try std.fmt.allocPrint(allocator, "#[fg={s},bg={s},nobold,noitalics,nounderscore,nodim]", .{
-        theme.foreground,
-        theme.background,
-    });
-    defer allocator.free(reset);
 
     // Color-code: default = muted, else = primary
     const color = if (std.mem.eql(u8, ws, "default")) theme.muted else theme.primary;

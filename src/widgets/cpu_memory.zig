@@ -43,7 +43,9 @@ fn parseCpuStatLine(line: []const u8) struct { total: usize, idle: usize } {
 }
 
 fn readLinuxStats(_: std.mem.Allocator, io: std.Io) !CpuMemStats {
-    // CPU: take two samples of /proc/stat to calculate instantaneous usage
+    // CPU: take two samples of /proc/stat ~20ms apart for instantaneous usage.
+    // 20ms covers at least one scheduler tick (typically 4-10ms) while keeping
+    // the status bar responsive — down from the previous 100ms delay.
     var cpu_buf: [4096]u8 = undefined;
 
     const cpu_content_1 = std.Io.Dir.readFile(.cwd(), io, "/proc/stat", &cpu_buf) catch return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
@@ -52,7 +54,7 @@ fn readLinuxStats(_: std.mem.Allocator, io: std.Io) !CpuMemStats {
     if (!std.mem.startsWith(u8, first_line_1, "cpu ")) return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
     const sample_1 = parseCpuStatLine(first_line_1[4..]);
 
-    try std.Io.sleep(io, .{ .nanoseconds = 100 * std.time.ns_per_ms }, .real);
+    try std.Io.sleep(io, .{ .nanoseconds = 20 * std.time.ns_per_ms }, .real);
 
     const cpu_content_2 = std.Io.Dir.readFile(.cwd(), io, "/proc/stat", &cpu_buf) catch return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
     var cpu_lines_2 = std.mem.splitScalar(u8, cpu_content_2, '\n');
@@ -60,16 +62,21 @@ fn readLinuxStats(_: std.mem.Allocator, io: std.Io) !CpuMemStats {
     if (!std.mem.startsWith(u8, first_line_2, "cpu ")) return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
     const sample_2 = parseCpuStatLine(first_line_2[4..]);
 
-    const total_delta = sample_2.total - sample_1.total;
-    const idle_delta = sample_2.idle - sample_1.idle;
-    const cpu_percent: u8 = if (total_delta > 0) @intCast(@min(100, (total_delta - idle_delta) * 100 / total_delta)) else 0;
+    // Use saturating subtraction to guard against counter wrap on 32-bit systems.
+    const total_delta = std.math.sub(usize, sample_2.total, sample_1.total) catch 0;
+    const idle_delta = std.math.sub(usize, sample_2.idle, sample_1.idle) catch 0;
+    const cpu_percent: u8 = if (total_delta > 0) @intCast(@min(100, (total_delta -| idle_delta) * 100 / total_delta)) else 0;
 
     // Memory: read /proc/meminfo
     var mem_buf: [4096]u8 = undefined;
     const mem_content = std.Io.Dir.readFile(.cwd(), io, "/proc/meminfo", &mem_buf) catch return CpuMemStats{ .cpu_percent = cpu_percent, .mem_percent = 0 };
 
     const mem_total = try parseLineValue(mem_content, "MemTotal:");
-    const mem_available = try parseLineValue(mem_content, "MemAvailable:");
+    const mem_available = blk: {
+        const val = parseLineValue(mem_content, "MemAvailable:") catch 0;
+        if (val > 0) break :blk val;
+        break :blk parseLineValue(mem_content, "MemFree:") catch 0;
+    };
 
     const mem_percent: u8 = if (mem_total > 0) @intCast(@min(100, (mem_total - mem_available) * 100 / mem_total)) else 0;
 
@@ -128,7 +135,6 @@ fn readDarwinStats(allocator: std.mem.Allocator, io: std.Io) !CpuMemStats {
         var pages_active: usize = 0;
         var pages_inactive: usize = 0;
         var pages_wired: usize = 0;
-        var page_size: usize = 4096;
 
         var lines = std.mem.splitScalar(u8, vm_result.stdout, '\n');
         while (lines.next()) |line| {
@@ -140,15 +146,11 @@ fn readDarwinStats(allocator: std.mem.Allocator, io: std.Io) !CpuMemStats {
                 pages_inactive = parseVmStatValue(line) catch 0;
             } else if (std.mem.startsWith(u8, line, "Pages wired down:")) {
                 pages_wired = parseVmStatValue(line) catch 0;
-            } else if (std.mem.startsWith(u8, line, "page size of")) {
-                var it = std.mem.splitScalar(u8, line, ' ');
-                while (it.next()) |token| {
-                    page_size = std.fmt.parseInt(usize, std.mem.trim(u8, token, " \t."), 10) catch continue;
-                    if (page_size > 0) break;
-                }
             }
         }
 
+        // Note: vm_stat reports page counts; the percentage is a ratio of counts,
+        // so page size cancels out and does not need to be parsed.
         const total_pages = pages_free + pages_active + pages_inactive + pages_wired;
         const used_pages = pages_active + pages_inactive + pages_wired;
         if (total_pages > 0) {

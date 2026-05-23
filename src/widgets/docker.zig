@@ -1,5 +1,5 @@
 const std = @import("std");
-const themes = @import("../themes/registry.zig");
+const WidgetContext = @import("../core/widget.zig").WidgetContext;
 
 fn getDockerContext(allocator: std.mem.Allocator, io: std.Io) !?[]u8 {
     const result = std.process.run(allocator, io, .{
@@ -31,25 +31,22 @@ pub fn run(
     environ_map: *std.process.Environ.Map,
     writer: *std.Io.Writer,
 ) !void {
-    const theme = (themes.byName(allocator, io, environ_map, theme_name) orelse themes.hard).withTransparentBackground(transparent);
+    var ctx = try WidgetContext.init(allocator, io, environ_map, theme_name, transparent);
+    defer ctx.deinit();
+    const theme = ctx.theme;
+    const reset = ctx.reset;
 
     const context = getDockerContext(allocator, io) catch return;
     defer if (context) |c| allocator.free(c);
-    const ctx = context orelse return;
-
-    const reset = try std.fmt.allocPrint(allocator, "#[fg={s},bg={s},nobold,noitalics,nounderscore,nodim]", .{
-        theme.foreground,
-        theme.background,
-    });
-    defer allocator.free(reset);
+    const ctx_str = context orelse return;
 
     // Color-code: default = muted, else = info
-    const color = if (std.mem.eql(u8, ctx, "default")) theme.muted else theme.info;
+    const color = if (std.mem.eql(u8, ctx_str, "default")) theme.muted else theme.info;
 
     try writer.print("{s}#[fg={s},bg={s},bold] {s}", .{
         reset,
         color,
         theme.background,
-        ctx,
+        ctx_str,
     });
 }

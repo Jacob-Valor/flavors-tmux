@@ -12,7 +12,13 @@ source "${CURRENT_DIR}/themes.sh" || {
 
 cd "$1" || exit 1
 BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
-REMOTE_URL=$(git config remote.origin.url)
+
+REMOTE_NAME=$(git remote 2>/dev/null | head -n 1)
+REMOTE_URL=""
+if [[ -n "$REMOTE_NAME" ]]; then
+  REMOTE_URL=$(git config "remote.${REMOTE_NAME}.url" 2>/dev/null || true)
+fi
+
 PROVIDER=""
 if [[ "$REMOTE_URL" =~ ^git@([^:]+): ]]; then
   PROVIDER="${BASH_REMATCH[1]}"

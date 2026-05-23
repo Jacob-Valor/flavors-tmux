@@ -3,6 +3,12 @@
 # Theme loader with semantic color mapping.
 # Themes define colors by *meaning* (success, danger, etc.) rather than
 # literal names (green, red, etc.), so non-Gruvbox palettes render correctly.
+#
+# MAINTENANCE: When adding a new theme, update ALL 4 locations:
+#   1. src/themes/<name>.zig         — Zig theme definition
+#   2. src/themes/registry.zig       — import + byName() entry + names[] array
+#   3. scripts/themes.sh             — case entry in load_theme()
+#   4. flavors.tmux:VALID_THEMES     — VALID_THEMES array (around line 23)
 
 SELECTED_THEME="$(tmux show-option -gv @flavors-tmux_theme 2>/dev/null || echo "hard")"
 TRANSPARENT_THEME="$(tmux show-option -gv @flavors-tmux_transparent 2>/dev/null || echo 0)"
