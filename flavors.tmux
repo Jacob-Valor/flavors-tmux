@@ -39,6 +39,10 @@ pane_id_style="$(tmux show-option -gv @flavors-tmux_pane_id_style 2>/dev/null ||
 zoom_id_style="$(tmux show-option -gv @flavors-tmux_zoom_id_style 2>/dev/null || echo "dsquare")"
 terminal_icon="$(tmux show-option -gv @flavors-tmux_terminal_icon 2>/dev/null || echo '')"
 active_terminal_icon="$(tmux show-option -gv @flavors-tmux_active_terminal_icon 2>/dev/null || echo '')"
+# Escape # to ## in user-supplied icon values to prevent tmux format injection
+# (CWE-94 — #(command) or #[style] embedded in icon strings).
+terminal_icon="${terminal_icon//#/##}"
+active_terminal_icon="${active_terminal_icon//#/##}"
 
 time_format="$(tmux show-option -gv @flavors-tmux_time_format 2>/dev/null || echo "")"
 show_time="$(tmux show-option -gv @flavors-tmux_show_time 2>/dev/null || echo "1")"
@@ -56,6 +60,11 @@ show_terraform="$(tmux show-option -gv @flavors-tmux_show_terraform 2>/dev/null 
 show_docker="$(tmux show-option -gv @flavors-tmux_show_docker 2>/dev/null || echo "0")"
 show_yadm="$(tmux show-option -gv @flavors-tmux_show_yadm 2>/dev/null || echo "0")"
 forge_cache_ttl="$(tmux show-option -gv @flavors-tmux_forge_cache_ttl 2>/dev/null || echo "300")"
+
+# Validate numeric fields to prevent injection in #(...) shell commands
+[[ "$battery_low" =~ ^[0-9]+$ ]] || battery_low=20
+[[ "$forge_cache_ttl" =~ ^[0-9]+$ ]] || forge_cache_ttl=300
+
 transparent_arg=""
 [[ "$TRANSPARENT_THEME" == "1" ]] && transparent_arg="--transparent"
 
@@ -104,12 +113,14 @@ if [[ -x "$BINARY_PATH" ]]; then
     }
     battery_cmd() {
         [[ "$show_battery_widget" == "1" ]] || return
+        local escaped_name
+        printf -v escaped_name '%q' "${battery_name:-BAT0}"
         local name_arg=""
-        [[ -n "$battery_name" ]] && name_arg="--name '$battery_name'"
+        [[ -n "$battery_name" ]] && name_arg="--name ${escaped_name}"
         if [[ -x "$SCRIPTS_PATH/battery-fast.sh" && "$(uname -s)" == "Linux" ]]; then
-            echo "#($SCRIPTS_PATH/battery-fast.sh '${battery_name:-BAT0}' ${battery_low:-20} '${THEME[danger]}' '${THEME[success]}' '${THEME[warning]}')"
+            echo "#($SCRIPTS_PATH/battery-fast.sh ${escaped_name} ${battery_low:-20} '${THEME[danger]}' '${THEME[success]}' '${THEME[warning]}')"
         else
-            echo "#($BINARY_PATH battery --theme $SELECTED_THEME $transparent_arg $name_arg --low-threshold ${battery_low:-20})"
+            echo "#($BINARY_PATH battery --theme $SELECTED_THEME $transparent_arg ${name_arg} --low-threshold ${battery_low:-20})"
         fi
     }
     git_status_cmd() {
