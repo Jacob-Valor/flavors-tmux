@@ -29,7 +29,10 @@ load_theme() {
             local value
             value=$(jq -r ".${key} // empty" "$custom_theme_path" 2>/dev/null)
             if [[ -n "$value" ]]; then
-                THEMES["${theme_name}_${key}"]="$value"
+                # Validate color values — only hex colors (#RRGGBB) or "default"
+                if [[ "$value" =~ ^#[0-9A-Fa-f]{6}$ || "$value" == "default" ]]; then
+                    THEMES["${theme_name}_${key}"]="$value"
+                fi
             fi
         done
         return

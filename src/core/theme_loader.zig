@@ -13,11 +13,28 @@ fn dupeStringField(allocator: std.mem.Allocator, obj: std.json.ObjectMap, key: [
     return try allocator.dupe(u8, field);
 }
 
+fn isHexDigit(c: u8) bool {
+    return switch (c) {
+        '0'...'9', 'a'...'f', 'A'...'F' => true,
+        else => false,
+    };
+}
+
+fn isValidColor(value: []const u8) bool {
+    if (std.mem.eql(u8, value, "default")) return true;
+    if (value.len != 7) return false;
+    if (value[0] != '#') return false;
+    for (value[1..]) |c| {
+        if (!isHexDigit(c)) return false;
+    }
+    return true;
+}
+
 fn loadFromJsonValue(allocator: std.mem.Allocator, value: std.json.Value) !Theme {
     if (value != .object) return error.InvalidThemeFormat;
     const obj = value.object;
 
-    return Theme{
+    var result = Theme{
         .background = try dupeStringField(allocator, obj, "background", hard_theme.background),
         .foreground = try dupeStringField(allocator, obj, "foreground", hard_theme.foreground),
         .surface = try dupeStringField(allocator, obj, "surface", hard_theme.surface),
@@ -41,6 +58,16 @@ fn loadFromJsonValue(allocator: std.mem.Allocator, value: std.json.Value) !Theme
         .forge_gitlab = try dupeStringField(allocator, obj, "forge_gitlab", hard_theme.forge_gitlab),
         .forge_codeberg = try dupeStringField(allocator, obj, "forge_codeberg", hard_theme.forge_codeberg),
     };
+
+    // Validate all color fields — reject anything that isn't a hex color or "default"
+    // to prevent tmux format injection via custom themes
+    inline for (@typeInfo(Theme).@"struct".fields) |field| {
+        if (!isValidColor(@field(result, field.name))) {
+            @field(result, field.name) = try allocator.dupe(u8, @field(hard_theme, field.name));
+        }
+    }
+
+    return result;
 }
 
 pub fn loadFromFile(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !Theme {
