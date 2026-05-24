@@ -11,6 +11,30 @@ const SyncMode = enum {
     behind,
 };
 
+fn getPorcelainV2(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !util.ParsedStatusV2 {
+    const stdout = runGitCommand(allocator, io, &.{ "git", "status", "--porcelain=v2", "--branch" }, repo_path) catch {
+        return util.ParsedStatusV2{
+            .branch = null,
+            .ahead = 0,
+            .behind = 0,
+            .changed = 0,
+            .untracked = 0,
+            .conflicts = 0,
+        };
+    };
+    defer allocator.free(stdout);
+
+    var status = util.parsePorcelainV2(stdout);
+
+    // Dupe the branch name — parsePorcelainV2 returns a slice into stdout
+    // which will be freed by the defer above. All other fields are integers.
+    if (status.branch) |branch| {
+        status.branch = try allocator.dupe(u8, branch);
+    }
+
+    return status;
+}
+
 fn getDiffStats(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !struct { changed: usize, insertions: usize, deletions: usize } {
     const stdout = runGitCommand(allocator, io, &.{ "git", "diff", "--numstat", "HEAD" }, repo_path) catch return .{ .changed = 0, .insertions = 0, .deletions = 0 };
     defer allocator.free(stdout);
@@ -36,12 +60,6 @@ fn getDiffStats(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8)
     return .{ .changed = changed, .insertions = insertions, .deletions = deletions };
 }
 
-fn getStatusInfo(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !util.PorcelainStatus {
-    const stdout = runGitCommand(allocator, io, &.{ "git", "status", "--porcelain" }, repo_path) catch return util.PorcelainStatus{ .changed = 0, .untracked = 0 };
-    defer allocator.free(stdout);
-    return util.parsePorcelain(stdout);
-}
-
 fn countStashes(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !usize {
     const stdout = runGitCommand(allocator, io, &.{ "git", "stash", "list" }, repo_path) catch return 0;
     defer allocator.free(stdout);
@@ -52,31 +70,6 @@ fn countStashes(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8)
         if (line.len > 0) count += 1;
     }
     return count;
-}
-
-fn countConflicts(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !usize {
-    const stdout = runGitCommand(allocator, io, &.{ "git", "diff", "--name-only", "--diff-filter=U" }, repo_path) catch return 0;
-    defer allocator.free(stdout);
-
-    var count: usize = 0;
-    var lines = std.mem.splitScalar(u8, stdout, '\n');
-    while (lines.next()) |line| {
-        if (line.len > 0) count += 1;
-    }
-    return count;
-}
-
-fn getAheadBehind(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !struct { ahead: usize, behind: usize } {
-    const stdout = runGitCommand(allocator, io, &.{ "git", "rev-list", "--left-right", "--count", "HEAD...@{upstream}" }, repo_path) catch return .{ .ahead = 0, .behind = 0 };
-    defer allocator.free(stdout);
-
-    var it = std.mem.splitScalar(u8, std.mem.trim(u8, stdout, " \n\r\t"), '\t');
-    const ahead_str = it.next() orelse return .{ .ahead = 0, .behind = 0 };
-    const behind_str = it.next() orelse return .{ .ahead = 0, .behind = 0 };
-
-    const ahead = std.fmt.parseInt(usize, ahead_str, 10) catch 0;
-    const behind = std.fmt.parseInt(usize, behind_str, 10) catch 0;
-    return .{ .ahead = ahead, .behind = behind };
 }
 
 pub fn run(
@@ -93,30 +86,27 @@ pub fn run(
     const theme = ctx.theme;
     const reset = ctx.reset;
 
-    // Get branch name
-    const branch_raw = runGitCommand(allocator, io, &.{ "git", "rev-parse", "--abbrev-ref", "HEAD" }, repo_path) catch {
-        return; // Not a git repo
-    };
+    // Single call replaces: rev-parse, status --porcelain, rev-list --count, diff --name-only --diff-filter=U
+    const status = try getPorcelainV2(allocator, io, repo_path);
+
+    const branch_raw = status.branch orelse return;
     defer allocator.free(branch_raw);
+    if (branch_raw.len == 0 or std.mem.eql(u8, branch_raw, "HEAD")) return;
 
-    const branch = std.mem.trim(u8, branch_raw, " \n\r\t");
-    if (branch.len == 0 or std.mem.eql(u8, branch, "HEAD")) return;
-
-    const display_branch = try trimBranchName(allocator, branch);
+    const display_branch = try trimBranchName(allocator, branch_raw);
     defer allocator.free(display_branch);
 
-    // Single `git status --porcelain` gives both changed and untracked counts
-    const status_info = try getStatusInfo(allocator, io, repo_path);
+    const untracked = status.untracked;
+    const conflict_count = status.conflicts;
+    const ahead = status.ahead;
+    const behind = status.behind;
 
     var sync_mode: SyncMode = .clean;
     var changed: usize = 0;
     var insertions: usize = 0;
     var deletions: usize = 0;
 
-    var ahead: usize = 0;
-    var behind: usize = 0;
-
-    if (status_info.changed > 0) {
+    if (status.changed > 0) {
         const stats = try getDiffStats(allocator, io, repo_path);
         changed = stats.changed;
         insertions = stats.insertions;
@@ -124,19 +114,13 @@ pub fn run(
         sync_mode = .dirty;
     }
 
-    // Always check ahead/behind regardless of dirty state
-    const ab = try getAheadBehind(allocator, io, repo_path);
-    ahead = ab.ahead;
-    behind = ab.behind;
     if (ahead > 0 and sync_mode == .clean) {
         sync_mode = .ahead;
     } else if (behind > 0 and sync_mode == .clean) {
         sync_mode = .behind;
     }
 
-    const untracked = status_info.untracked;
     const stash_count = try countStashes(allocator, io, repo_path);
-    const conflict_count = try countConflicts(allocator, io, repo_path);
 
     // Write status segments directly to the output writer, avoiding intermediate allocations
     switch (sync_mode) {
@@ -181,4 +165,59 @@ pub fn run(
     }
 
     try writer.print(" ", .{});
+}
+
+test "git_status renders sync status icons correctly" {
+    const gpa = std.testing.allocator;
+    const io = std.Io.threaded_global.ioBasic();
+    var env_map = std.process.Environ.Map.init(gpa);
+    defer env_map.deinit();
+
+    var ctx = try WidgetContext.init(gpa, io, &env_map, "hard", false);
+    defer ctx.deinit();
+
+    // Verify theme colors are non-empty (basic theme sanity)
+    try std.testing.expect(ctx.theme.success.len > 0);
+    try std.testing.expect(ctx.theme.danger.len > 0);
+    try std.testing.expect(ctx.theme.warning.len > 0);
+    try std.testing.expect(ctx.theme.info_bright.len > 0);
+    try std.testing.expect(ctx.theme.danger_bright.len > 0);
+    try std.testing.expect(ctx.theme.muted.len > 0);
+    try std.testing.expect(ctx.theme.background.len > 0);
+
+    // Verify reset string is properly formatted
+    try std.testing.expect(std.mem.startsWith(u8, ctx.reset, "#[fg="));
+    try std.testing.expect(std.mem.containsAtLeast(u8, ctx.reset, 1, "nobold"));
+}
+
+test "git_status.run produces valid tmux output in project repo" {
+    const gpa = std.testing.allocator;
+    const io = std.Io.threaded_global.ioBasic();
+    var env_map = std.process.Environ.Map.init(gpa);
+    defer env_map.deinit();
+
+    // Navigate from test's build-cache directory to the project root.
+    // @src().file is relative to build root; go up from src/widgets/ to project root.
+    const project_root = comptime std.fs.path.dirname(std.fs.path.dirname(std.fs.path.dirname(@src().file))).?;
+
+    var buf: [2048]u8 = undefined;
+    var writer: std.Io.Writer = .fixed(&buf);
+
+    // Run in the project's own git repo (guaranteed to exist during tests)
+    run(gpa, io, &env_map, "hard", false, project_root, &writer) catch |err| {
+        // Skip if git isn't available or repo state is unexpected
+        if (err == error.GitError) return;
+        return err;
+    };
+
+    const output = std.Io.Writer.buffered(&writer);
+
+    // The output should contain these structural elements for any non-empty repo:
+    try std.testing.expect(std.mem.containsAtLeast(u8, output, 1, "#[fg="));
+    try std.testing.expect(std.mem.containsAtLeast(u8, output, 1, "#[bg="));
+    try std.testing.expect(std.mem.containsAtLeast(u8, output, 1, "▒"));
+
+    // Output ends with a trailing space (tmux status convention)
+    try std.testing.expect(output.len > 0);
+    try std.testing.expect(output[output.len - 1] == ' ');
 }

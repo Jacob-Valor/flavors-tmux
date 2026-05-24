@@ -71,3 +71,138 @@ test "parsePorcelain returns zero for clean repo" {
     try std.testing.expectEqual(@as(usize, 0), result.changed);
     try std.testing.expectEqual(@as(usize, 0), result.untracked);
 }
+
+/// Consolidated result from `git status --porcelain=v2 --branch`.
+pub const ParsedStatusV2 = struct {
+    branch: ?[]const u8,
+    ahead: usize,
+    behind: usize,
+    changed: usize,
+    untracked: usize,
+    conflicts: usize,
+};
+
+/// Parses `git status --porcelain=v2 --branch` output.
+///
+/// Extracts branch name, ahead/behind counts, changed file count,
+/// untracked file count, and merge conflict count from a single
+/// git invocation — replacing what previously required separate
+/// `rev-parse`, `status --porcelain`, `rev-list --count`, and
+/// `diff --name-only --diff-filter=U` calls.
+pub fn parsePorcelainV2(stdout: []const u8) ParsedStatusV2 {
+    var branch: ?[]const u8 = null;
+    var ahead: usize = 0;
+    var behind: usize = 0;
+    var changed: usize = 0;
+    var untracked: usize = 0;
+    var conflicts: usize = 0;
+
+    var lines = std.mem.splitScalar(u8, stdout, '\n');
+    while (lines.next()) |line| {
+        if (line.len == 0) continue;
+
+        // Header lines
+        if (line[0] == '#') {
+            if (std.mem.startsWith(u8, line, "# branch.head ")) {
+                const name = line["# branch.head ".len..];
+                if (!std.mem.eql(u8, name, "(detached)")) {
+                    branch = name;
+                }
+            } else if (std.mem.startsWith(u8, line, "# branch.ab ")) {
+                const rest = line["# branch.ab ".len..];
+                var parts = std.mem.splitScalar(u8, rest, ' ');
+                while (parts.next()) |part| {
+                    if (part.len > 1 and part[0] == '+') {
+                        ahead = std.fmt.parseInt(usize, part[1..], 10) catch 0;
+                    } else if (part.len > 1 and part[0] == '-') {
+                        behind = std.fmt.parseInt(usize, part[1..], 10) catch 0;
+                    }
+                }
+            }
+            continue;
+        }
+
+        // File entries: type is the first character
+        switch (line[0]) {
+            '1', '2' => {
+                // Ordinary changed or renamed/copied entry.
+                // XY status is at positions 2-3 (after "1 " or "2 ")
+                if (line.len < 4) continue;
+                const xy = line[2..4];
+                if (!std.mem.eql(u8, xy, "..")) {
+                    changed += 1;
+                }
+            },
+            '?' => untracked += 1,
+            'u' => conflicts += 1,
+            '!' => {}, // ignored — not counted
+            else => {},
+        }
+    }
+
+    return .{
+        .branch = branch,
+        .ahead = ahead,
+        .behind = behind,
+        .changed = changed,
+        .untracked = untracked,
+        .conflicts = conflicts,
+    };
+}
+
+test "parsePorcelainV2 extracts branch and counts" {
+    const output =
+        \\# branch.oid deadbeef
+        \\# branch.head main
+        \\# branch.upstream origin/main
+        \\# branch.ab +2 -1
+        \\1 .M N... 100644 100644 100644 abc def src/main.zig
+        \\1 M. N... 100644 100644 100644 abc def src/lib.zig
+        \\? new_file.txt
+        \\? another.txt
+        \\u UU N... 100644 100644 100644 abc def conflict.zig
+        \\
+    ;
+    const result = parsePorcelainV2(output);
+    try std.testing.expectEqualStrings("main", result.branch.?);
+    try std.testing.expectEqual(@as(usize, 2), result.ahead);
+    try std.testing.expectEqual(@as(usize, 1), result.behind);
+    try std.testing.expectEqual(@as(usize, 2), result.changed);
+    try std.testing.expectEqual(@as(usize, 2), result.untracked);
+    try std.testing.expectEqual(@as(usize, 1), result.conflicts);
+}
+
+test "parsePorcelainV2 handles detached HEAD" {
+    const output =
+        \\# branch.head (detached)
+        \\# branch.ab +0 -0
+        \\
+    ;
+    const result = parsePorcelainV2(output);
+    try std.testing.expect(result.branch == null);
+}
+
+test "parsePorcelainV2 handles clean repo" {
+    const output =
+        \\# branch.head dev
+        \\# branch.ab +0 -0
+        \\
+    ;
+    const result = parsePorcelainV2(output);
+    try std.testing.expectEqualStrings("dev", result.branch.?);
+    try std.testing.expectEqual(@as(usize, 0), result.ahead);
+    try std.testing.expectEqual(@as(usize, 0), result.changed);
+    try std.testing.expectEqual(@as(usize, 0), result.untracked);
+}
+
+test "parsePorcelainV2 ignores .. no-change entries" {
+    const output =
+        \\# branch.head main
+        \\# branch.ab +0 -0
+        \\1 .. N... 100644 100644 100644 abc def unchanged.zig
+        \\1 .M N... 100644 100644 100644 abc def changed.zig
+        \\
+    ;
+    const result = parsePorcelainV2(output);
+    try std.testing.expectEqual(@as(usize, 1), result.changed);
+}
