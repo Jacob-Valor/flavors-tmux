@@ -62,7 +62,9 @@ elif [[ $PROVIDER == "gitlab.com" ]]; then
   REVIEW_COUNT=$(glab mr list --reviewer=@me 2>/dev/null | grep -cE "^\!" || true)
   ISSUE_COUNT=$(glab issue list 2>/dev/null | grep -cE "^\#" || true)
 elif [[ $PROVIDER == "codeberg.org" ]]; then
-  CODEBERG_TOKEN=$(tmux show-option -gv @flavors-tmux_codeberg_token 2>/dev/null || echo "")
+  # Token from environment only (CWE-522 — tmux options are world-readable).
+  # Set FLAVORS_TMUX_CODEBERG_TOKEN or CODEBERG_TOKEN in your shell profile.
+  CODEBERG_TOKEN="${FLAVORS_TMUX_CODEBERG_TOKEN:-${CODEBERG_TOKEN:-}}"
   if [[ -z "$CODEBERG_TOKEN" ]]; then
     exit 0
   fi
@@ -80,9 +82,9 @@ elif [[ $PROVIDER == "codeberg.org" ]]; then
   fi
   PROVIDER_ICON="$RESET#[fg=${THEME[forge_codeberg]}] "
   API_BASE="https://codeberg.org/api/v1"
-  PR_COUNT=$(curl -fsS --max-time 5 -H "Authorization: token ${CODEBERG_TOKEN}" \
+  PR_COUNT=$(curl -fsS --max-time 5 -K <(echo "header = \"Authorization: token ${CODEBERG_TOKEN}\"") \
     "${API_BASE}/repos/${OWNER}/${REPO}/pulls?state=open&limit=100" 2>/dev/null | jq 'length' 2>/dev/null || echo 0)
-  ISSUE_COUNT=$(curl -fsS --max-time 5 -H "Authorization: token ${CODEBERG_TOKEN}" \
+  ISSUE_COUNT=$(curl -fsS --max-time 5 -K <(echo "header = \"Authorization: token ${CODEBERG_TOKEN}\"") \
     "${API_BASE}/repos/${OWNER}/${REPO}/issues?state=open&limit=100" 2>/dev/null | jq 'length' 2>/dev/null || echo 0)
 else
   exit 0
