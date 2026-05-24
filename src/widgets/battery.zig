@@ -35,10 +35,10 @@ const BatteryInfo = struct {
 };
 
 fn readLinuxBattery(allocator: std.mem.Allocator, io: std.Io, name: []const u8) !BatteryInfo {
-    const status_path = try std.fmt.allocPrint(allocator, "/sys/class/power_supply/{s}/status", .{name});
-    defer allocator.free(status_path);
-    const capacity_path = try std.fmt.allocPrint(allocator, "/sys/class/power_supply/{s}/capacity", .{name});
-    defer allocator.free(capacity_path);
+    var status_path_buf: [64]u8 = undefined;
+    const status_path = try std.fmt.bufPrint(&status_path_buf, "/sys/class/power_supply/{s}/status", .{name});
+    var capacity_path_buf: [64]u8 = undefined;
+    const capacity_path = try std.fmt.bufPrint(&capacity_path_buf, "/sys/class/power_supply/{s}/capacity", .{name});
 
     var status_buf: [64]u8 = undefined;
     const status = std.Io.Dir.readFile(.cwd(), io, status_path, &status_buf) catch |err| {

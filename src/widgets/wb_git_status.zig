@@ -1,6 +1,7 @@
 const std = @import("std");
 const util = @import("../core/util.zig");
 const WidgetContext = @import("../core/widget.zig").WidgetContext;
+const theme_loader = @import("../core/theme_loader.zig");
 
 const log = std.log.scoped(.wb_git_status);
 const runGitCommand = util.runGitCommand;
@@ -58,6 +59,7 @@ fn getHeadHash(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) 
 
 fn cachePath(
     allocator: std.mem.Allocator,
+    io: std.Io,
     environ_map: *std.process.Environ.Map,
     theme_name: []const u8,
     transparent: bool,
@@ -67,6 +69,15 @@ fn cachePath(
 ) ![]u8 {
     var hasher = std.hash.Wyhash.init(0);
     hasher.update(theme_name);
+    hasher.update("\x00");
+    var custom_path_buf: [256]u8 = undefined;
+    if (theme_loader.customThemePathBuf(environ_map, theme_name, &custom_path_buf) catch null) |custom_path| {
+        if (std.Io.Dir.cwd().statFile(io, custom_path, .{})) |stat| {
+            var stat_buf: [64]u8 = undefined;
+            const stat_key = std.fmt.bufPrint(&stat_buf, "{d}:{d}", .{ stat.mtime.nanoseconds, stat.size }) catch "custom-theme";
+            hasher.update(stat_key);
+        } else |_| {}
+    }
     hasher.update("\x00");
     hasher.update(if (transparent) "1" else "0");
     hasher.update("\x00");
@@ -438,7 +449,7 @@ pub fn run(
     const head_hash = try getHeadHash(allocator, io, repo_path);
     defer if (head_hash) |h| allocator.free(h);
 
-    const path = try cachePath(allocator, environ_map, theme_name, transparent, repo_path, remote_url.?, head_hash);
+    const path = try cachePath(allocator, io, environ_map, theme_name, transparent, repo_path, remote_url.?, head_hash);
     defer allocator.free(path);
 
     const cached = try readFreshCache(allocator, io, path, cache_ttl);

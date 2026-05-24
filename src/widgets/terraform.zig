@@ -8,16 +8,15 @@ fn getTerraformWorkspace(allocator: std.mem.Allocator, io: std.Io, cwd: []const 
         },
         .cwd = .{ .path = cwd },
     }) catch return null;
+    defer allocator.free(result.stdout);
     defer allocator.free(result.stderr);
 
     if (result.term != .exited or result.term.exited != 0) {
-        allocator.free(result.stdout);
         return null;
     }
 
     const trimmed = std.mem.trim(u8, result.stdout, " \n\r\t");
     if (trimmed.len == 0) {
-        allocator.free(result.stdout);
         return null;
     }
 
