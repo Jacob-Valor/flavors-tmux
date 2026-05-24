@@ -16,7 +16,7 @@ Monokai Nebula, GitHub Light, Ayu Dark, Ayu Light, Flexoki Dark, and Flexoki Lig
 - Nineteen built-in color flavors plus user-defined custom themes via JSON
 - Optional transparent status bar background
 - Git branch, change, insert, delete, untracked, stash, conflict, ahead/behind, push, and pull indicators
-- Optional GitHub/GitLab widget for pull requests, reviews, issues, and bugs
+- Optional forge widget for GitHub, GitLab, and Codeberg pull requests, reviews, issues, and bugs
 - Optional battery widget with charging/discharging icons
 - Optional hostname/SSH indicator widget
 - Optional CPU and memory usage widget with color-coded thresholds
@@ -164,6 +164,10 @@ set -g @flavors-tmux_terminal_icon ""
 set -g @flavors-tmux_active_terminal_icon ""
 ```
 
+> **Security note:** `#` characters in icon values are automatically escaped to
+> `##` to prevent tmux format injection (`#(command)` execution). This is
+> transparent — use `#` as you normally would in Nerd Font icon names.
+
 ### Number styles
 
 ```tmux
@@ -232,7 +236,7 @@ Indicators shown:
 - Ahead/behind upstream counts `↑` / `↓`
 - Sync status icon: synced ``, changed `󱓎`, need-push `󰛃`, need-pull `󰛀`
 
-### GitHub / GitLab / Codeberg
+### Forge (GitHub / GitLab / Codeberg)
 
 The forge widget is enabled by default when the current repository uses GitHub,
 GitLab, or Codeberg and the required CLI/token is available.
@@ -249,11 +253,13 @@ set -g @flavors-tmux_show_wbg 0
 
 #### Codeberg
 
-For Codeberg support, set a personal access token:
+For Codeberg support, set a personal access token via environment variable:
 
-```tmux
-set -g @flavors-tmux_codeberg_token "your-token-here"
+```sh
+export FLAVORS_TMUX_CODEBERG_TOKEN="your-token-here"
 ```
+
+The plugin also checks `CODEBERG_TOKEN` as a fallback. Tmux option storage (`@flavors-tmux_codeberg_token`) is intentionally **not supported** — tmux global options are world-readable by any process with access to the tmux socket.
 
 Generate a token at: https://codeberg.org/user/settings/applications
 
@@ -367,6 +373,10 @@ Options:
 - `@flavors-tmux_auto_update_interval` — hours between checks (default: `24`)
 - `@flavors-tmux_auto_update_pull` — `1` to auto-pull updates silently (default: `0`, only notifies)
 - `@flavors-tmux_auto_update_branch` — branch to track (default: `main`)
+
+> **Security note:** Auto-pull only proceeds after verifying the remote URL
+> matches the expected `Jacob-Valor/flavors-tmux` repository, preventing
+> compromised or swapped remotes from injecting malicious code.
 
 ## Screenshots
 
