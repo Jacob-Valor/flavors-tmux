@@ -14,7 +14,6 @@ pub const theme = Theme{
     .danger = "#da3633",
     .danger_bright = "#f85149",
     .warning = "#d29922",
-    .warning_bright = "#e3b341",
     .info = "#58a6ff",
     .info_bright = "#79c0ff",
     .accent = "#a371f7",

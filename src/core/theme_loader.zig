@@ -1,5 +1,6 @@
 const std = @import("std");
 const Theme = @import("theme.zig").Theme;
+const hard_theme = @import("../themes/hard.zig").theme;
 
 fn getStringField(obj: std.json.ObjectMap, key: []const u8) ?[]const u8 {
     const field = obj.get(key) orelse return null;
@@ -7,74 +8,98 @@ fn getStringField(obj: std.json.ObjectMap, key: []const u8) ?[]const u8 {
     return field.string;
 }
 
-fn loadFromJsonValue(_: std.mem.Allocator, value: std.json.Value) !Theme {
+fn dupeStringField(allocator: std.mem.Allocator, obj: std.json.ObjectMap, key: []const u8, default: []const u8) ![]const u8 {
+    const field = getStringField(obj, key) orelse return default;
+    return try allocator.dupe(u8, field);
+}
+
+fn loadFromJsonValue(allocator: std.mem.Allocator, value: std.json.Value) !Theme {
     if (value != .object) return error.InvalidThemeFormat;
     const obj = value.object;
 
-    const default = Theme{
-        .background = "#000000",
-        .foreground = "#ffffff",
-        .surface = "#111111",
-        .surface_alt = "#000000",
-        .primary = "#0088ff",
-        .primary_bright = "#44aaff",
-        .on_primary = "#000000",
-        .on_primary_bright = "#000000",
-        .success = "#00ff00",
-        .success_bright = "#44ff44",
-        .danger = "#ff0000",
-        .danger_bright = "#ff4444",
-        .warning = "#ffaa00",
-        .warning_bright = "#ffcc44",
-        .info = "#00aaff",
-        .info_bright = "#44ccff",
-        .accent = "#ff00ff",
-        .accent_bright = "#ff44ff",
-        .emphasis = "#ffffff",
-        .muted = "#888888",
-        .forge_github = "#ffffff",
-        .forge_gitlab = "#fc6d26",
-        .forge_codeberg = "#fc6d26",
-    };
-
     return Theme{
-        .background = getStringField(obj, "background") orelse default.background,
-        .foreground = getStringField(obj, "foreground") orelse default.foreground,
-        .surface = getStringField(obj, "surface") orelse default.surface,
-        .surface_alt = getStringField(obj, "surface_alt") orelse default.surface_alt,
-        .primary = getStringField(obj, "primary") orelse default.primary,
-        .primary_bright = getStringField(obj, "primary_bright") orelse default.primary_bright,
-        .on_primary = getStringField(obj, "on_primary") orelse default.on_primary,
-        .on_primary_bright = getStringField(obj, "on_primary_bright") orelse default.on_primary_bright,
-        .success = getStringField(obj, "success") orelse default.success,
-        .success_bright = getStringField(obj, "success_bright") orelse default.success_bright,
-        .danger = getStringField(obj, "danger") orelse default.danger,
-        .danger_bright = getStringField(obj, "danger_bright") orelse default.danger_bright,
-        .warning = getStringField(obj, "warning") orelse default.warning,
-        .warning_bright = getStringField(obj, "warning_bright") orelse default.warning_bright,
-        .info = getStringField(obj, "info") orelse default.info,
-        .info_bright = getStringField(obj, "info_bright") orelse default.info_bright,
-        .accent = getStringField(obj, "accent") orelse default.accent,
-        .accent_bright = getStringField(obj, "accent_bright") orelse default.accent_bright,
-        .emphasis = getStringField(obj, "emphasis") orelse default.emphasis,
-        .muted = getStringField(obj, "muted") orelse default.muted,
-        .forge_github = getStringField(obj, "forge_github") orelse default.forge_github,
-        .forge_gitlab = getStringField(obj, "forge_gitlab") orelse default.forge_gitlab,
-        .forge_codeberg = getStringField(obj, "forge_codeberg") orelse default.forge_codeberg,
+        .background = try dupeStringField(allocator, obj, "background", hard_theme.background),
+        .foreground = try dupeStringField(allocator, obj, "foreground", hard_theme.foreground),
+        .surface = try dupeStringField(allocator, obj, "surface", hard_theme.surface),
+        .surface_alt = try dupeStringField(allocator, obj, "surface_alt", hard_theme.surface_alt),
+        .primary = try dupeStringField(allocator, obj, "primary", hard_theme.primary),
+        .primary_bright = try dupeStringField(allocator, obj, "primary_bright", hard_theme.primary_bright),
+        .on_primary = try dupeStringField(allocator, obj, "on_primary", hard_theme.on_primary),
+        .on_primary_bright = try dupeStringField(allocator, obj, "on_primary_bright", hard_theme.on_primary_bright),
+        .success = try dupeStringField(allocator, obj, "success", hard_theme.success),
+        .success_bright = try dupeStringField(allocator, obj, "success_bright", hard_theme.success_bright),
+        .danger = try dupeStringField(allocator, obj, "danger", hard_theme.danger),
+        .danger_bright = try dupeStringField(allocator, obj, "danger_bright", hard_theme.danger_bright),
+        .warning = try dupeStringField(allocator, obj, "warning", hard_theme.warning),
+        .info = try dupeStringField(allocator, obj, "info", hard_theme.info),
+        .info_bright = try dupeStringField(allocator, obj, "info_bright", hard_theme.info_bright),
+        .accent = try dupeStringField(allocator, obj, "accent", hard_theme.accent),
+        .accent_bright = try dupeStringField(allocator, obj, "accent_bright", hard_theme.accent_bright),
+        .emphasis = try dupeStringField(allocator, obj, "emphasis", hard_theme.emphasis),
+        .muted = try dupeStringField(allocator, obj, "muted", hard_theme.muted),
+        .forge_github = try dupeStringField(allocator, obj, "forge_github", hard_theme.forge_github),
+        .forge_gitlab = try dupeStringField(allocator, obj, "forge_gitlab", hard_theme.forge_gitlab),
+        .forge_codeberg = try dupeStringField(allocator, obj, "forge_codeberg", hard_theme.forge_codeberg),
     };
 }
 
 pub fn loadFromFile(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !Theme {
-    var buf: [8192]u8 = undefined;
-    const content = std.Io.Dir.readFile(.cwd(), io, path, &buf) catch return error.ThemeReadError;
+    var file_buf: [8192]u8 = undefined;
+    const content = std.Io.Dir.readFile(.cwd(), io, path, &file_buf) catch return error.ThemeReadError;
 
-    const parsed = try std.json.parseFromSlice(std.json.Value, allocator, content, .{});
+    // Sub-arena isolates the JSON parse tree from the caller's allocator.
+    // loadFromJsonValue dupe's theme fields into the caller's allocator,
+    // so the caller still owns the returned Theme strings.
+    var arena = std.heap.ArenaAllocator.init(allocator);
+    defer arena.deinit();
+    const arena_alloc = arena.allocator();
+
+    const parsed = try std.json.parseFromSlice(std.json.Value, arena_alloc, content, .{});
     defer parsed.deinit();
 
     return try loadFromJsonValue(allocator, parsed.value);
 }
 
 pub fn customThemePath(allocator: std.mem.Allocator, environ_map: *std.process.Environ.Map, name: []const u8) !?[]u8 {
+    if (!isSafeCustomThemeName(name)) return null;
     const home = environ_map.get("HOME") orelse return null;
     return try std.fmt.allocPrint(allocator, "{s}/.config/flavors-tmux/themes/{s}.json", .{ home, name });
+}
+
+/// Stack-buffer variant of customThemePath. Writes the path into the provided
+/// buffer instead of heap-allocating. Returns null if the name is unsafe or
+/// HOME is not set. The returned slice is a sub-slice of the provided buffer.
+pub fn customThemePathBuf(environ_map: *std.process.Environ.Map, name: []const u8, buf: []u8) !?[]const u8 {
+    if (!isSafeCustomThemeName(name)) return null;
+    const home = environ_map.get("HOME") orelse return null;
+    return try std.fmt.bufPrint(buf, "{s}/.config/flavors-tmux/themes/{s}.json", .{ home, name });
+}
+
+pub fn isSafeCustomThemeName(name: []const u8) bool {
+    if (name.len == 0) return false;
+    for (name) |c| {
+        if (std.ascii.isAlphanumeric(c) or c == '_' or c == '-') continue;
+        return false;
+    }
+    return true;
+}
+
+test "custom theme names reject path traversal" {
+    try std.testing.expect(isSafeCustomThemeName("my_theme-1"));
+    try std.testing.expect(!isSafeCustomThemeName("../hard"));
+    try std.testing.expect(!isSafeCustomThemeName("nested/theme"));
+    try std.testing.expect(!isSafeCustomThemeName(""));
+}
+
+test "custom themes fall back to hard colors for missing keys" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+
+    const parsed = try std.json.parseFromSlice(std.json.Value, arena.allocator(), "{\"background\":\"#123456\"}", .{});
+    defer parsed.deinit();
+
+    const theme = try loadFromJsonValue(arena.allocator(), parsed.value);
+    try std.testing.expectEqualStrings("#123456", theme.background);
+    try std.testing.expectEqualStrings(hard_theme.foreground, theme.foreground);
+    try std.testing.expectEqualStrings(hard_theme.surface_alt, theme.surface_alt);
 }

@@ -18,10 +18,14 @@ declare -A THEMES=()
 load_theme() {
     local theme_name="$1"
 
+    if [[ ! "$theme_name" =~ ^[A-Za-z0-9_-]+$ ]]; then
+        return
+    fi
+
     local custom_theme_path="${HOME}/.config/flavors-tmux/themes/${theme_name}.json"
     if [[ -f "$custom_theme_path" ]] && command -v jq &>/dev/null; then
         local key
-        for key in background foreground surface surface_alt primary primary_bright on_primary on_primary_bright success success_bright danger danger_bright warning warning_bright info info_bright accent accent_bright emphasis muted forge_github forge_gitlab forge_codeberg; do
+        for key in background foreground surface surface_alt primary primary_bright on_primary on_primary_bright success success_bright danger danger_bright warning info info_bright accent accent_bright emphasis muted forge_github forge_gitlab forge_codeberg; do
             local value
             value=$(jq -r ".${key} // empty" "$custom_theme_path" 2>/dev/null)
             if [[ -n "$value" ]]; then
@@ -46,7 +50,6 @@ load_theme() {
             THEMES[hard_danger]="#cc241d"
             THEMES[hard_danger_bright]="#fb4934"
             THEMES[hard_warning]="#d79921"
-            THEMES[hard_warning_bright]="#fabd2f"
             THEMES[hard_info]="#689d6a"
             THEMES[hard_info_bright]="#8ec07c"
             THEMES[hard_accent]="#b16286"
@@ -71,7 +74,6 @@ load_theme() {
             THEMES[medium_danger]="#cc241d"
             THEMES[medium_danger_bright]="#fb4934"
             THEMES[medium_warning]="#d79921"
-            THEMES[medium_warning_bright]="#fabd2f"
             THEMES[medium_info]="#689d6a"
             THEMES[medium_info_bright]="#8ec07c"
             THEMES[medium_accent]="#b16286"
@@ -96,7 +98,6 @@ load_theme() {
             THEMES[soft_danger]="#cc241d"
             THEMES[soft_danger_bright]="#fb4934"
             THEMES[soft_warning]="#d79921"
-            THEMES[soft_warning_bright]="#fabd2f"
             THEMES[soft_info]="#689d6a"
             THEMES[soft_info_bright]="#8ec07c"
             THEMES[soft_accent]="#b16286"
@@ -121,7 +122,6 @@ load_theme() {
             THEMES[light_danger]="#cc241d"
             THEMES[light_danger_bright]="#9D0006"
             THEMES[light_warning]="#9B6B00"
-            THEMES[light_warning_bright]="#B57614"
             THEMES[light_info]="#689d6a"
             THEMES[light_info_bright]="#427B58"
             THEMES[light_accent]="#b16286"
@@ -146,7 +146,6 @@ load_theme() {
             THEMES[tokyonight_danger]="#f7768e"
             THEMES[tokyonight_danger_bright]="#db4b4b"
             THEMES[tokyonight_warning]="#e0af68"
-            THEMES[tokyonight_warning_bright]="#ff9e64"
             THEMES[tokyonight_info]="#7dcfff"
             THEMES[tokyonight_info_bright]="#b4f9f8"
             THEMES[tokyonight_accent]="#bb9af7"
@@ -171,7 +170,6 @@ load_theme() {
             THEMES[catppuccin_danger]="#f38ba8"
             THEMES[catppuccin_danger_bright]="#eba0ac"
             THEMES[catppuccin_warning]="#fab387"
-            THEMES[catppuccin_warning_bright]="#f9e2af"
             THEMES[catppuccin_info]="#89dceb"
             THEMES[catppuccin_info_bright]="#74c7ec"
             THEMES[catppuccin_accent]="#cba6f7"
@@ -196,7 +194,6 @@ load_theme() {
             THEMES[dracula_danger]="#ff5555"
             THEMES[dracula_danger_bright]="#ff6e6e"
             THEMES[dracula_warning]="#f1fa8c"
-            THEMES[dracula_warning_bright]="#ffffa5"
             THEMES[dracula_info]="#bd93f9"
             THEMES[dracula_info_bright]="#d6acff"
             THEMES[dracula_accent]="#ff79c6"
@@ -221,7 +218,6 @@ load_theme() {
             THEMES[nord_danger]="#bf616a"
             THEMES[nord_danger_bright]="#d08770"
             THEMES[nord_warning]="#ebcb8b"
-            THEMES[nord_warning_bright]="#e5e9f0"
             THEMES[nord_info]="#81a1c1"
             THEMES[nord_info_bright]="#5e81ac"
             THEMES[nord_accent]="#b48ead"
@@ -246,7 +242,6 @@ load_theme() {
             THEMES[github_dark_danger]="#da3633"
             THEMES[github_dark_danger_bright]="#f85149"
             THEMES[github_dark_warning]="#d29922"
-            THEMES[github_dark_warning_bright]="#e3b341"
             THEMES[github_dark_info]="#58a6ff"
             THEMES[github_dark_info_bright]="#79c0ff"
             THEMES[github_dark_accent]="#a371f7"
@@ -271,7 +266,6 @@ load_theme() {
             THEMES[onedark_danger]="#e06c75"
             THEMES[onedark_danger_bright]="#c8555d"
             THEMES[onedark_warning]="#e5c07b"
-            THEMES[onedark_warning_bright]="#d4a959"
             THEMES[onedark_info]="#56b6c2"
             THEMES[onedark_info_bright]="#4a9da8"
             THEMES[onedark_accent]="#c678dd"
@@ -296,7 +290,6 @@ load_theme() {
             THEMES[solarized_dark_danger]="#dc322f"
             THEMES[solarized_dark_danger_bright]="#cb4b16"
             THEMES[solarized_dark_warning]="#b58900"
-            THEMES[solarized_dark_warning_bright]="#d33682"
             THEMES[solarized_dark_info]="#2aa198"
             THEMES[solarized_dark_info_bright]="#268bd2"
             THEMES[solarized_dark_accent]="#6c71c4"
@@ -321,7 +314,6 @@ load_theme() {
             THEMES[solarized_light_danger]="#dc322f"
             THEMES[solarized_light_danger_bright]="#cb4b16"
             THEMES[solarized_light_warning]="#7A5A00"
-            THEMES[solarized_light_warning_bright]="#d33682"
             THEMES[solarized_light_info]="#1E7A72"
             THEMES[solarized_light_info_bright]="#268bd2"
             THEMES[solarized_light_accent]="#6c71c4"
@@ -346,7 +338,6 @@ load_theme() {
             THEMES[monokai_nebula_danger]="#f92672"
             THEMES[monokai_nebula_danger_bright]="#fc5c94"
             THEMES[monokai_nebula_warning]="#ff971f"
-            THEMES[monokai_nebula_warning_bright]="#ffb855"
             THEMES[monokai_nebula_info]="#66d9ff"
             THEMES[monokai_nebula_info_bright]="#8ee5ff"
             THEMES[monokai_nebula_accent]="#ae81ff"
@@ -371,7 +362,6 @@ load_theme() {
             THEMES[monokai_danger]="#f92672"
             THEMES[monokai_danger_bright]="#fc5c94"
             THEMES[monokai_warning]="#fd971f"
-            THEMES[monokai_warning_bright]="#f4bf75"
             THEMES[monokai_info]="#66d9ef"
             THEMES[monokai_info_bright]="#a1efe4"
             THEMES[monokai_accent]="#ae81ff"
@@ -396,7 +386,6 @@ load_theme() {
             THEMES[github_light_danger]="#cf222e"
             THEMES[github_light_danger_bright]="#fa4549"
             THEMES[github_light_warning]="#9a6700"
-            THEMES[github_light_warning_bright]="#bf8700"
             THEMES[github_light_info]="#0969da"
             THEMES[github_light_info_bright]="#218bff"
             THEMES[github_light_accent]="#8250df"
@@ -421,7 +410,6 @@ load_theme() {
             THEMES[ayu_dark_danger]="#F26D78"
             THEMES[ayu_dark_danger_bright]="#FF7B86"
             THEMES[ayu_dark_warning]="#E6B450"
-            THEMES[ayu_dark_warning_bright]="#FFB454"
             THEMES[ayu_dark_info]="#59C2FF"
             THEMES[ayu_dark_info_bright]="#7FD1FF"
             THEMES[ayu_dark_accent]="#D2A6FF"
@@ -446,7 +434,6 @@ load_theme() {
             THEMES[ayu_light_danger]="#B82A3A"
             THEMES[ayu_light_danger_bright]="#C84454"
             THEMES[ayu_light_warning]="#8A5500"
-            THEMES[ayu_light_warning_bright]="#7A4A00"
             THEMES[ayu_light_info]="#2A6B9E"
             THEMES[ayu_light_info_bright]="#2A6B9E"
             THEMES[ayu_light_accent]="#A37ACC"
@@ -471,7 +458,6 @@ load_theme() {
             THEMES[flexoki_dark_danger]="#D14D41"
             THEMES[flexoki_dark_danger_bright]="#DA702C"
             THEMES[flexoki_dark_warning]="#D0A215"
-            THEMES[flexoki_dark_warning_bright]="#879A39"
             THEMES[flexoki_dark_info]="#4385BE"
             THEMES[flexoki_dark_info_bright]="#3AA99F"
             THEMES[flexoki_dark_accent]="#8B7EC8"
@@ -496,7 +482,6 @@ load_theme() {
             THEMES[flexoki_light_danger]="#AF3029"
             THEMES[flexoki_light_danger_bright]="#D14D41"
             THEMES[flexoki_light_warning]="#AD8301"
-            THEMES[flexoki_light_warning_bright]="#D0A215"
             THEMES[flexoki_light_info]="#205EA6"
             THEMES[flexoki_light_info_bright]="#4385BE"
             THEMES[flexoki_light_accent]="#5E409D"
@@ -524,7 +509,7 @@ for key in background foreground surface surface_alt \
            primary primary_bright on_primary on_primary_bright \
            success success_bright \
            danger danger_bright \
-           warning warning_bright \
+           warning \
            info info_bright \
            accent accent_bright \
            emphasis muted \

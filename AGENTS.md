@@ -39,14 +39,15 @@ Semantic colors used as text foregrounds and their backgrounds (update when addi
 | warning | battery mid, git changed, window last, hostname SSH, CPU 50-79%, mem 50-79% | `background` |
 | info_bright | git need-pull, stash count ``, ahead `↑` | `background` |
 | accent  | datetime separator (decorative only) | `surface_alt` / `background` |
-| muted   | git untracked count ``, forge header , hostname local | `background` |
+| muted   | git untracked count ``, forge header , hostname local, docker context default | `background` |
+| info     | kubernetes context (non-prod/non-staging), docker context (non-default) | `background` |
 | emphasis | datetime time text               | `surface_alt` / `background` |
 | forge_* | forge provider icon               | `background` |
 | foreground | RESET, status text, window text | `background` |
 | success_bright | window-status-current icon | `surface` |
 | accent_bright  | window-status-current number | `surface` |
 
-Unused colors: `info`, `warning_bright` — defined in every theme but not referenced by any widget.
+Unused colors: none — all defined colors are referenced by at least one widget.
 
 ## Conventions
 - All tmux options use prefix `@flavors-tmux_`

@@ -14,7 +14,6 @@ pub const Theme = struct {
     danger: []const u8,
     danger_bright: []const u8,
     warning: []const u8,
-    warning_bright: []const u8,
     info: []const u8,
     info_bright: []const u8,
     accent: []const u8,
