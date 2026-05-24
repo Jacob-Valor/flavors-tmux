@@ -142,6 +142,27 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_mod_tests.step);
     test_step.dependOn(&run_exe_tests.step);
 
+    // Parity test: compares Zig binary output against Bash fallback scripts.
+    // Skips tmux-dependent checks when not in a tmux session.
+    const parity_cmd = b.addSystemCommand(&.{ "bash", "scripts/test-parity.sh" });
+    parity_cmd.step.dependOn(b.getInstallStep());
+    test_step.dependOn(&parity_cmd.step);
+
+    // Full parity: runs ALL parity checks including tmux-dependent theme colors,
+    // hostname, and git-status widgets. Requires a tmux session.
+    const full_parity_step = b.step("full-parity", "Run full Bash/Zig parity (requires tmux)");
+    const full_parity_cmd = b.addSystemCommand(&.{
+        "bash", "-c",
+        \\if [ -z "${TMUX:-}" ]; then
+        \\  echo "full-parity requires a tmux session. Run: tmux new-session -d && zig build full-parity"
+        \\  exit 1
+        \\fi
+        \\exec bash scripts/test-parity.sh
+        ,
+    });
+    full_parity_cmd.step.dependOn(b.getInstallStep());
+    full_parity_step.dependOn(&full_parity_cmd.step);
+
     // Just like flags, top level steps are also listed in the `--help` menu.
     //
     // The Zig build system is entirely implemented in userland, which means
