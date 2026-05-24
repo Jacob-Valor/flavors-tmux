@@ -137,6 +137,39 @@ fn runGhCommand(allocator: std.mem.Allocator, io: std.Io, argv: []const []const 
     return result.stdout;
 }
 
+/// Run curl with a token passed via temp config file (not argv) to avoid
+/// exposing the token in /proc/*/cmdline to other local users.
+fn fetchWithToken(
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    url: []const u8,
+    token: []const u8,
+    repo_path: []const u8,
+) []u8 {
+    // Create a temporary curl config file so curl reads the header via -K (config file),
+    // not -H in argv. This prevents the token from appearing in /proc/*/cmdline.
+    const path = std.fmt.allocPrint(allocator, "/tmp/flavors-tmux-curl-{x}.conf", .{std.Io.Timestamp.now(io, .real).nanoseconds}) catch return "";
+    defer allocator.free(path);
+
+    const config_content = std.fmt.allocPrint(allocator, "header = \"Authorization: token {s}\"\n", .{token}) catch return "";
+    defer allocator.free(config_content);
+
+    std.Io.Dir.writeFile(.cwd(), io, .{ .sub_path = path, .data = config_content }) catch return "";
+
+    const result = std.process.run(allocator, io, .{
+        .argv = &.{ "curl", "-sS", "--fail", "--max-time", "5", "-K", path, "-L", url },
+        .cwd = .{ .path = repo_path },
+    }) catch return "";
+    defer allocator.free(result.stderr);
+
+    if (result.term != .exited or result.term.exited != 0) {
+        allocator.free(result.stdout);
+        return "";
+    }
+
+    return result.stdout;
+}
+
 fn commandWorks(allocator: std.mem.Allocator, io: std.Io, argv: []const []const u8) bool {
     const result = std.process.run(allocator, io, .{ .argv = argv }) catch return false;
     defer allocator.free(result.stdout);
@@ -145,6 +178,7 @@ fn commandWorks(allocator: std.mem.Allocator, io: std.Io, argv: []const []const 
 }
 
 fn getCodebergToken(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.Environ.Map) !?[]u8 {
+    _ = io;
     if (environ_map.get("FLAVORS_TMUX_CODEBERG_TOKEN")) |token| {
         const trimmed = std.mem.trim(u8, token, " \n\r\t");
         if (trimmed.len > 0) return try allocator.dupe(u8, trimmed);
@@ -153,17 +187,10 @@ fn getCodebergToken(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.
         const trimmed = std.mem.trim(u8, token, " \n\r\t");
         if (trimmed.len > 0) return try allocator.dupe(u8, trimmed);
     }
-
-    const result = std.process.run(allocator, io, .{
-        .argv = &.{ "tmux", "show-option", "-gv", "@flavors-tmux_codeberg_token" },
-    }) catch return null;
-    defer allocator.free(result.stdout);
-    defer allocator.free(result.stderr);
-
-    if (result.term != .exited or result.term.exited != 0) return null;
-    const trimmed = std.mem.trim(u8, result.stdout, " \n\r\t");
-    if (trimmed.len == 0) return null;
-    return try allocator.dupe(u8, trimmed);
+    // NOTE: tmux-option token storage (@flavors-tmux_codeberg_token) was removed
+    // due to CWE-522 — tmux global options are world-readable by any process with
+    // access to the tmux socket. Use environment variables instead.
+    return null;
 }
 
 fn isValidToken(token: []const u8) bool {
@@ -329,20 +356,18 @@ fn renderUncached(
         if (owner_repo == null) return result.toOwnedSlice(allocator);
 
         const api_base = "https://codeberg.org/api/v1";
-        const auth_header = try std.fmt.allocPrint(allocator, "Authorization: token {s}", .{token.?});
-        defer allocator.free(auth_header);
 
-        // PR count
+        // PR count (token passed via temp config file, not argv — avoids /proc/cmdline exposure)
         const pr_url = try std.fmt.allocPrint(allocator, "{s}/repos/{s}/pulls?state=open&limit=100", .{ api_base, owner_repo.? });
         defer allocator.free(pr_url);
-        const pr_json = runGhCommand(allocator, io, &.{ "curl", "-sS", "--fail", "--max-time", "5", "-H", auth_header, "-L", pr_url }, repo_path) catch "";
+        const pr_json = fetchWithToken(allocator, io, pr_url, token.?, repo_path);
         defer if (pr_json.len > 0) allocator.free(pr_json);
         pr_count = countJsonArrayItems(allocator, pr_json) catch 0;
 
         // Issue count (excludes PRs in Gitea API when using /issues endpoint)
         const issue_url = try std.fmt.allocPrint(allocator, "{s}/repos/{s}/issues?state=open&limit=100", .{ api_base, owner_repo.? });
         defer allocator.free(issue_url);
-        const issue_json = runGhCommand(allocator, io, &.{ "curl", "-sS", "--fail", "--max-time", "5", "-H", auth_header, "-L", issue_url }, repo_path) catch "";
+        const issue_json = fetchWithToken(allocator, io, issue_url, token.?, repo_path);
         defer if (issue_json.len > 0) allocator.free(issue_json);
         issue_count = countJsonArrayItems(allocator, issue_json) catch 0;
     } else {
