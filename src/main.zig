@@ -168,6 +168,7 @@ fn run(init: std.process.Init) !void {
     var stderr_buffer: [4096]u8 = undefined;
     var stderr_file_writer: Io.File.Writer = .init(.stderr(), io, &stderr_buffer);
     const stderr_writer = &stderr_file_writer.interface;
+    defer stderr_writer.flush() catch {};
 
     if (raw_args.len < 2) {
         try stderr_writer.print("{s}", .{usage});

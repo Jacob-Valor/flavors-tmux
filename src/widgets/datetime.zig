@@ -61,10 +61,9 @@ pub fn run(allocator: std.mem.Allocator, theme_name: []const u8, time_format: Ti
                 const minute = day_secs.getMinutesIntoHour();
 
                 const formatted = if (time_format == .H12)
-                    format12h(hour, minute)
+                    format12h(&cached_time, hour, minute)
                 else
-                    format24h(hour, minute);
-                @memcpy(cached_time[0..formatted.len], formatted);
+                    format24h(&cached_time, hour, minute);
                 cached_len = formatted.len;
                 last_minute_of_day = current_minute;
                 time_str = cached_time[0..cached_len];
@@ -82,30 +81,28 @@ pub fn run(allocator: std.mem.Allocator, theme_name: []const u8, time_format: Ti
     });
 }
 
-fn format24h(hour: u5, minute: u6) []const u8 {
-    var buf: [6]u8 = undefined;
-    _ = std.fmt.bufPrint(&buf, "{d:0>2}:{d:0>2} ", .{ hour, minute }) catch unreachable;
-    return buf[0..6];
+fn format24h(buf: *[32]u8, hour: u5, minute: u6) []const u8 {
+    return std.fmt.bufPrint(buf[0..], "{d:0>2}:{d:0>2} ", .{ hour, minute }) catch unreachable;
 }
 
-fn format12h(hour: u5, minute: u6) []const u8 {
+fn format12h(buf: *[32]u8, hour: u5, minute: u6) []const u8 {
     const is_pm = hour >= 12;
     const display_hour = if (hour == 0) 12 else if (hour > 12) hour - 12 else hour;
     const suffix = if (is_pm) "PM" else "AM";
-    var buf: [9]u8 = undefined;
-    _ = std.fmt.bufPrint(&buf, "{d:0>2}:{d:0>2} {s} ", .{ display_hour, minute, suffix }) catch unreachable;
-    return buf[0..9];
+    return std.fmt.bufPrint(buf[0..], "{d:0>2}:{d:0>2} {s} ", .{ display_hour, minute, suffix }) catch unreachable;
 }
 
 test "format24h produces HH:MM " {
-    try std.testing.expectEqualStrings("09:05 ", format24h(9, 5));
-    try std.testing.expectEqualStrings("23:59 ", format24h(23, 59));
-    try std.testing.expectEqualStrings("00:00 ", format24h(0, 0));
+    var buf: [32]u8 = undefined;
+    try std.testing.expectEqualStrings("09:05 ", format24h(&buf, 9, 5));
+    try std.testing.expectEqualStrings("23:59 ", format24h(&buf, 23, 59));
+    try std.testing.expectEqualStrings("00:00 ", format24h(&buf, 0, 0));
 }
 
 test "format12h produces HH:MM AM/PM " {
-    try std.testing.expectEqualStrings("12:00 AM ", format12h(0, 0));
-    try std.testing.expectEqualStrings("12:30 PM ", format12h(12, 30));
-    try std.testing.expectEqualStrings("03:45 PM ", format12h(15, 45));
-    try std.testing.expectEqualStrings("11:59 PM ", format12h(23, 59));
+    var buf: [32]u8 = undefined;
+    try std.testing.expectEqualStrings("12:00 AM ", format12h(&buf, 0, 0));
+    try std.testing.expectEqualStrings("12:30 PM ", format12h(&buf, 12, 30));
+    try std.testing.expectEqualStrings("03:45 PM ", format12h(&buf, 15, 45));
+    try std.testing.expectEqualStrings("11:59 PM ", format12h(&buf, 23, 59));
 }

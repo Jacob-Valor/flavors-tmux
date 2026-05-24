@@ -43,24 +43,24 @@ if [[ -z $BRANCH ]]; then
 fi
 
 if [[ $PROVIDER == "github.com" ]]; then
-  if ! command -v gh &>/dev/null; then
+  if ! command -v gh &>/dev/null || ! command -v jq &>/dev/null; then
     exit 1
   fi
   PROVIDER_ICON="$RESET#[fg=${THEME[forge_github]}] "
-  PR_COUNT=$(gh pr list --json number --limit 100 --jq 'length')
-  REVIEW_COUNT=$(gh pr list --reviewer @me --json number --limit 100 --jq 'length')
-  RES=$(gh issue list --json "assignees,labels" --assignee @me --limit 100)
-  ISSUE_COUNT=$(echo "$RES" | jq 'length')
-  BUG_COUNT=$(echo "$RES" | jq 'map(select(any(.labels[]?; .name == "bug"))) | length')
+  PR_COUNT=$(gh pr list --json number --limit 100 --jq 'length' 2>/dev/null || echo 0)
+  REVIEW_COUNT=$(gh pr list --reviewer @me --json number --limit 100 --jq 'length' 2>/dev/null || echo 0)
+  RES=$(gh issue list --json "assignees,labels" --assignee @me --limit 100 2>/dev/null || echo '[]')
+  ISSUE_COUNT=$(echo "$RES" | jq 'length' 2>/dev/null || echo 0)
+  BUG_COUNT=$(echo "$RES" | jq 'map(select(any(.labels[]?; .name == "bug"))) | length' 2>/dev/null || echo 0)
   ISSUE_COUNT=$((ISSUE_COUNT - BUG_COUNT))
 elif [[ $PROVIDER == "gitlab.com" ]]; then
   if ! command -v glab &>/dev/null; then
     exit 1
   fi
   PROVIDER_ICON="$RESET#[fg=${THEME[forge_gitlab]}] "
-  PR_COUNT=$(glab mr list | grep -cE "^\!")
-  REVIEW_COUNT=$(glab mr list --reviewer=@me | grep -cE "^\!")
-  ISSUE_COUNT=$(glab issue list | grep -cE "^\#")
+  PR_COUNT=$(glab mr list 2>/dev/null | grep -cE "^\!" || true)
+  REVIEW_COUNT=$(glab mr list --reviewer=@me 2>/dev/null | grep -cE "^\!" || true)
+  ISSUE_COUNT=$(glab issue list 2>/dev/null | grep -cE "^\#" || true)
 elif [[ $PROVIDER == "codeberg.org" ]]; then
   CODEBERG_TOKEN=$(tmux show-option -gv @flavors-tmux_codeberg_token 2>/dev/null || echo "")
   if [[ -z "$CODEBERG_TOKEN" ]]; then
@@ -80,10 +80,10 @@ elif [[ $PROVIDER == "codeberg.org" ]]; then
   fi
   PROVIDER_ICON="$RESET#[fg=${THEME[forge_codeberg]}] "
   API_BASE="https://codeberg.org/api/v1"
-  PR_COUNT=$(curl -s -H "Authorization: token ${CODEBERG_TOKEN}" \
-    "${API_BASE}/repos/${OWNER}/${REPO}/pulls?state=open&limit=100" | jq 'length')
-  ISSUE_COUNT=$(curl -s -H "Authorization: token ${CODEBERG_TOKEN}" \
-    "${API_BASE}/repos/${OWNER}/${REPO}/issues?state=open&limit=100" | jq 'length')
+  PR_COUNT=$(curl -fsS --max-time 5 -H "Authorization: token ${CODEBERG_TOKEN}" \
+    "${API_BASE}/repos/${OWNER}/${REPO}/pulls?state=open&limit=100" 2>/dev/null | jq 'length' 2>/dev/null || echo 0)
+  ISSUE_COUNT=$(curl -fsS --max-time 5 -H "Authorization: token ${CODEBERG_TOKEN}" \
+    "${API_BASE}/repos/${OWNER}/${REPO}/issues?state=open&limit=100" 2>/dev/null | jq 'length' 2>/dev/null || echo 0)
 else
   exit 0
 fi
