@@ -40,7 +40,7 @@ const usage =
     \\  --format <12H|24H|hide>             Time format (datetime)
     \\  --name <battery-name>               Battery name (battery)
     \\  --low-threshold <n>                 Low battery threshold (battery, default: 20)
-    \\  --cache-ttl <seconds>               Forge widget cache TTL (default: 300)
+    \\  -c, --cache-ttl <seconds>           Forge widget cache TTL (default: 300)
     \\  --transparent                       Use default terminal background
     \\
     \\Styles for custom-number:
@@ -175,7 +175,10 @@ fn run(init: std.process.Init) !void {
         return error.Usage;
     }
 
-    const args = try cli.parseArgs(arena, raw_args[1..]);
+    const args = cli.parseArgs(arena, raw_args[1..]) catch |err| {
+        try stderr_writer.print("{s}", .{usage});
+        return err;
+    };
 
     var stdout_buffer: [4096]u8 = undefined;
     var stdout_file_writer: Io.File.Writer = .init(.stdout(), io, &stdout_buffer);

@@ -67,7 +67,7 @@ pub fn parseArgs(allocator: std.mem.Allocator, raw_args: []const []const u8) !Ar
             i += 1;
             if (i >= raw_args.len) return error.MissingValue;
             args.low_threshold = std.fmt.parseInt(u8, raw_args[i], 10) catch return error.InvalidNumber;
-        } else if (std.mem.eql(u8, arg, "--cache-ttl")) {
+        } else if (std.mem.eql(u8, arg, "-c") or std.mem.eql(u8, arg, "--cache-ttl")) {
             i += 1;
             if (i >= raw_args.len) return error.MissingValue;
             args.cache_ttl = std.fmt.parseInt(u64, raw_args[i], 10) catch return error.InvalidNumber;
