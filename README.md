@@ -26,6 +26,7 @@ Rose Pine, Rose Pine Dawn, Everforest, and Kanagawa.
 - Optional Terraform workspace widget
 - Optional Docker context widget
 - Optional YADM dotfiles status widget
+- Optional AI coding assistant detection widget
 - Configurable 12-hour, 24-hour, or hidden time widget
 - Custom window, pane, and zoom number styles
 - Custom terminal and active-terminal icons
@@ -48,6 +49,7 @@ Optional:
 
 - [Zig](https://ziglang.org/) 0.16.0+ — builds a native binary for faster
   widgets (auto-detected by TPM and manual install)
+- `pgrep` — for AI assistant detection widget
 
 ## Installation
 
@@ -362,6 +364,16 @@ set -g @flavors-tmux_show_yadm 1
 ```
 
 Requires `yadm` to be installed. Shows changed and untracked counts similar to the Git widget.
+
+### AI Assistant
+
+Shows active AI coding assistants when detected.
+
+```tmux
+set -g @flavors-tmux_show_ai_assistant 1
+```
+
+Requires `pgrep` to be installed. Detects running processes for: Claude, Aider, GitHub Copilot, Ollama, Cursor, Codeium, Windsurf, Gemini, LM Studio, Continue, OpenCode, Pi, and Command Code. The widget is hidden when no assistants are running.
 
 ### Auto-update
 
