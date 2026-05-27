@@ -15,6 +15,7 @@ const cwd = @import("widgets/cwd.zig");
 const terraform = @import("widgets/terraform.zig");
 const docker = @import("widgets/docker.zig");
 const yadm = @import("widgets/yadm.zig");
+const gpg_ssh_agent = @import("widgets/gpg_ssh_agent.zig");
 
 const usage =
     \\Usage: flavors-tmux <command> [options]
@@ -31,8 +32,9 @@ const usage =
     \\  cwd --theme <name> <path>           Render current working directory widget
     \\  terraform --theme <name> <path>     Render Terraform workspace widget
     \\  docker --theme <name>               Render Docker context widget
-    \\  yadm --theme <name>                 Render YADM dotfiles status widget
-    \\  theme <name> <key>                  Look up a theme color
+  \\  yadm --theme <name>                 Render YADM dotfiles status widget
+  \\  gpg-ssh-agent --theme <name>       Render GPG/SSH agent status widget
+  \\  theme <name> <key>                  Look up a theme color
     \\  theme-list                          List available themes
     \\
     \\Options:
@@ -121,6 +123,10 @@ fn handleYadm(arena: std.mem.Allocator, io: std.Io, env: *std.process.Environ.Ma
     try yadm.run(arena, io, args.theme, args.transparent, env, stdout);
 }
 
+fn handleGpgSshAgent(arena: std.mem.Allocator, io: std.Io, env: *std.process.Environ.Map, args: *const cli.Args, _: *std.Io.Writer, stdout: *std.Io.Writer) !void {
+    try gpg_ssh_agent.run(arena, io, env, args.theme, args.transparent, stdout);
+}
+
 fn handleTheme(arena: std.mem.Allocator, io: std.Io, env: *std.process.Environ.Map, args: *const cli.Args, stderr: *std.Io.Writer, stdout: *std.Io.Writer) !void {
     if (args.positional.items.len < 2) {
         try stderr.print("Usage: flavors-tmux theme <name> <key>\n", .{});
@@ -156,6 +162,7 @@ const handlers = std.StaticStringMap(HandlerFn).initComptime(.{
     .{ "terraform", &handleTerraform },
     .{ "docker", &handleDocker },
     .{ "yadm", &handleYadm },
+    .{ "gpg-ssh-agent", &handleGpgSshAgent },
     .{ "theme", &handleTheme },
     .{ "theme-list", &handleThemeList },
 });

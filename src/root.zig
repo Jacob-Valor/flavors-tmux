@@ -12,3 +12,4 @@ pub const cwd = @import("widgets/cwd.zig");
 pub const terraform = @import("widgets/terraform.zig");
 pub const docker = @import("widgets/docker.zig");
 pub const yadm = @import("widgets/yadm.zig");
+pub const gpg_ssh_agent = @import("widgets/gpg_ssh_agent.zig");

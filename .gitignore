@@ -20,3 +20,6 @@ Thumbs.db
 # Agent runtime state
 .agents/
 skills-lock.json
+
+#omo
+.omo/
