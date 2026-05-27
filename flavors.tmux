@@ -20,7 +20,7 @@ source "$SCRIPTS_PATH/themes.sh" || {
 }
 
 # Validate theme name
-VALID_THEMES=("hard" "medium" "soft" "light" "tokyonight" "catppuccin" "dracula" "nord" "github_dark" "onedark" "solarized_dark" "solarized_light" "monokai" "monokai_nebula" "github_light" "ayu_dark" "ayu_light" "flexoki_dark" "flexoki_light")
+VALID_THEMES=("hard" "medium" "soft" "light" "tokyonight" "catppuccin" "dracula" "nord" "github_dark" "onedark" "solarized_dark" "solarized_light" "monokai" "monokai_nebula" "github_light" "ayu_dark" "ayu_light" "flexoki_dark" "flexoki_light" "rose_pine" "rose_pine_dawn" "everforest" "kanagawa")
 CUSTOM_THEME_PATH=""
 if [[ "$SELECTED_THEME" =~ ^[A-Za-z0-9_-]+$ ]]; then
     CUSTOM_THEME_PATH="${HOME}/.config/flavors-tmux/themes/${SELECTED_THEME}.json"
@@ -59,6 +59,7 @@ show_cwd="$(tmux show-option -gv @flavors-tmux_show_cwd 2>/dev/null || echo "0")
 show_terraform="$(tmux show-option -gv @flavors-tmux_show_terraform 2>/dev/null || echo "0")"
 show_docker="$(tmux show-option -gv @flavors-tmux_show_docker 2>/dev/null || echo "0")"
 show_yadm="$(tmux show-option -gv @flavors-tmux_show_yadm 2>/dev/null || echo "0")"
+show_gpg_ssh_agent="$(tmux show-option -gv @flavors-tmux_show_gpg_ssh_agent 2>/dev/null || echo "0")"
 forge_cache_ttl="$(tmux show-option -gv @flavors-tmux_forge_cache_ttl 2>/dev/null || echo "300")"
 
 # Validate numeric fields to prevent injection in #(...) shell commands
@@ -159,6 +160,10 @@ if [[ -x "$BINARY_PATH" ]]; then
         [[ "$show_yadm" == "1" ]] || return
         echo "#($BINARY_PATH yadm --theme $SELECTED_THEME $transparent_arg)"
     }
+    gpg_ssh_agent_cmd() {
+        [[ "$show_gpg_ssh_agent" == "1" ]] || return
+        echo "#($BINARY_PATH gpg-ssh-agent --theme $SELECTED_THEME $transparent_arg)"
+    }
 else
     custom_number_cmd() {
         custom_number_format "$1" "$2"
@@ -203,6 +208,10 @@ else
         [[ "$show_yadm" == "1" ]] || return
         echo "#($SCRIPTS_PATH/yadm.sh)"
     }
+    gpg_ssh_agent_cmd() {
+        [[ "$show_gpg_ssh_agent" == "1" ]] || return
+        echo "#($SCRIPTS_PATH/gpg-ssh-agent.sh)"
+    }
 fi
 
 tmux set -g status-left-length 80
@@ -233,6 +242,7 @@ cwd_status="$(cwd_cmd)"
 terraform_status="$(terraform_cmd)"
 docker_status="$(docker_cmd)"
 yadm_status="$(yadm_cmd)"
+gpg_ssh_agent_status="$(gpg_ssh_agent_cmd)"
 
 tmux set -g status-left "\
 #{?client_prefix,\
@@ -274,6 +284,7 @@ right_status_parts=()
 [[ -n "$kubernetes_status" ]] && right_status_parts+=("#[fg=${THEME[info]},bg=${THEME[surface_alt]}]$kubernetes_status")
 [[ -n "$terraform_status" ]] && right_status_parts+=("#[fg=${THEME[primary]},bg=${THEME[surface_alt]}]$terraform_status")
 [[ -n "$yadm_status" ]] && right_status_parts+=("#[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$yadm_status")
+[[ -n "$gpg_ssh_agent_status" ]] && right_status_parts+=("#[fg=${THEME[primary_bright]},bg=${THEME[surface_alt]}]$gpg_ssh_agent_status")
 [[ -n "$date_and_time" ]] && right_status_parts+=("#[fg=${THEME[warning]},bg=${THEME[surface_alt]}]$date_and_time")
 
 right_status=""

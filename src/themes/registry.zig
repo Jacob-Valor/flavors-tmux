@@ -23,6 +23,10 @@ const ayu_dark_mod = @import("ayu_dark.zig");
 const ayu_light_mod = @import("ayu_light.zig");
 const flexoki_dark_mod = @import("flexoki_dark.zig");
 const flexoki_light_mod = @import("flexoki_light.zig");
+const rose_pine_mod = @import("rose_pine.zig");
+const rose_pine_dawn_mod = @import("rose_pine_dawn.zig");
+const everforest_mod = @import("everforest.zig");
+const kanagawa_mod = @import("kanagawa.zig");
 
 pub const hard = hard_mod.theme;
 pub const medium = medium_mod.theme;
@@ -43,6 +47,10 @@ pub const ayu_dark = ayu_dark_mod.theme;
 pub const ayu_light = ayu_light_mod.theme;
 pub const flexoki_dark = flexoki_dark_mod.theme;
 pub const flexoki_light = flexoki_light_mod.theme;
+pub const rose_pine = rose_pine_mod.theme;
+pub const rose_pine_dawn = rose_pine_dawn_mod.theme;
+pub const everforest = everforest_mod.theme;
+pub const kanagawa = kanagawa_mod.theme;
 
 pub fn byName(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.Environ.Map, name: []const u8) ?Theme {
     const custom_path = theme_loader.customThemePath(allocator, environ_map, name) catch null;
@@ -77,6 +85,10 @@ pub fn byName(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.proces
         .{ "ayu_light", ayu_light },
         .{ "flexoki_dark", flexoki_dark },
         .{ "flexoki_light", flexoki_light },
+        .{ "rose_pine", rose_pine },
+        .{ "rose_pine_dawn", rose_pine_dawn },
+        .{ "everforest", everforest },
+        .{ "kanagawa", kanagawa },
     }) |entry| {
         if (std.mem.eql(u8, name, entry.@"0")) return entry.@"1";
     }
@@ -88,7 +100,8 @@ pub const names = [_][]const u8{
     "tokyonight",  "catppuccin",     "dracula",        "nord",
     "github_dark", "onedark",        "solarized_dark", "solarized_light",
     "monokai",     "monokai_nebula", "github_light",   "ayu_dark",
-    "ayu_light",   "flexoki_dark",   "flexoki_light",
+    "ayu_light",   "flexoki_dark",   "flexoki_light",  "rose_pine",
+    "rose_pine_dawn", "everforest",  "kanagawa",
 };
 
 test "byName returns correct themes" {
