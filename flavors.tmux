@@ -61,6 +61,7 @@ show_terraform="$(tmux show-option -gv @flavors-tmux_show_terraform 2>/dev/null 
 show_docker="$(tmux show-option -gv @flavors-tmux_show_docker 2>/dev/null || echo "0")"
 show_yadm="$(tmux show-option -gv @flavors-tmux_show_yadm 2>/dev/null || echo "0")"
 show_gpg_ssh_agent="$(tmux show-option -gv @flavors-tmux_show_gpg_ssh_agent 2>/dev/null || echo "0")"
+show_ai_assistant="$(tmux show-option -gv @flavors-tmux_show_ai_assistant 2>/dev/null || echo "0")"
 forge_cache_ttl="$(tmux show-option -gv @flavors-tmux_forge_cache_ttl 2>/dev/null || echo "300")"
 
 # Validate numeric fields to prevent injection in #(...) shell commands
@@ -305,6 +306,7 @@ else
     docker_status="$(docker_cmd)"
     yadm_status="$(yadm_cmd)"
     gpg_ssh_agent_status="$(gpg_ssh_agent_cmd)"
+    ai_assistant_status="$(ai_assistant_cmd)"
 
     right_status_parts=()
     [[ -n "$cwd_status" ]] && right_status_parts+=("#[fg=${THEME[emphasis]},bg=${THEME[surface_alt]}]$cwd_status")
@@ -347,5 +349,10 @@ tmux set -g window-status-separator ""
 
 auto_update="$(tmux show-option -gv @flavors-tmux_auto_update 2>/dev/null || echo "0")"
 if [[ "$auto_update" == "1" ]]; then
+    ("$SCRIPTS_PATH/auto-update.sh" &)
+fi
+ ("$SCRIPTS_PATH/auto-update.sh" &)
+fi
+then
     ("$SCRIPTS_PATH/auto-update.sh" &)
 fi

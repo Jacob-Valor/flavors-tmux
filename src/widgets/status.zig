@@ -45,6 +45,7 @@ fn lookupEntry(name: []const u8) ?WidgetEntry {
     if (std.mem.eql(u8, name, "terraform")) return .{ .color = .primary };
     if (std.mem.eql(u8, name, "yadm")) return .{ .color = .accent };
     if (std.mem.eql(u8, name, "gpg-ssh")) return .{ .color = .primary_bright };
+    if (std.mem.eql(u8, name, "ai-assistant")) return .{ .color = .success };
     if (std.mem.eql(u8, name, "datetime")) return .{ .color = .warning };
     return null;
 }
