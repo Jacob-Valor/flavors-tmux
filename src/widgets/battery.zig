@@ -110,6 +110,23 @@ fn getBatteryInfo(allocator: std.mem.Allocator, io: std.Io, name: []const u8) !B
     }
 }
 
+fn autoDetectBatteryName(io: std.Io) ?[]const u8 {
+    switch (builtin.os.tag) {
+        .linux => return detectLinuxBatteryName(io),
+        else => return null,
+    }
+}
+
+fn detectLinuxBatteryName(io: std.Io) ?[]const u8 {
+    for ([_] []const u8{ "BAT0", "BAT1", "BAT2" }) |name| {
+        var path_buf: [64]u8 = undefined;
+        const path = std.fmt.bufPrint(&path_buf, "/sys/class/power_supply/{s}/capacity", .{name}) catch continue;
+        _ = std.Io.Dir.statFile(.cwd(), io, path, .{}) catch continue;
+        return name;
+    }
+    return null;
+}
+
 pub fn run(
     allocator: std.mem.Allocator,
     io: std.Io,
@@ -122,8 +139,7 @@ pub fn run(
 ) !void {
     const theme = (themes.byName(allocator, io, environ_map, theme_name) orelse themes.hard).withTransparentBackground(transparent);
 
-    const default_name = if (builtin.os.tag == .macos) "InternalBattery-0" else "BAT0";
-    const name = battery_name orelse default_name;
+    const name = battery_name orelse autoDetectBatteryName(io) orelse if (builtin.os.tag == .macos) "InternalBattery-0" else "BAT0";
 
     const info = getBatteryInfo(allocator, io, name) catch |err| {
         if (err == error.NoBattery or err == error.UnsupportedPlatform) {
