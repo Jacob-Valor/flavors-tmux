@@ -37,6 +37,9 @@ if [[ -f "$CACHE_FILE" ]]; then
     last_check=$(cat "$CACHE_FILE")
 fi
 
+if [[ ! "$INTERVAL_HOURS" =~ ^[0-9]+$ ]]; then
+    INTERVAL_HOURS=24
+fi
 interval_seconds=$((INTERVAL_HOURS * 3600))
 if (( now - last_check < interval_seconds )); then
     exit 0
@@ -66,7 +69,7 @@ fi
 
 # Verify remote URL is the expected flavors-tmux repository (CWE-494).
 # This prevents a compromised or swapped remote from injecting malicious code.
-if [[ ! "$remote_url" =~ (github\.com[:/]Jacob-Valor/flavors-tmux|git@github\.com:Jacob-Valor/flavors-tmux)|https://github\.com/Jacob-Valor/flavors-tmux ]]; then
+if [[ ! "$remote_url" =~ ^(github\.com:Jacob-Valor/flavors-tmux|git@github\.com:Jacob-Valor/flavors-tmux|https://github\.com/Jacob-Valor/flavors-tmux)(\.git)?$ ]]; then
     tmux display-message "flavors-tmux: auto-update skipped — remote URL '${remote_url}' is not the expected repository"
     exit 0
 fi

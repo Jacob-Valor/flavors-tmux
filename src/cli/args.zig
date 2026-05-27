@@ -30,6 +30,7 @@ pub const Args = struct {
     low_threshold: u8 = 20,
     cache_ttl: u64 = 300,
     transparent: bool = false,
+    pane_path: ?[]const u8 = null,
 
     pub fn init() Args {
         return .{ .positional = .empty };
@@ -73,6 +74,10 @@ pub fn parseArgs(allocator: std.mem.Allocator, raw_args: []const []const u8) !Ar
             args.cache_ttl = std.fmt.parseInt(u64, raw_args[i], 10) catch return error.InvalidNumber;
         } else if (std.mem.eql(u8, arg, "--transparent")) {
             args.transparent = true;
+        } else if (std.mem.eql(u8, arg, "--pane-path")) {
+            i += 1;
+            if (i >= raw_args.len) return error.MissingValue;
+            args.pane_path = raw_args[i];
         } else if (std.mem.startsWith(u8, arg, "-")) {
             return error.UnknownOption;
         } else {

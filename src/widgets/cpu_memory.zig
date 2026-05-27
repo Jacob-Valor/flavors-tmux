@@ -42,30 +42,48 @@ fn parseCpuStatLine(line: []const u8) struct { total: usize, idle: usize } {
     return .{ .total = total, .idle = idle };
 }
 
-fn readLinuxStats(_: std.mem.Allocator, io: std.Io) !CpuMemStats {
-    // CPU: take two samples of /proc/stat ~20ms apart for instantaneous usage.
-    // 20ms covers at least one scheduler tick (typically 4-10ms) while keeping
-    // the status bar responsive — down from the previous 100ms delay.
+fn readLinuxStats(allocator: std.mem.Allocator, io: std.Io) !CpuMemStats {
+    const cache_path = try std.fmt.allocPrint(allocator, "/tmp/flavors-tmux-cpu-cache", .{});
+    defer allocator.free(cache_path);
+
+    // Read current /proc/stat sample
     var cpu_buf: [4096]u8 = undefined;
+    const cpu_content = std.Io.Dir.readFile(.cwd(), io, "/proc/stat", &cpu_buf) catch return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
+    var cpu_lines = std.mem.splitScalar(u8, cpu_content, '\n');
+    const first_line = cpu_lines.next() orelse return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
+    if (!std.mem.startsWith(u8, first_line, "cpu ")) return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
+    const current = parseCpuStatLine(first_line[4..]);
+    const now_ns = std.Io.Timestamp.now(io, .real).nanoseconds;
 
-    const cpu_content_1 = std.Io.Dir.readFile(.cwd(), io, "/proc/stat", &cpu_buf) catch return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
-    var cpu_lines_1 = std.mem.splitScalar(u8, cpu_content_1, '\n');
-    const first_line_1 = cpu_lines_1.next() orelse return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
-    if (!std.mem.startsWith(u8, first_line_1, "cpu ")) return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
-    const sample_1 = parseCpuStatLine(first_line_1[4..]);
+    // Try to read previous sample from cache
+    var cpu_percent: u8 = 0;
+    const cache_content = std.Io.Dir.readFile(.cwd(), io, cache_path, &cpu_buf) catch null;
+    if (cache_content) |content| {
+        // Format: "timestamp_ns total idle"
+        var it = std.mem.splitScalar(u8, content, ' ');
+        const prev_ns_str = it.next() orelse "";
+        const prev_total_str = it.next() orelse "";
+        const prev_idle_str = it.next() orelse "";
 
-    try std.Io.sleep(io, .{ .nanoseconds = 20 * std.time.ns_per_ms }, .real);
+        const prev_ns = std.fmt.parseInt(i128, std.mem.trim(u8, prev_ns_str, " \n\r\t"), 10) catch 0;
+        const prev_total = std.fmt.parseInt(usize, std.mem.trim(u8, prev_total_str, " \n\r\t"), 10) catch 0;
+        const prev_idle = std.fmt.parseInt(usize, std.mem.trim(u8, prev_idle_str, " \n\r\t"), 10) catch 0;
 
-    const cpu_content_2 = std.Io.Dir.readFile(.cwd(), io, "/proc/stat", &cpu_buf) catch return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
-    var cpu_lines_2 = std.mem.splitScalar(u8, cpu_content_2, '\n');
-    const first_line_2 = cpu_lines_2.next() orelse return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
-    if (!std.mem.startsWith(u8, first_line_2, "cpu ")) return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
-    const sample_2 = parseCpuStatLine(first_line_2[4..]);
+        // Only use cached sample if it's recent (<5s old)
+        const age_ns = now_ns - prev_ns;
+        if (prev_ns > 0 and age_ns > 0 and age_ns < 5 * std.time.ns_per_s) {
+            const total_delta = std.math.sub(usize, current.total, prev_total) catch 0;
+            const idle_delta = std.math.sub(usize, current.idle, prev_idle) catch 0;
+            if (total_delta > 0) {
+                cpu_percent = @intCast(@min(100, (total_delta -| idle_delta) * 100 / total_delta));
+            }
+        }
+    }
 
-    // Use saturating subtraction to guard against counter wrap on 32-bit systems.
-    const total_delta = std.math.sub(usize, sample_2.total, sample_1.total) catch 0;
-    const idle_delta = std.math.sub(usize, sample_2.idle, sample_1.idle) catch 0;
-    const cpu_percent: u8 = if (total_delta > 0) @intCast(@min(100, (total_delta -| idle_delta) * 100 / total_delta)) else 0;
+    // Write current sample for next invocation
+    var cache_line_buf: [128]u8 = undefined;
+    const cache_line = try std.fmt.bufPrint(&cache_line_buf, "{d} {d} {d}\n", .{ now_ns, current.total, current.idle });
+    std.Io.Dir.writeFile(.cwd(), io, .{ .sub_path = cache_path, .data = cache_line }) catch {};
 
     // Memory: read /proc/meminfo
     var mem_buf: [4096]u8 = undefined;

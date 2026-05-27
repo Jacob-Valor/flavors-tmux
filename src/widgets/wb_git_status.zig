@@ -137,6 +137,18 @@ fn runGhCommand(allocator: std.mem.Allocator, io: std.Io, argv: []const []const 
     return result.stdout;
 }
 
+const GhThreadArgs = struct {
+    allocator: std.mem.Allocator,
+    io: std.Io,
+    argv: []const []const u8,
+    repo_path: []const u8,
+    result: ?[]const u8 = null,
+};
+
+fn ghThreadFunc(args: *GhThreadArgs) void {
+    args.result = runGhCommand(args.allocator, args.io, args.argv, args.repo_path) catch null;
+}
+
 /// Run curl with a token passed via temp config file (not argv) to avoid
 /// exposing the token in /proc/*/cmdline to other local users.
 fn fetchWithToken(
@@ -155,6 +167,7 @@ fn fetchWithToken(
     defer allocator.free(config_content);
 
     std.Io.Dir.writeFile(.cwd(), io, .{ .sub_path = path, .data = config_content }) catch return "";
+    defer std.Io.Dir.deleteFile(.cwd(), io, path) catch {};
 
     const result = std.process.run(allocator, io, .{
         .argv = &.{ "curl", "-sS", "--fail", "--max-time", "5", "-K", path, "-L", url },
@@ -170,11 +183,17 @@ fn fetchWithToken(
     return result.stdout;
 }
 
-fn commandWorks(allocator: std.mem.Allocator, io: std.Io, argv: []const []const u8) bool {
-    const result = std.process.run(allocator, io, .{ .argv = argv }) catch return false;
-    defer allocator.free(result.stdout);
-    defer allocator.free(result.stderr);
-    return result.term == .exited and result.term.exited == 0;
+fn commandExists(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.Environ.Map, name: []const u8) bool {
+    const PATH = environ_map.get("PATH") orelse return false;
+    var it = std.mem.splitScalar(u8, PATH, ':');
+    while (it.next()) |dir| {
+        if (dir.len == 0) continue;
+        const candidate = std.fmt.allocPrint(allocator, "{s}/{s}", .{ dir, name }) catch continue;
+        defer allocator.free(candidate);
+        std.Io.Dir.access(.cwd(), io, candidate, .{ .execute = true }) catch continue;
+        return true;
+    }
+    return false;
 }
 
 fn getCodebergToken(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.Environ.Map) !?[]u8 {
@@ -228,30 +247,6 @@ fn countJsonArrayItems(allocator: std.mem.Allocator, json_str: []const u8) !usiz
     return parsed.value.array.items.len;
 }
 
-fn countJsonArrayItemsWithBugLabel(allocator: std.mem.Allocator, json_str: []const u8) !usize {
-    const parsed = try std.json.parseFromSlice(std.json.Value, allocator, json_str, .{});
-    defer parsed.deinit();
-
-    if (parsed.value != .array) return 0;
-
-    var count: usize = 0;
-    for (parsed.value.array.items) |item| {
-        if (item != .object) continue;
-        const labels = item.object.get("labels") orelse continue;
-        if (labels != .array) continue;
-        for (labels.array.items) |label| {
-            if (label != .object) continue;
-            const name = label.object.get("name") orelse continue;
-            if (name != .string) continue;
-            if (std.mem.eql(u8, name.string, "bug")) {
-                count += 1;
-                break;
-            }
-        }
-    }
-    return count;
-}
-
 fn countLinesMatching(text: []const u8, prefix: []const u8) usize {
     var count: usize = 0;
     var lines = std.mem.splitScalar(u8, text, '\n');
@@ -270,8 +265,10 @@ fn renderUncached(
     provider_str: []const u8,
     environ_map: *std.process.Environ.Map,
 ) ![]u8 {
-    // Build output into an ArrayList, avoiding per-segment heap allocations
+    // Build output into an ArrayList. Pre-allocate 512 bytes to avoid
+    // repeated capacity-doubling reallocations (typical output is <500 bytes).
     var result: std.ArrayList(u8) = .empty;
+    try result.ensureTotalCapacity(allocator, 512);
     defer result.deinit(allocator);
 
     var ctx = WidgetContext.init(allocator, io, environ_map, theme_name, transparent) catch {
@@ -298,46 +295,68 @@ fn renderUncached(
     var provider_icon: []const u8 = "";
 
     if (std.mem.eql(u8, provider_str, "github.com")) {
-        if (!commandWorks(allocator, io, &.{ "gh", "--version" })) return result.toOwnedSlice(allocator);
+        if (!commandExists(allocator, io, environ_map, "gh")) return result.toOwnedSlice(allocator);
         provider_icon = " ";
 
-        // PR count: gh pr list --json number --limit 100 --jq 'length'
-        const pr_json = runGhCommand(allocator, io, &.{ "gh", "pr", "list", "--json", "number", "--limit", "100" }, repo_path) catch "";
-        defer if (pr_json.len > 0) allocator.free(pr_json);
-        pr_count = countJsonArrayItems(allocator, pr_json) catch 0;
+        // Run all 4 gh commands concurrently via threads
+        var pr_args = GhThreadArgs{ .allocator = allocator, .io = io, .argv = &.{ "gh", "pr", "list", "--json", "number", "--limit", "100", "--jq", "length" }, .repo_path = repo_path };
+        var review_args = GhThreadArgs{ .allocator = allocator, .io = io, .argv = &.{ "gh", "pr", "list", "--reviewer", "@me", "--json", "number", "--limit", "100", "--jq", "length" }, .repo_path = repo_path };
+        var issues_args = GhThreadArgs{ .allocator = allocator, .io = io, .argv = &.{ "gh", "issue", "list", "--json", "assignees,labels", "--assignee", "@me", "--limit", "100", "--jq", "length" }, .repo_path = repo_path };
+        var bugs_args = GhThreadArgs{ .allocator = allocator, .io = io, .argv = &.{ "gh", "issue", "list", "--json", "labels,assignees", "--assignee", "@me", "--limit", "100", "--jq", "[.[] | select(any(.labels[]?; .name == \"bug\"))] | length" }, .repo_path = repo_path };
 
-        // Review count: gh pr list --reviewer @me --json number --limit 100
-        const review_json = runGhCommand(allocator, io, &.{ "gh", "pr", "list", "--reviewer", "@me", "--json", "number", "--limit", "100" }, repo_path) catch "";
-        defer if (review_json.len > 0) allocator.free(review_json);
-        review_count = countJsonArrayItems(allocator, review_json) catch 0;
+        const t1 = std.Thread.spawn(.{}, ghThreadFunc, .{&pr_args}) catch null;
+        const t2 = std.Thread.spawn(.{}, ghThreadFunc, .{&review_args}) catch null;
+        const t3 = std.Thread.spawn(.{}, ghThreadFunc, .{&issues_args}) catch null;
+        const t4 = std.Thread.spawn(.{}, ghThreadFunc, .{&bugs_args}) catch null;
+        if (t1) |t| t.join();
+        if (t2) |t| t.join();
+        if (t3) |t| t.join();
+        if (t4) |t| t.join();
 
-        // Issues assigned to me
-        const issue_json = runGhCommand(allocator, io, &.{ "gh", "issue", "list", "--json", "assignees,labels", "--assignee", "@me", "--limit", "100" }, repo_path) catch "";
-        defer if (issue_json.len > 0) allocator.free(issue_json);
-        const total_issues = countJsonArrayItems(allocator, issue_json) catch 0;
-        const bugs = countJsonArrayItemsWithBugLabel(allocator, issue_json) catch 0;
-        bug_count = bugs;
-        issue_count = total_issues - bugs;
+        const pr_text = pr_args.result orelse &.{};
+        defer if (pr_args.result != null and pr_text.len > 0) allocator.free(pr_text);
+        pr_count = std.fmt.parseInt(usize, std.mem.trim(u8, pr_text, " \n\r\t"), 10) catch 0;
+
+        const review_text = review_args.result orelse &.{};
+        defer if (review_args.result != null and review_text.len > 0) allocator.free(review_text);
+        review_count = std.fmt.parseInt(usize, std.mem.trim(u8, review_text, " \n\r\t"), 10) catch 0;
+
+        const total_issues_text = issues_args.result orelse &.{};
+        defer if (issues_args.result != null and total_issues_text.len > 0) allocator.free(total_issues_text);
+        const total_issues = std.fmt.parseInt(usize, std.mem.trim(u8, total_issues_text, " \n\r\t"), 10) catch 0;
+
+        const bugs_text = bugs_args.result orelse &.{};
+        defer if (bugs_args.result != null and bugs_text.len > 0) allocator.free(bugs_text);
+        bug_count = std.fmt.parseInt(usize, std.mem.trim(u8, bugs_text, " \n\r\t"), 10) catch 0;
+        issue_count = if (total_issues > bug_count) total_issues - bug_count else 0;
     } else if (std.mem.eql(u8, provider_str, "gitlab.com")) {
-        if (!commandWorks(allocator, io, &.{ "glab", "--version" })) return result.toOwnedSlice(allocator);
+        if (!commandExists(allocator, io, environ_map, "glab")) return result.toOwnedSlice(allocator);
         provider_icon = " ";
 
-        // glab mr list
-        const mr_text = runGhCommand(allocator, io, &.{ "glab", "mr", "list" }, repo_path) catch "";
-        defer if (mr_text.len > 0) allocator.free(mr_text);
+        var mr_args = GhThreadArgs{ .allocator = allocator, .io = io, .argv = &.{ "glab", "mr", "list" }, .repo_path = repo_path };
+        var review_args = GhThreadArgs{ .allocator = allocator, .io = io, .argv = &.{ "glab", "mr", "list", "--reviewer=@me" }, .repo_path = repo_path };
+        var issue_args = GhThreadArgs{ .allocator = allocator, .io = io, .argv = &.{ "glab", "issue", "list" }, .repo_path = repo_path };
+
+        const t1 = std.Thread.spawn(.{}, ghThreadFunc, .{&mr_args}) catch null;
+        const t2 = std.Thread.spawn(.{}, ghThreadFunc, .{&review_args}) catch null;
+        const t3 = std.Thread.spawn(.{}, ghThreadFunc, .{&issue_args}) catch null;
+        if (t1) |t| t.join();
+        if (t2) |t| t.join();
+        if (t3) |t| t.join();
+
+        const mr_text = mr_args.result orelse &.{};
+        defer if (mr_args.result != null and mr_text.len > 0) allocator.free(mr_text);
         pr_count = countLinesMatching(mr_text, "!");
 
-        // glab mr list --reviewer=@me
-        const review_text = runGhCommand(allocator, io, &.{ "glab", "mr", "list", "--reviewer=@me" }, repo_path) catch "";
-        defer if (review_text.len > 0) allocator.free(review_text);
+        const review_text = review_args.result orelse &.{};
+        defer if (review_args.result != null and review_text.len > 0) allocator.free(review_text);
         review_count = countLinesMatching(review_text, "!");
 
-        // glab issue list
-        const issue_text = runGhCommand(allocator, io, &.{ "glab", "issue", "list" }, repo_path) catch "";
-        defer if (issue_text.len > 0) allocator.free(issue_text);
+        const issue_text = issue_args.result orelse &.{};
+        defer if (issue_args.result != null and issue_text.len > 0) allocator.free(issue_text);
         issue_count = countLinesMatching(issue_text, "#");
     } else if (std.mem.eql(u8, provider_str, "codeberg.org")) {
-        if (!commandWorks(allocator, io, &.{ "curl", "--version" })) return result.toOwnedSlice(allocator);
+        if (!commandExists(allocator, io, environ_map, "curl")) return result.toOwnedSlice(allocator);
 
         const token = try getCodebergToken(allocator, io, environ_map);
         defer if (token) |t| allocator.free(t);

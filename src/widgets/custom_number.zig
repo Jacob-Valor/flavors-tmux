@@ -10,6 +10,29 @@ const formats = std.StaticStringMap([]const u8).initComptime(.{
     .{ "earabic", "٠١٢٣٤٥٦٧٨٩" },
 });
 
+fn comptimeSplitGlyphs(comptime map: []const u8) [10][]const u8 {
+    comptime var glyphs: [10][]const u8 = undefined;
+    var glyph_count: usize = 0;
+    var i: usize = 0;
+    while (i < map.len and glyph_count < 10) {
+        const len = std.unicode.utf8ByteSequenceLength(map[i]) catch @compileError("invalid UTF-8 in glyph map");
+        glyphs[glyph_count] = map[i .. i + len];
+        glyph_count += 1;
+        i += len;
+    }
+    return glyphs;
+}
+
+const glyph_cache = std.StaticStringMap([10][]const u8).initComptime(.{
+    .{ "arabic", comptimeSplitGlyphs("0123456789") },
+    .{ "fsquare", comptimeSplitGlyphs("󰎡󰎤󰎧󰎪󰎭󰎱󰎳󰎶󰎹󰎼") },
+    .{ "hsquare", comptimeSplitGlyphs("󰎣󰎦󰎩󰎬󰎮󰎰󰎵󰎸󰎻󰎾") },
+    .{ "dsquare", comptimeSplitGlyphs("󰎢󰎥󰎨󰎫󰎲󰎯󰎴󰎷󰎺󰎽") },
+    .{ "super", comptimeSplitGlyphs("⁰¹²³⁴⁵⁶⁷⁸⁹") },
+    .{ "sub", comptimeSplitGlyphs("₀₁₂₃₄₅₆₇₈₉") },
+    .{ "earabic", comptimeSplitGlyphs("٠١٢٣٤٥٦٧٨٩") },
+});
+
 /// Formats an ID string using the given style. Supported styles:
 /// - hide: returns empty string
 /// - arabic, fsquare, hsquare, dsquare, super, sub, earabic
@@ -19,18 +42,7 @@ pub fn formatNumber(allocator: std.mem.Allocator, id: []const u8, style: []const
         return allocator.dupe(u8, "");
     }
 
-    const map = formats.get(style) orelse return error.InvalidFormat;
-
-    // Build array of UTF-8 glyph slices from the map string
-    var glyphs: [10][]const u8 = undefined;
-    var glyph_count: usize = 0;
-    var i: usize = 0;
-    while (i < map.len and glyph_count < 10) {
-        const len = try std.unicode.utf8ByteSequenceLength(map[i]);
-        glyphs[glyph_count] = map[i .. i + len];
-        glyph_count += 1;
-        i += len;
-    }
+    const glyphs = glyph_cache.get(style) orelse return error.InvalidFormat;
 
     var result: std.ArrayList(u8) = .empty;
     defer result.deinit(allocator);
@@ -38,7 +50,7 @@ pub fn formatNumber(allocator: std.mem.Allocator, id: []const u8, style: []const
     for (id) |char| {
         if (char < '0' or char > '9') continue;
         const idx = char - '0';
-        if (idx < glyph_count) {
+        if (idx < glyphs.len) {
             try result.appendSlice(allocator, glyphs[idx]);
             try result.append(allocator, ' ');
         }

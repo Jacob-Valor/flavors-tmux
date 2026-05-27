@@ -82,10 +82,19 @@ elif [[ $PROVIDER == "codeberg.org" ]]; then
   fi
   PROVIDER_ICON="$RESET#[fg=${THEME[forge_codeberg]}] "
   API_BASE="https://codeberg.org/api/v1"
-  PR_COUNT=$(curl -fsS --max-time 5 -K <(echo "header = \"Authorization: token ${CODEBERG_TOKEN}\"") \
-    "${API_BASE}/repos/${OWNER}/${REPO}/pulls?state=open&limit=100" 2>/dev/null | jq 'length' 2>/dev/null || echo 0)
-  ISSUE_COUNT=$(curl -fsS --max-time 5 -K <(echo "header = \"Authorization: token ${CODEBERG_TOKEN}\"") \
-    "${API_BASE}/repos/${OWNER}/${REPO}/issues?state=open&limit=100" 2>/dev/null | jq 'length' 2>/dev/null || echo 0)
+  CURL_OPTS="-fsS --max-time 5"
+  CURL_CONFIG="header = \"Authorization: token ${CODEBERG_TOKEN}\""
+
+  # Run both curl requests concurrently; each writes its own temp file to avoid
+  # a race on stdout interleaving. jq 'length' extracts count from JSON array.
+  TMP_PR=$(mktemp)
+  TMP_ISSUE=$(mktemp)
+  (curl ${CURL_OPTS} -K <(echo "${CURL_CONFIG}") "${API_BASE}/repos/${OWNER}/${REPO}/pulls?state=open&limit=100" 2>/dev/null | jq 'length' 2>/dev/null > "$TMP_PR") &
+  (curl ${CURL_OPTS} -K <(echo "${CURL_CONFIG}") "${API_BASE}/repos/${OWNER}/${REPO}/issues?state=open&limit=100" 2>/dev/null | jq 'length' 2>/dev/null > "$TMP_ISSUE") &
+  wait
+  PR_COUNT=$(cat "$TMP_PR" 2>/dev/null || echo 0)
+  ISSUE_COUNT=$(cat "$TMP_ISSUE" 2>/dev/null || echo 0)
+  rm -f "$TMP_PR" "$TMP_ISSUE"
 else
   exit 0
 fi
@@ -109,10 +118,3 @@ fi
 WB_STATUS="#[fg=${THEME[muted]},bg=${THEME[background]},bold] $RESET$PROVIDER_ICON $RESET$PR_STATUS$REVIEW_STATUS$ISSUE_STATUS$BUG_STATUS"
 
 echo "$WB_STATUS"
-
-# Wait extra time if status-interval is less than 30 seconds to
-# avoid to overload GitHub API
-INTERVAL=$(tmux display -p '#{status-interval}')
-if [[ $INTERVAL -lt 20 ]]; then
-  sleep 20
-fi

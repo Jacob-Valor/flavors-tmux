@@ -24,17 +24,17 @@ load_theme() {
 
     local custom_theme_path="${HOME}/.config/flavors-tmux/themes/${theme_name}.json"
     if [[ -f "$custom_theme_path" ]] && command -v jq &>/dev/null; then
-        local key
-        for key in background foreground surface surface_alt primary primary_bright on_primary on_primary_bright success success_bright danger danger_bright warning info info_bright accent accent_bright emphasis muted forge_github forge_gitlab forge_codeberg; do
-            local value
-            value=$(jq -r ".${key} // empty" "$custom_theme_path" 2>/dev/null)
-            if [[ -n "$value" ]]; then
-                # Validate color values — only hex colors (#RRGGBB) or "default"
-                if [[ "$value" =~ ^#[0-9A-Fa-f]{6}$ || "$value" == "default" ]]; then
-                    THEMES["${theme_name}_${key}"]="$value"
-                fi
-            fi
-        done
+        local key color_list
+        color_list=$(jq -r 'to_entries[] | "\(.key)=\(.value)"' "$custom_theme_path" 2>/dev/null)
+        while IFS='=' read -r key color; do
+            case "$key" in
+                background|foreground|surface|surface_alt|primary|primary_bright|on_primary|on_primary_bright|success|success_bright|danger|danger_bright|warning|info|info_bright|accent|accent_bright|emphasis|muted|forge_github|forge_gitlab|forge_codeberg)
+                    if [[ -n "$color" && ( "$color" =~ ^#[0-9A-Fa-f]{6}$ || "$color" == "default" ) ]]; then
+                        THEMES["${theme_name}_${key}"]="$color"
+                    fi
+                    ;;
+            esac
+        done <<< "$color_list"
         return
     fi
 

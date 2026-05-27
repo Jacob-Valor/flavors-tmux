@@ -15,7 +15,7 @@ case "$(uname -s)" in
         TOTAL1=$((USER1 + NICE1 + SYSTEM1 + IDLE1 + IOWAIT1 + IRQ1 + SOFTIRQ1 + STEAL1))
         IDLE_TOTAL1=$((IDLE1 + IOWAIT1))
 
-        sleep 0.1
+        sleep 0.02
 
         read -r CPU_LABEL2 USER2 NICE2 SYSTEM2 IDLE2 IOWAIT2 IRQ2 SOFTIRQ2 STEAL2 REST2 < /proc/stat
         TOTAL2=$((USER2 + NICE2 + SYSTEM2 + IDLE2 + IOWAIT2 + IRQ2 + SOFTIRQ2 + STEAL2))
@@ -27,11 +27,7 @@ case "$(uname -s)" in
             CPU_PERCENT=$(( (TOTAL_DELTA - IDLE_DELTA) * 100 / TOTAL_DELTA ))
         fi
 
-        MEM_TOTAL=$(grep "^MemTotal:" /proc/meminfo | awk '{print $2}')
-        MEM_AVAILABLE=$(grep "^MemAvailable:" /proc/meminfo | awk '{print $2}')
-        if [[ -z $MEM_AVAILABLE ]]; then
-            MEM_AVAILABLE=$(grep "^MemFree:" /proc/meminfo | awk '{print $2}')
-        fi
+        read -r MEM_TOTAL MEM_AVAILABLE < <(awk '/^MemTotal:/{total=$2} /^MemAvailable:/{avail=$2} /^MemFree:/{if (!avail) free=$2} END{printf "%d %d\n", total, avail ? avail : free}' /proc/meminfo)
         if [[ -n $MEM_TOTAL && $MEM_TOTAL -gt 0 && -n $MEM_AVAILABLE ]]; then
             MEM_PERCENT=$(( (MEM_TOTAL - MEM_AVAILABLE) * 100 / MEM_TOTAL ))
         fi

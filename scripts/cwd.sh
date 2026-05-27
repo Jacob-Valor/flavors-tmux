@@ -10,7 +10,7 @@ source "$CURRENT_DIR/themes.sh"
 
 RESET="#[fg=${THEME[foreground]},bg=${THEME[background]},nobold,noitalics,nounderscore,nodim]"
 
-PATH_ARG="${1:-$(pwd)}"
+PATH_ARG="${1:-$PWD}"
 BASENAME=$(basename "$PATH_ARG")
 
 GIT_ROOT=$(cd "$PATH_ARG" && git rev-parse --show-toplevel 2>/dev/null)

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-# Grab global variable for showing datetime widget, only hide if explicitly disabled
+# Hide widget if explicitly disabled with 0, false, or no
 SHOW_DATETIME=$(tmux show-option -gv @flavors-tmux_show_time 2>/dev/null)
-if [[ $SHOW_DATETIME == "0" ]]; then
-  exit 0
-fi
+case "$SHOW_DATETIME" in
+    0|false|no|FALSE|NO|False|No) exit 0 ;;
+esac
 
 CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${CURRENT_DIR}/themes.sh" || {

@@ -15,6 +15,9 @@ BATTERY_NAME=$(tmux show-option -gv @flavors-tmux_battery_name 2>/dev/null)
 BATTERY_LOW=$(tmux show-option -gv @flavors-tmux_battery_low_threshold 2>/dev/null)
 DEFAULT_BATTERY_LOW=20
 BATTERY_LOW="${BATTERY_LOW:-$DEFAULT_BATTERY_LOW}"
+if [[ ! "$BATTERY_LOW" =~ ^[0-9]+$ ]]; then
+    BATTERY_LOW=$DEFAULT_BATTERY_LOW
+fi
 
 DISCHARGING_ICONS=("󰁺" "󰁻" "󰁼" "󰁽" "󰁾" "󰁿" "󰂀" "󰂁" "󰂂" "󰁹")
 CHARGING_ICONS=("󰢜" "󰂆" "󰂇" "󰂈" "󰢝" "󰂉" "󰢞" "󰂊" "󰂋" "󰂅")

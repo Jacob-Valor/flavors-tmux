@@ -41,6 +41,7 @@ terminal_icon="$(tmux show-option -gv @flavors-tmux_terminal_icon 2>/dev/null ||
 active_terminal_icon="$(tmux show-option -gv @flavors-tmux_active_terminal_icon 2>/dev/null || echo '')"
 # Escape # to ## in user-supplied icon values to prevent tmux format injection
 # (CWE-94 — #(command) or #[style] embedded in icon strings).
+# Also handles #{variable} injection since ##{ renders as literal #{ in tmux.
 terminal_icon="${terminal_icon//#/##}"
 active_terminal_icon="${active_terminal_icon//#/##}"
 
@@ -105,6 +106,8 @@ datetime_format() {
     esac
 }
 
+FLAVORS_OS="$(uname -s)"
+
 if [[ -x "$BINARY_PATH" ]]; then
     custom_number_cmd() {
         custom_number_format "$1" "$2"
@@ -118,7 +121,7 @@ if [[ -x "$BINARY_PATH" ]]; then
         printf -v escaped_name '%q' "${battery_name:-BAT0}"
         local name_arg=""
         [[ -n "$battery_name" ]] && name_arg="--name ${escaped_name}"
-        if [[ -x "$SCRIPTS_PATH/battery-fast.sh" && "$(uname -s)" == "Linux" ]]; then
+        if [[ -x "$SCRIPTS_PATH/battery-fast.sh" && "$FLAVORS_OS" == "Linux" ]]; then
             echo "#($SCRIPTS_PATH/battery-fast.sh ${escaped_name} ${battery_low:-20} '${THEME[danger]}' '${THEME[success]}' '${THEME[warning]}')"
         else
             echo "#($BINARY_PATH battery --theme $SELECTED_THEME $transparent_arg ${name_arg} --low-threshold ${battery_low:-20})"
@@ -228,27 +231,15 @@ tmux set -g pane-border-status off
 
 tmux set -g status-style "fg=${THEME[foreground]},bg=${THEME[background]}"
 
-git_status="$(git_status_cmd)"
-wb_git_status="$(wb_git_status_cmd)"
-window_number="$(custom_number_cmd '#I' "$window_id_style")"
-custom_pane="$(custom_number_cmd '#P' "$pane_id_style")"
-zoom_number="$(custom_number_cmd '#P' "$zoom_id_style")"
-date_and_time="$(datetime_cmd)"
-battery_status="$(battery_cmd)"
-hostname_status="$(hostname_cmd)"
-cpu_memory_status="$(cpu_memory_cmd)"
-kubernetes_status="$(kubernetes_cmd)"
-cwd_status="$(cwd_cmd)"
-terraform_status="$(terraform_cmd)"
-docker_status="$(docker_cmd)"
-yadm_status="$(yadm_cmd)"
-gpg_ssh_agent_status="$(gpg_ssh_agent_cmd)"
-
 tmux set -g status-left "\
 #{?client_prefix,\
 #[fg=${THEME[on_primary]}#,bg=${THEME[warning]}][ 󰠠 PREFIX ],\
 #[fg=${THEME[muted]}#,bg=${THEME[background]}][ 󰠠 ]}\
  #[fg=${THEME[foreground]},bg=${THEME[background]},bold,nodim][ #S ]"
+
+window_number="$(custom_number_cmd '#I' "$window_id_style")"
+custom_pane="$(custom_number_cmd '#P' "$pane_id_style")"
+zoom_number="$(custom_number_cmd '#P' "$zoom_id_style")"
 
 tmux set -g window-status-current-format "\
 $RESET\
@@ -273,41 +264,80 @@ $window_number\
 #[fg=${THEME[warning]}]\
 #{?window_last_flag, ,}"
 
-right_status_parts=()
-[[ -n "$cwd_status" ]] && right_status_parts+=("#[fg=${THEME[emphasis]},bg=${THEME[surface_alt]}]$cwd_status")
-[[ -n "$git_status" ]] && right_status_parts+=("#[fg=${THEME[success]},bg=${THEME[surface_alt]}]$git_status")
-[[ -n "$wb_git_status" ]] && right_status_parts+=("#[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$wb_git_status")
-[[ -n "$docker_status" ]] && right_status_parts+=("#[fg=${THEME[info]},bg=${THEME[surface_alt]}]$docker_status")
-[[ -n "$battery_status" ]] && right_status_parts+=("#[fg=${THEME[danger]},bg=${THEME[surface_alt]}]$battery_status")
-[[ -n "$hostname_status" ]] && right_status_parts+=("#[fg=${THEME[info]},bg=${THEME[surface_alt]}]$hostname_status")
-[[ -n "$cpu_memory_status" ]] && right_status_parts+=("#[fg=${THEME[accent_bright]},bg=${THEME[surface_alt]}]$cpu_memory_status")
-[[ -n "$kubernetes_status" ]] && right_status_parts+=("#[fg=${THEME[info]},bg=${THEME[surface_alt]}]$kubernetes_status")
-[[ -n "$terraform_status" ]] && right_status_parts+=("#[fg=${THEME[primary]},bg=${THEME[surface_alt]}]$terraform_status")
-[[ -n "$yadm_status" ]] && right_status_parts+=("#[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$yadm_status")
-[[ -n "$gpg_ssh_agent_status" ]] && right_status_parts+=("#[fg=${THEME[primary_bright]},bg=${THEME[surface_alt]}]$gpg_ssh_agent_status")
-[[ -n "$date_and_time" ]] && right_status_parts+=("#[fg=${THEME[warning]},bg=${THEME[surface_alt]}]$date_and_time")
+# Build comma-separated list of active widget names
+ACTIVE_WIDGETS=""
+[[ "$show_cwd" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}cwd,"
+[[ "$show_git" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}git,"
+[[ "$show_wbg" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}wb-git,"
+[[ "$show_docker" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}docker,"
+[[ "$show_battery_widget" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}battery,"
+[[ "$show_hostname" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}hostname,"
+[[ "$show_cpu_memory" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}cpu,"
+[[ "$show_kubernetes" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}kubernetes,"
+[[ "$show_terraform" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}terraform,"
+[[ "$show_yadm" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}yadm,"
+[[ "$show_gpg_ssh_agent" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}gpg-ssh,"
+[[ "$show_time" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}datetime,"
+ACTIVE_WIDGETS="${ACTIVE_WIDGETS%,}"
 
-right_status=""
-prev_is_no_sep=false
-for part in "${right_status_parts[@]}"; do
-    # Check if current part is docker or github (wb-git-status) widget
-    is_no_sep=false
-    if [[ "$part" == *" docker "* ]] || [[ "$part" == *"docker.sh"* ]] || \
-       [[ "$part" == *" wb-git-status "* ]] || [[ "$part" == *"wb-git-status.sh"* ]]; then
-        is_no_sep=true
-    fi
+if [[ -x "$BINARY_PATH" && -n "$ACTIVE_WIDGETS" ]]; then
+    battery_name_opt=""
+    [[ -n "$battery_name" ]] && printf -v battery_name_opt '--name %q' "$battery_name"
+    status_right="#($BINARY_PATH status --theme $SELECTED_THEME $transparent_arg \
+  --pane-path '#{q:pane_current_path}' \
+  $ACTIVE_WIDGETS \
+  $battery_name_opt \
+  --low-threshold ${battery_low:-20} \
+  --format ${time_format:-24H} \
+  --cache-ttl ${forge_cache_ttl:-300})"
+    tmux set -g status-right "$status_right"
+else
+    # Fallback: assemble from individual bash widget scripts
+    git_status="$(git_status_cmd)"
+    wb_git_status="$(wb_git_status_cmd)"
+    date_and_time="$(datetime_cmd)"
+    battery_status="$(battery_cmd)"
+    hostname_status="$(hostname_cmd)"
+    cpu_memory_status="$(cpu_memory_cmd)"
+    kubernetes_status="$(kubernetes_cmd)"
+    cwd_status="$(cwd_cmd)"
+    terraform_status="$(terraform_cmd)"
+    docker_status="$(docker_cmd)"
+    yadm_status="$(yadm_cmd)"
+    gpg_ssh_agent_status="$(gpg_ssh_agent_cmd)"
 
-    if [[ -n "$right_status" ]]; then
-        # Skip separator if current or previous widget is docker/github
-        if [[ "$is_no_sep" == false && "$prev_is_no_sep" == false ]]; then
-            right_status="${right_status} "
+    right_status_parts=()
+    [[ -n "$cwd_status" ]] && right_status_parts+=("#[fg=${THEME[emphasis]},bg=${THEME[surface_alt]}]$cwd_status")
+    [[ -n "$git_status" ]] && right_status_parts+=("#[fg=${THEME[success]},bg=${THEME[surface_alt]}]$git_status")
+    [[ -n "$wb_git_status" ]] && right_status_parts+=("#[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$wb_git_status")
+    [[ -n "$docker_status" ]] && right_status_parts+=("#[fg=${THEME[info]},bg=${THEME[surface_alt]}]$docker_status")
+    [[ -n "$battery_status" ]] && right_status_parts+=("#[fg=${THEME[danger]},bg=${THEME[surface_alt]}]$battery_status")
+    [[ -n "$hostname_status" ]] && right_status_parts+=("#[fg=${THEME[info]},bg=${THEME[surface_alt]}]$hostname_status")
+    [[ -n "$cpu_memory_status" ]] && right_status_parts+=("#[fg=${THEME[accent_bright]},bg=${THEME[surface_alt]}]$cpu_memory_status")
+    [[ -n "$kubernetes_status" ]] && right_status_parts+=("#[fg=${THEME[info]},bg=${THEME[surface_alt]}]$kubernetes_status")
+    [[ -n "$terraform_status" ]] && right_status_parts+=("#[fg=${THEME[primary]},bg=${THEME[surface_alt]}]$terraform_status")
+    [[ -n "$yadm_status" ]] && right_status_parts+=("#[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$yadm_status")
+    [[ -n "$gpg_ssh_agent_status" ]] && right_status_parts+=("#[fg=${THEME[primary_bright]},bg=${THEME[surface_alt]}]$gpg_ssh_agent_status")
+    [[ -n "$date_and_time" ]] && right_status_parts+=("#[fg=${THEME[warning]},bg=${THEME[surface_alt]}]$date_and_time")
+
+    right_status=""
+    prev_is_no_sep=false
+    for part in "${right_status_parts[@]}"; do
+        is_no_sep=false
+        if [[ "$part" == *" docker "* ]] || [[ "$part" == *"docker.sh"* ]] || \
+           [[ "$part" == *" wb-git-status "* ]] || [[ "$part" == *"wb-git-status.sh"* ]]; then
+            is_no_sep=true
         fi
-    fi
-    right_status="${right_status}${part}"
-    prev_is_no_sep="$is_no_sep"
-done
-
-tmux set -g status-right "$right_status"
+        if [[ -n "$right_status" ]]; then
+            if [[ "$is_no_sep" == false && "$prev_is_no_sep" == false ]]; then
+                right_status="${right_status} "
+            fi
+        fi
+        right_status="${right_status}${part}"
+        prev_is_no_sep="$is_no_sep"
+    done
+    tmux set -g status-right "$right_status"
+fi
 
 tmux set -g window-status-separator ""
 

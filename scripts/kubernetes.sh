@@ -14,12 +14,16 @@ if ! command -v kubectl &>/dev/null; then
   exit 0
 fi
 
-CONTEXT=$(kubectl config current-context 2>/dev/null)
-if [ -z "$CONTEXT" ]; then
+# Single kubectl call gets both context name and namespace (newline separated)
+KUBE_OUTPUT=$(kubectl config view --minify --output 'jsonpath={.contexts[0].name}{"\n"}{.contexts[0].context.namespace}{"\n"}' 2>/dev/null)
+if [ -z "$KUBE_OUTPUT" ]; then
   exit 0
 fi
 
-NAMESPACE=$(kubectl config view --minify --output 'jsonpath={..namespace}' 2>/dev/null)
+{
+  read -r CONTEXT
+  read -r NAMESPACE
+} <<< "$KUBE_OUTPUT"
 NAMESPACE=${NAMESPACE:-default}
 
 CONTEXT_LOWER=$(echo "$CONTEXT" | tr '[:upper:]' '[:lower:]')

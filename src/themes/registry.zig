@@ -53,18 +53,7 @@ pub const everforest = everforest_mod.theme;
 pub const kanagawa = kanagawa_mod.theme;
 
 pub fn byName(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.Environ.Map, name: []const u8) ?Theme {
-    const custom_path = theme_loader.customThemePath(allocator, environ_map, name) catch null;
-    if (custom_path) |path| {
-        defer allocator.free(path);
-        if (theme_loader.loadFromFile(allocator, io, path)) |theme| {
-            return theme;
-        } else |err| {
-            if (err != error.ThemeReadError) {
-                log.warn("failed to load custom theme '{s}' from {s}: {s}", .{ name, path, @errorName(err) });
-            }
-        }
-    }
-
+    // Check built-in themes first (O(1) amortized, zero allocation)
     inline for (comptime .{
         .{ "hard", hard },
         .{ "medium", medium },
@@ -91,6 +80,19 @@ pub fn byName(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.proces
         .{ "kanagawa", kanagawa },
     }) |entry| {
         if (std.mem.eql(u8, name, entry.@"0")) return entry.@"1";
+    }
+
+    // Fall back to custom theme file lookup
+    const custom_path = theme_loader.customThemePath(allocator, environ_map, name) catch null;
+    if (custom_path) |path| {
+        defer allocator.free(path);
+        if (theme_loader.loadFromFile(allocator, io, path)) |theme| {
+            return theme;
+        } else |err| {
+            if (err != error.ThemeReadError) {
+                log.warn("failed to load custom theme '{s}' from {s}: {s}", .{ name, path, @errorName(err) });
+            }
+        }
     }
     return null;
 }

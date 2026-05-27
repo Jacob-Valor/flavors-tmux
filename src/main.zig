@@ -16,6 +16,7 @@ const terraform = @import("widgets/terraform.zig");
 const docker = @import("widgets/docker.zig");
 const yadm = @import("widgets/yadm.zig");
 const gpg_ssh_agent = @import("widgets/gpg_ssh_agent.zig");
+const status_mod = @import("widgets/status.zig");
 
 const usage =
     \\Usage: flavors-tmux <command> [options]
@@ -127,6 +128,25 @@ fn handleGpgSshAgent(arena: std.mem.Allocator, io: std.Io, env: *std.process.Env
     try gpg_ssh_agent.run(arena, io, env, args.theme, args.transparent, stdout);
 }
 
+fn handleStatus(arena: std.mem.Allocator, io: std.Io, env: *std.process.Environ.Map, args: *const cli.Args, stderr: *std.Io.Writer, stdout: *std.Io.Writer) !void {
+    if (args.positional.items.len < 1) {
+        try stderr.print("Usage: flavors-tmux status --theme <name> --show <widgets> [--pane-path <path>]\n", .{});
+        return error.Usage;
+    }
+    const show_str = args.positional.items[0];
+    var show_names: [16][]const u8 = undefined;
+    var count: usize = 0;
+    var it = std.mem.splitScalar(u8, show_str, ',');
+    while (it.next()) |part| {
+        const trimmed = std.mem.trim(u8, part, " \t");
+        if (trimmed.len > 0 and count < show_names.len) {
+            show_names[count] = trimmed;
+            count += 1;
+        }
+    }
+    try status_mod.run(arena, io, env, args.theme, args.transparent, args.pane_path, show_names[0..count], args.battery_name, args.low_threshold, args.time_format.toString(), args.cache_ttl, stdout);
+}
+
 fn handleTheme(arena: std.mem.Allocator, io: std.Io, env: *std.process.Environ.Map, args: *const cli.Args, stderr: *std.Io.Writer, stdout: *std.Io.Writer) !void {
     if (args.positional.items.len < 2) {
         try stderr.print("Usage: flavors-tmux theme <name> <key>\n", .{});
@@ -163,6 +183,7 @@ const handlers = std.StaticStringMap(HandlerFn).initComptime(.{
     .{ "docker", &handleDocker },
     .{ "yadm", &handleYadm },
     .{ "gpg-ssh-agent", &handleGpgSshAgent },
+    .{ "status", &handleStatus },
     .{ "theme", &handleTheme },
     .{ "theme-list", &handleThemeList },
 });
