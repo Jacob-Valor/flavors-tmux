@@ -69,7 +69,9 @@ fi
 
 # Verify remote URL is the expected flavors-tmux repository (CWE-494).
 # This prevents a compromised or swapped remote from injecting malicious code.
-if [[ ! "$remote_url" =~ ^(github\.com:Jacob-Valor/flavors-tmux|git@github\.com:Jacob-Valor/flavors-tmux|https://github\.com/Jacob-Valor/flavors-tmux)(\.git)?$ ]]; then
+# Normalize the URL: strip any protocol/git prefix, then check host and path.
+normalized="$(echo "$remote_url" | sed 's|^[a-z]*://||;s|^git::@||;s|/$||')"
+if [[ ! "$normalized" =~ ^github\.com/Jacob-Valor/flavors-tmux(\.git)?$ && ! "$normalized" =~ ^git@github\.com:Jacob-Valor/flavors-tmux(\.git)?$ ]]; then
     tmux display-message "flavors-tmux: auto-update skipped — remote URL '${remote_url}' is not the expected repository"
     exit 0
 fi
