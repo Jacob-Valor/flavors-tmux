@@ -14,6 +14,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install shellcheck
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+
+      - name: ShellCheck linting
+        run: shellcheck -e SC1091 -f gcc flavors.tmux scripts/*.sh
+
       - name: Setup Zig 0.16.0
         uses: mlugg/setup-zig@v2
         with:
