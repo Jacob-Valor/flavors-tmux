@@ -1,4 +1,5 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
+set -euo pipefail
 
 name=${1:-BAT0}
 low=${2:-20}
@@ -35,6 +36,7 @@ case $status in
         icon=󱉝
         ;;
 esac
+icon=${icon-}
 
 if [ -z "$icon" ]; then
     shift "$idx"

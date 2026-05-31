@@ -1,4 +1,6 @@
 const std = @import("std");
+const tui = @import("tui");
+const tmux_renderer = @import("../tmux_renderer.zig");
 const util = @import("../core/util.zig");
 const WidgetContext = @import("../core/widget.zig").WidgetContext;
 const theme_loader = @import("../core/theme_loader.zig");
@@ -393,22 +395,24 @@ fn renderUncached(
         return result.toOwnedSlice(allocator); // Unsupported provider
     }
 
+    var hex_buf: [32]u8 = undefined;
+
     // Write segments directly via appendSlice — no per-segment heap allocations
     // Header:  + provider icon
     try result.appendSlice(allocator, "#[fg=");
-    try result.appendSlice(allocator, theme.muted);
+    try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.muted, &hex_buf));
     try result.appendSlice(allocator, ",bg=");
-    try result.appendSlice(allocator, theme.background);
+    try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.background, &hex_buf));
     try result.appendSlice(allocator, ",bold] ");
     try result.appendSlice(allocator, reset);
     try result.appendSlice(allocator, "#[fg=");
 
     if (std.mem.eql(u8, provider_str, "github.com")) {
-        try result.appendSlice(allocator, theme.forge_github);
+        try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.forge_github, &hex_buf));
     } else if (std.mem.eql(u8, provider_str, "codeberg.org")) {
-        try result.appendSlice(allocator, theme.forge_codeberg);
+        try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.forge_codeberg, &hex_buf));
     } else {
-        try result.appendSlice(allocator, theme.forge_gitlab);
+        try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.forge_gitlab, &hex_buf));
     }
     try result.appendSlice(allocator, "]");
     try result.appendSlice(allocator, provider_icon);
@@ -419,9 +423,9 @@ fn renderUncached(
 
     if (pr_count > 0) {
         try result.appendSlice(allocator, "#[fg=");
-        try result.appendSlice(allocator, theme.success);
+        try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.success, &hex_buf));
         try result.appendSlice(allocator, ",bg=");
-        try result.appendSlice(allocator, theme.background);
+        try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.background, &hex_buf));
         try result.appendSlice(allocator, ",bold] ");
         try result.appendSlice(allocator, reset);
         try result.appendSlice(allocator, " ");
@@ -432,9 +436,9 @@ fn renderUncached(
 
     if (review_count > 0) {
         try result.appendSlice(allocator, "#[fg=");
-        try result.appendSlice(allocator, theme.warning);
+        try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.warning, &hex_buf));
         try result.appendSlice(allocator, ",bg=");
-        try result.appendSlice(allocator, theme.background);
+        try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.background, &hex_buf));
         try result.appendSlice(allocator, ",bold] ");
         try result.appendSlice(allocator, reset);
         try result.appendSlice(allocator, " ");
@@ -445,9 +449,9 @@ fn renderUncached(
 
     if (issue_count > 0) {
         try result.appendSlice(allocator, "#[fg=");
-        try result.appendSlice(allocator, theme.success);
+        try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.success, &hex_buf));
         try result.appendSlice(allocator, ",bg=");
-        try result.appendSlice(allocator, theme.background);
+        try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.background, &hex_buf));
         try result.appendSlice(allocator, ",bold] ");
         try result.appendSlice(allocator, reset);
         try result.appendSlice(allocator, " ");
@@ -458,9 +462,9 @@ fn renderUncached(
 
     if (bug_count > 0) {
         try result.appendSlice(allocator, "#[fg=");
-        try result.appendSlice(allocator, theme.danger);
+        try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.danger, &hex_buf));
         try result.appendSlice(allocator, ",bg=");
-        try result.appendSlice(allocator, theme.background);
+        try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.background, &hex_buf));
         try result.appendSlice(allocator, ",bold] ");
         try result.appendSlice(allocator, reset);
         try result.appendSlice(allocator, " ");

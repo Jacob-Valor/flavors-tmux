@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 # ---------------------------------------------------------------------------
 # Git status widget — Bash fallback implementation.
 # Uses `git status --porcelain=v2 --branch` to consolidate what previously
@@ -10,7 +11,7 @@ if [ "$SHOW_GIT" == "0" ]; then
   exit 0
 fi
 
-CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd)"
 source "$CURRENT_DIR/themes.sh"
 
 if [[ -z "$1" ]]; then
@@ -26,7 +27,7 @@ V2_OUTPUT=$(git status --porcelain=v2 --branch 2>/dev/null) || {
 }
 
 # --- Parse porcelain v2 headers ---
-BRANCH=$(echo "$V2_OUTPUT" | grep "^# branch.head " | cut -d' ' -f3-)
+BRANCH=$(echo "$V2_OUTPUT" | grep "^# branch.head " | cut -d' ' -f3-) || true
 if [[ "$BRANCH" == "(detached)" ]]; then
     exit 0
 fi
@@ -40,7 +41,7 @@ fi
 
 AHEAD_COUNT=0
 BEHIND_COUNT=0
-AB_LINE=$(echo "$V2_OUTPUT" | grep "^# branch.ab ")
+AB_LINE=$(echo "$V2_OUTPUT" | grep "^# branch.ab ") || true
 if [[ -n "$AB_LINE" ]]; then
     AHEAD_COUNT=$(echo "$AB_LINE" | sed -n 's/.*+\([0-9]*\).*/\1/p')
     BEHIND_COUNT=$(echo "$AB_LINE" | sed -n 's/.*-\([0-9]*\).*/\1/p')
@@ -51,9 +52,9 @@ fi
 # --- Count file entries ---
 # Changed: entries starting with 1 or 2 where XY != ".."
 # The XY pair is at position 3-4 (after "1 " or "2 ")
-CHANGED_COUNT=$(echo "$V2_OUTPUT" | grep -E "^[12] " | grep -vE "^[12] \.\. " | wc -l)
-UNTRACKED_COUNT=$(echo "$V2_OUTPUT" | grep -c "^?")
-CONFLICT_COUNT=$(echo "$V2_OUTPUT" | grep -c "^u")
+CHANGED_COUNT=$(echo "$V2_OUTPUT" | grep -E "^[12] " | grep -cvE "^[12] \.\. ") || true
+UNTRACKED_COUNT=$(echo "$V2_OUTPUT" | grep -c "^?") || true
+CONFLICT_COUNT=$(echo "$V2_OUTPUT" | grep -c "^u") || true
 
 # --- Diff stats (only if changed) ---
 INSERTIONS_COUNT=0
@@ -62,14 +63,15 @@ DELETIONS_COUNT=0
 SYNC_MODE=0
 
 if [[ $CHANGED_COUNT -gt 0 ]]; then
-    DIFF_COUNTS=($(git diff --numstat HEAD 2>/dev/null | awk 'NF==3 {changed+=1; ins+=$1; del+=$2} END {printf("%d %d %d", changed, ins, del)}'))
+    read -r CHANGED INSERTIONS DELETIONS < <(git diff --numstat HEAD 2>/dev/null | awk 'NF==3 {changed+=1; ins+=$1; del+=$2} END {printf("%d %d %d", changed, ins, del)}') || true
+    DIFF_COUNTS=("$CHANGED" "$INSERTIONS" "$DELETIONS")
     INSERTIONS_COUNT=${DIFF_COUNTS[1]:-0}
     DELETIONS_COUNT=${DIFF_COUNTS[2]:-0}
     SYNC_MODE=1
 fi
 
 # --- Stash count ---
-STASH_COUNT=$(git stash list 2>/dev/null | wc -l)
+STASH_COUNT=$(git stash list 2>/dev/null | wc -l) || true
 
 # --- Build status segments ---
 STATUS_CHANGED=""

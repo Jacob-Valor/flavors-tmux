@@ -2,6 +2,7 @@ const std = @import("std");
 const Io = std.Io;
 
 const themes = @import("themes/registry.zig");
+const tmux_renderer = @import("tmux_renderer.zig");
 const cli = @import("cli/args.zig");
 const custom_number = @import("widgets/custom_number.zig");
 const datetime = @import("widgets/datetime.zig");
@@ -165,7 +166,8 @@ fn handleTheme(arena: std.mem.Allocator, io: std.Io, env: *std.process.Environ.M
         try stderr.print("Unknown key: {s}\n", .{args.positional.items[1]});
         return error.UnknownKey;
     };
-    try stdout.print("{s}\n", .{value});
+    var hex_buf: [32]u8 = undefined;
+    try stdout.print("{s}\n", .{tmux_renderer.colorHexString(value, &hex_buf)});
 }
 
 fn handleThemeList(_: std.mem.Allocator, _: std.Io, _: *std.process.Environ.Map, _: *const cli.Args, _: *std.Io.Writer, stdout: *std.Io.Writer) !void {

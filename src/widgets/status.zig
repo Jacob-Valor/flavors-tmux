@@ -1,4 +1,7 @@
 const std = @import("std");
+const tui = @import("tui");
+const Color = tui.Color;
+const tmux_renderer = @import("../tmux_renderer.zig");
 const themes = @import("../themes/registry.zig");
 const Theme = @import("../core/theme.zig").Theme;
 const cli = @import("../cli/args.zig");
@@ -51,7 +54,7 @@ fn lookupEntry(name: []const u8) ?WidgetEntry {
     return null;
 }
 
-fn colorFromTheme(theme: Theme, wc: WidgetColor) []const u8 {
+fn colorFromTheme(theme: Theme, wc: WidgetColor) Color {
     return switch (wc) {
         .emphasis => theme.emphasis,
         .success => theme.success,
@@ -149,7 +152,9 @@ pub fn run(
         if (i > 0 and !prev_no_sep and !item.no_sep) {
             try writer.writeAll(" ");
         }
-        try writer.print("#[fg={s},bg={s}]", .{ colorFromTheme(theme, item.color), theme.surface_alt });
+        var fg_buf: [32]u8 = undefined;
+        var bg_buf: [32]u8 = undefined;
+        try writer.print("#[fg={s},bg={s}]", .{ tmux_renderer.colorHexString(colorFromTheme(theme, item.color), &fg_buf), tmux_renderer.colorHexString(theme.surface_alt, &bg_buf) });
         try writer.writeAll(item.text);
         prev_no_sep = item.no_sep;
     }

@@ -1,4 +1,7 @@
 const std = @import("std");
+const tui = @import("tui");
+const Color = tui.Color;
+const tmux_renderer = @import("../tmux_renderer.zig");
 const themes = @import("../themes/registry.zig");
 const Theme = @import("theme.zig").Theme;
 
@@ -20,10 +23,11 @@ pub const WidgetContext = struct {
         transparent: bool,
     ) !WidgetContext {
         const theme = (themes.byName(allocator, io, environ_map, theme_name) orelse themes.hard).withTransparentBackground(transparent);
-        const reset = try std.fmt.allocPrint(allocator, "#[fg={s},bg={s},nobold,noitalics,nounderscore,nodim]", .{
-            theme.foreground,
-            theme.background,
-        });
+
+        var buf: [256]u8 = undefined;
+        var writer: std.Io.Writer = .fixed(&buf);
+        try tmux_renderer.writeReset(theme.foreground, theme.background, &writer);
+        const reset = try allocator.dupe(u8, std.Io.Writer.buffered(&writer));
 
         return WidgetContext{
             .theme = theme,
@@ -37,14 +41,14 @@ pub const WidgetContext = struct {
     }
 
     /// Returns danger for >=80%, warning for >=50%, success otherwise
-    pub fn thresholdColor(self: WidgetContext, percent: u8) []const u8 {
+    pub fn thresholdColor(self: WidgetContext, percent: u8) Color {
         if (percent >= 80) return self.theme.danger;
         if (percent >= 50) return self.theme.warning;
         return self.theme.success;
     }
 
     /// Returns danger for low battery, success for full, warning otherwise
-    pub fn batteryColor(self: WidgetContext, percentage: u8, low_threshold: u8) []const u8 {
+    pub fn batteryColor(self: WidgetContext, percentage: u8, low_threshold: u8) Color {
         if (percentage < low_threshold) return self.theme.danger;
         if (percentage >= 100) return self.theme.success;
         return self.theme.warning;
@@ -53,12 +57,16 @@ pub const WidgetContext = struct {
     /// Format a status segment with the given color and icon
     pub fn formatSegment(
         self: WidgetContext,
-        color: []const u8,
+        color: Color,
         icon: []const u8,
         value: usize,
     ) ![]const u8 {
         return std.fmt.allocPrint(self.allocator, " {s}#[fg={s},bg={s},bold]{s} {d}", .{
-            self.reset, color, self.theme.background, icon, value,
+            self.reset,
+            tmux_renderer.colorHexString(color, &std.mem.zeroes([32]u8)),
+            tmux_renderer.colorHexString(self.theme.background, &std.mem.zeroes([32]u8)),
+            icon,
+            value,
         });
     }
 };
@@ -72,12 +80,12 @@ test "WidgetContext thresholdColor" {
     var ctx = try WidgetContext.init(gpa, io, &env_map, "hard", false);
     defer ctx.deinit();
 
-    try std.testing.expectEqualStrings(ctx.theme.danger, ctx.thresholdColor(80));
-    try std.testing.expectEqualStrings(ctx.theme.danger, ctx.thresholdColor(100));
-    try std.testing.expectEqualStrings(ctx.theme.warning, ctx.thresholdColor(50));
-    try std.testing.expectEqualStrings(ctx.theme.warning, ctx.thresholdColor(79));
-    try std.testing.expectEqualStrings(ctx.theme.success, ctx.thresholdColor(49));
-    try std.testing.expectEqualStrings(ctx.theme.success, ctx.thresholdColor(0));
+    try std.testing.expect(std.meta.eql(ctx.theme.danger, ctx.thresholdColor(80)));
+    try std.testing.expect(std.meta.eql(ctx.theme.danger, ctx.thresholdColor(100)));
+    try std.testing.expect(std.meta.eql(ctx.theme.warning, ctx.thresholdColor(50)));
+    try std.testing.expect(std.meta.eql(ctx.theme.warning, ctx.thresholdColor(79)));
+    try std.testing.expect(std.meta.eql(ctx.theme.success, ctx.thresholdColor(49)));
+    try std.testing.expect(std.meta.eql(ctx.theme.success, ctx.thresholdColor(0)));
 }
 
 test "WidgetContext batteryColor" {
@@ -89,9 +97,9 @@ test "WidgetContext batteryColor" {
     var ctx = try WidgetContext.init(gpa, io, &env_map, "hard", false);
     defer ctx.deinit();
 
-    try std.testing.expectEqualStrings(ctx.theme.danger, ctx.batteryColor(10, 20));
-    try std.testing.expectEqualStrings(ctx.theme.warning, ctx.batteryColor(50, 20));
-    try std.testing.expectEqualStrings(ctx.theme.success, ctx.batteryColor(100, 20));
+    try std.testing.expect(std.meta.eql(ctx.theme.danger, ctx.batteryColor(10, 20)));
+    try std.testing.expect(std.meta.eql(ctx.theme.warning, ctx.batteryColor(50, 20)));
+    try std.testing.expect(std.meta.eql(ctx.theme.success, ctx.batteryColor(100, 20)));
 }
 
 test "WidgetContext formatSegment" {

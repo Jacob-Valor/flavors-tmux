@@ -1,4 +1,5 @@
 const std = @import("std");
+const tmux_renderer = @import("../tmux_renderer.zig");
 const util = @import("../core/util.zig");
 const WidgetContext = @import("../core/widget.zig").WidgetContext;
 const runGitCommand = util.runGitCommand;
@@ -122,46 +123,64 @@ pub fn run(
 
     const stash_count = try countStashes(allocator, io, repo_path);
 
+    // Pre-compute all color hex strings into separate buffers to avoid
+    // the shared-buffer overwrite bug (two colorHexString calls to the
+    // same buffer in one format arg tuple cause the last to win).
+    var bg_hex: [32]u8 = undefined;
+    var warning_hex: [32]u8 = undefined;
+    var success_hex: [32]u8 = undefined;
+    var danger_hex: [32]u8 = undefined;
+    var danger_bright_hex: [32]u8 = undefined;
+    var info_bright_hex: [32]u8 = undefined;
+    var muted_hex: [32]u8 = undefined;
+    const bg_str = tmux_renderer.colorHexString(theme.background, &bg_hex);
+    const warning_str = tmux_renderer.colorHexString(theme.warning, &warning_hex);
+    const success_str = tmux_renderer.colorHexString(theme.success, &success_hex);
+    const danger_str = tmux_renderer.colorHexString(theme.danger, &danger_hex);
+    const danger_bright_str = tmux_renderer.colorHexString(theme.danger_bright, &danger_bright_hex);
+    const info_bright_str = tmux_renderer.colorHexString(theme.info_bright, &info_bright_hex);
+    const muted_str = tmux_renderer.colorHexString(theme.muted, &muted_hex);
+
     // Write status segments directly to the output writer, avoiding intermediate allocations
     switch (sync_mode) {
-        .dirty => try writer.print("{s}#[bg={s},fg={s},bold]▒ 󱓎", .{ reset, theme.background, theme.danger_bright }),
-        .ahead => try writer.print("{s}#[bg={s},fg={s},bold]▒ 󰛃", .{ reset, theme.background, theme.danger }),
-        .behind => try writer.print("{s}#[bg={s},fg={s},bold]▒ 󰛀", .{ reset, theme.background, theme.info_bright }),
-        .clean => try writer.print("{s}#[bg={s},fg={s},bold]▒ ", .{ reset, theme.background, theme.success }),
+        .dirty => try writer.print("{s}#[bg={s},fg={s},bold]▒ 󱓎", .{ reset, bg_str, danger_bright_str }),
+        .ahead => try writer.print("{s}#[bg={s},fg={s},bold]▒ 󰛃", .{ reset, bg_str, danger_str }),
+        .behind => try writer.print("{s}#[bg={s},fg={s},bold]▒ 󰛀", .{ reset, bg_str, info_bright_str }),
+        .clean => try writer.print("{s}#[bg={s},fg={s},bold]▒ ", .{ reset, bg_str, success_str }),
     }
 
     try writer.print(" {s}{s}", .{ reset, display_branch });
 
     if (changed > 0) {
-        try writer.print(" {s}#[fg={s},bg={s},bold] {d}", .{ reset, theme.warning, theme.background, changed });
+        try writer.print(" {s}#[fg={s},bg={s},bold] {d}", .{ reset, warning_str, bg_str, changed });
     }
 
     if (insertions > 0) {
-        try writer.print(" {s}#[fg={s},bg={s},bold] {d}", .{ reset, theme.success, theme.background, insertions });
+        try writer.print(" {s}#[fg={s},bg={s},bold] {d}", .{ reset, success_str, bg_str, insertions });
     }
 
     if (deletions > 0) {
-        try writer.print(" {s}#[fg={s},bg={s},bold] {d}", .{ reset, theme.danger, theme.background, deletions });
+        try writer.print(" {s}#[fg={s},bg={s},bold] {d}", .{ reset, danger_str, bg_str, deletions });
     }
 
     if (untracked > 0) {
-        try writer.print(" {s}#[fg={s},bg={s},bold] {d}", .{ reset, theme.muted, theme.background, untracked });
+        try writer.print(" {s}#[fg={s},bg={s},bold] {d}", .{ reset, muted_str, bg_str, untracked });
     }
 
     if (stash_count > 0) {
-        try writer.print(" {s}#[fg={s},bg={s},bold] {d}", .{ reset, theme.info_bright, theme.background, stash_count });
+        try writer.print(" {s}#[fg={s},bg={s},bold] {d}", .{ reset, info_bright_str, bg_str, stash_count });
     }
 
     if (conflict_count > 0) {
-        try writer.print(" {s}#[fg={s},bg={s},bold]󰅘 {d}", .{ reset, theme.danger_bright, theme.background, conflict_count });
+        try writer.print(" {s}#[fg={s},bg={s},bold]󰅘 {d}", .{ reset, danger_bright_str, bg_str, conflict_count });
     }
 
     if (ahead > 0) {
-        try writer.print(" {s}#[fg={s},bg={s},bold]↑{d}", .{ reset, theme.info_bright, theme.background, ahead });
+        try writer.print(" {s}#[fg={s},bg={s},bold]↑{d}", .{ reset, info_bright_str, bg_str, ahead });
     }
 
     if (behind > 0) {
-        try writer.print(" {s}#[fg={s},bg={s},bold]↓{d}", .{ reset, theme.danger, theme.background, behind });
+        try writer.print(" {s}#[fg={s},bg={s},bold]↓{d}", .{ reset, danger_str, bg_str, behind });
     }
 
     try writer.print(" ", .{});
@@ -177,13 +196,13 @@ test "git_status renders sync status icons correctly" {
     defer ctx.deinit();
 
     // Verify theme colors are non-empty (basic theme sanity)
-    try std.testing.expect(ctx.theme.success.len > 0);
-    try std.testing.expect(ctx.theme.danger.len > 0);
-    try std.testing.expect(ctx.theme.warning.len > 0);
-    try std.testing.expect(ctx.theme.info_bright.len > 0);
-    try std.testing.expect(ctx.theme.danger_bright.len > 0);
-    try std.testing.expect(ctx.theme.muted.len > 0);
-    try std.testing.expect(ctx.theme.background.len > 0);
+    try std.testing.expect(!ctx.theme.success.isDefault());
+    try std.testing.expect(!ctx.theme.danger.isDefault());
+    try std.testing.expect(!ctx.theme.warning.isDefault());
+    try std.testing.expect(!ctx.theme.info_bright.isDefault());
+    try std.testing.expect(!ctx.theme.danger_bright.isDefault());
+    try std.testing.expect(!ctx.theme.muted.isDefault());
+    try std.testing.expect(!ctx.theme.background.isDefault());
 
     // Verify reset string is properly formatted
     try std.testing.expect(std.mem.startsWith(u8, ctx.reset, "#[fg="));

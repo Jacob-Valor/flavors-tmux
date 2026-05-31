@@ -13,3 +13,4 @@ pub const terraform = @import("widgets/terraform.zig");
 pub const docker = @import("widgets/docker.zig");
 pub const yadm = @import("widgets/yadm.zig");
 pub const gpg_ssh_agent = @import("widgets/gpg_ssh_agent.zig");
+pub const ai_assistant = @import("widgets/ai_assistant.zig");

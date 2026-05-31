@@ -1,4 +1,5 @@
 const std = @import("std");
+const tmux_renderer = @import("../tmux_renderer.zig");
 const util = @import("../core/util.zig");
 const WidgetContext = @import("../core/widget.zig").WidgetContext;
 
@@ -36,24 +37,54 @@ pub fn run(
     const status = getYadmStatus(allocator, io) catch return;
     const st = status orelse return;
 
+    var hex_buf: [32]u8 = undefined;
+
     // If clean, show muted icon only
     if (st.changed == 0 and st.untracked == 0) {
         try writer.print("{s}#[fg={s},bg={s},bold]󰃣", .{
             reset,
-            theme.muted,
-            theme.background,
+            tmux_renderer.colorHexString(theme.muted, &hex_buf),
+            tmux_renderer.colorHexString(theme.background, &hex_buf),
         });
         return;
     }
 
     // Write status directly to the output writer, avoiding intermediate allocations
-    try writer.print("{s}#[fg={s},bg={s},bold]󰃣", .{ reset, theme.muted, theme.background });
+    try writer.print("{s}#[fg={s},bg={s},bold]󰃣", .{ reset, tmux_renderer.colorHexString(theme.muted, &hex_buf), tmux_renderer.colorHexString(theme.background, &hex_buf) });
 
     if (st.changed > 0) {
-        try writer.print(" #[fg={s},bg={s},bold] {d}", .{ theme.warning, theme.background, st.changed });
+        try writer.print(" #[fg={s},bg={s},bold] {d}", .{ tmux_renderer.colorHexString(theme.warning, &hex_buf), tmux_renderer.colorHexString(theme.background, &hex_buf), st.changed });
     }
 
     if (st.untracked > 0) {
-        try writer.print(" #[fg={s},bg={s},bold] {d}", .{ theme.muted, theme.background, st.untracked });
+        try writer.print(" #[fg={s},bg={s},bold] {d}", .{ tmux_renderer.colorHexString(theme.muted, &hex_buf), tmux_renderer.colorHexString(theme.background, &hex_buf), st.untracked });
     }
+}
+
+test "yadm WidgetContext initializes" {
+    const gpa = std.testing.allocator;
+    const io = std.Io.threaded_global.ioBasic();
+    var env_map = std.process.Environ.Map.init(gpa);
+    defer env_map.deinit();
+
+    var ctx = try WidgetContext.init(gpa, io, &env_map, "hard", false);
+    defer ctx.deinit();
+
+    try std.testing.expect(!ctx.theme.muted.isDefault());
+    try std.testing.expect(!ctx.theme.warning.isDefault());
+    try std.testing.expect(ctx.theme.background.len > 0);
+    try std.testing.expect(std.mem.startsWith(u8, ctx.reset, "#[fg="));
+}
+
+test "yadm run returns null when yadm unavailable" {
+    const gpa = std.testing.allocator;
+    const io = std.Io.threaded_global.ioBasic();
+    var env_map = std.process.Environ.Map.init(gpa);
+    defer env_map.deinit();
+
+    var buf: [64]u8 = undefined;
+    var writer: std.Io.Writer = .fixed(&buf);
+
+    // Should not panic when yadm is not installed — just return early
+    run(gpa, io, "hard", false, &env_map, &writer) catch {};
 }

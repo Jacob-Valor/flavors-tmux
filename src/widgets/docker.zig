@@ -1,4 +1,5 @@
 const std = @import("std");
+const tmux_renderer = @import("../tmux_renderer.zig");
 const WidgetContext = @import("../core/widget.zig").WidgetContext;
 
 fn getDockerContext(allocator: std.mem.Allocator, io: std.Io) !?[]u8 {
@@ -42,10 +43,26 @@ pub fn run(
     // Color-code: default = muted, else = info
     const color = if (std.mem.eql(u8, ctx_str, "default")) theme.muted else theme.info;
 
+    var hex_buf: [32]u8 = undefined;
     try writer.print("{s}#[fg={s},bg={s},bold] {s}", .{
         reset,
-        color,
-        theme.background,
+        tmux_renderer.colorHexString(color, &hex_buf),
+        tmux_renderer.colorHexString(theme.background, &hex_buf),
         ctx_str,
     });
+}
+
+test "docker WidgetContext initializes" {
+    const gpa = std.testing.allocator;
+    const io = std.Io.threaded_global.ioBasic();
+    var env_map = std.process.Environ.Map.init(gpa);
+    defer env_map.deinit();
+
+    var ctx = try WidgetContext.init(gpa, io, &env_map, "hard", false);
+    defer ctx.deinit();
+
+    try std.testing.expect(ctx.theme.muted.len > 0);
+    try std.testing.expect(ctx.theme.info.len > 0);
+    try std.testing.expect(ctx.theme.background.len > 0);
+    try std.testing.expect(std.mem.startsWith(u8, ctx.reset, "#[fg="));
 }
