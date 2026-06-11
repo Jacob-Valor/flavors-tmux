@@ -191,9 +191,9 @@ fn parseVmStatValue(line: []const u8) !usize {
     var it = std.mem.splitScalar(u8, line, ' ');
     while (it.next()) |token| {
         const trimmed = std.mem.trim(u8, token, " \t.");
-        if (trimmed.len > 0 and std.fmt.parseInt(usize, trimmed, 10)) |val| {
-            return val;
-        } else |_| {}
+        if (trimmed.len > 0) {
+            return try std.fmt.parseInt(usize, trimmed, 10);
+        }
     }
     return 0;
 }
