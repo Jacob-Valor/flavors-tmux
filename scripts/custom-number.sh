@@ -1,40 +1,35 @@
 #!/usr/bin/env bash
-# Custom number glyph mapping.
+# Map each ASCII digit [0-9] to its glyph for the requested style.
 #
-# Each style uses a comma-separated list of glyphs indexed by digit [0-9].
-# Using cut(1) field extraction instead of Bash substring expansion avoids
-# UTF-8 multi-byte character slicing issues on older Bash versions (macOS).
-declare -A GLYPHS=(
-    ["hide"]=""
-    ["arabic"]="0,1,2,3,4,5,6,7,8,9"
-    ["fsquare"]="󰎡,󰎤,󰎧,󰎪,󰎭,󰎱,󰎳,󰎶,󰎹,󰎼"
-    ["hsquare"]="󰎣,󰎦,󰎩,󰎬,󰎮,󰎰,󰎵,󰎸,󰎻,󰎾"
-    ["dsquare"]="󰎢,󰎥,󰎨,󰎫,󰎲,󰎯,󰎴,󰎷,󰎺,󰎽"
-    ["super"]="⁰,¹,²,³,⁴,⁵,⁶,⁷,⁸,⁹"
-    ["sub"]="₀,₁,₂,₃,₄,₅,₆,₇,₈,₉"
-    ["earabic"]="٠,١,٢,٣,٤,٥,٦,٧,٨,٩"
-)
+# Uses indexed arrays with literal UTF-8 strings so that multi-byte glyphs are
+# stored as raw bytes and never passed through substring expansion or external
+# commands — avoids platform-dependent UTF-8 handling entirely.
 
 ID="$1"
 FORMAT="${2:-none}"
 
-if [[ "$FORMAT" == "hide" ]]; then
-    exit 0
-fi
+[[ "$FORMAT" == "hide" ]] && exit 0
 
-glyph_csv="${GLYPHS[$FORMAT]}"
-if [[ -z "$glyph_csv" ]]; then
-    echo "Invalid format: $FORMAT" >&2
-    exit 1
-fi
+case "$FORMAT" in
+    arabic)   glyphs=( "0" "1" "2" "3" "4" "5" "6" "7" "8" "9" ) ;;
+    earabic)  glyphs=( "٠" "١" "٢" "٣" "٤" "٥" "٦" "٧" "٨" "٩" ) ;;
+    fsquare)  glyphs=( "󰎡" "󰎤" "󰎧" "󰎪" "󰎭" "󰎱" "󰎳" "󰎶" "󰎹" "󰎼" ) ;;
+    hsquare)  glyphs=( "󰎣" "󰎦" "󰎩" "󰎬" "󰎮" "󰎰" "󰎵" "󰎸" "󰎻" "󰎾" ) ;;
+    dsquare)  glyphs=( "󰎢" "󰎥" "󰎨" "󰎫" "󰎲" "󰎯" "󰎴" "󰎷" "󰎺" "󰎽" ) ;;
+    super)    glyphs=( "⁰" "¹" "²" "³" "⁴" "⁵" "⁶" "⁷" "⁸" "⁹" ) ;;
+    sub)      glyphs=( "₀" "₁" "₂" "₃" "₄" "₅" "₆" "₇" "₈" "₉" ) ;;
+    *)
+        echo "Invalid format: $FORMAT" >&2
+        exit 1
+        ;;
+esac
 
 result=""
 
 for ((i = 0; i < ${#ID}; i++)); do
+    # ID is always ASCII digits — byte-wise substring is safe here
     digit="${ID:$i:1}"
-    # cut field index is 1-based; digit 0 → field 1
-    char=$(echo "$glyph_csv" | cut -d',' -f$((digit + 1)))
-    result+="${char} "
+    result+="${glyphs[$digit]} "
 done
 
 echo -n "$result"
