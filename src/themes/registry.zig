@@ -1,5 +1,7 @@
 const std = @import("std");
+const tui = @import("tui");
 const Theme = @import("../core/theme.zig").Theme;
+const tmux_renderer = @import("../tmux_renderer.zig");
 const theme_loader = @import("../core/theme_loader.zig");
 
 const log = std.log.scoped(.themes);
@@ -114,7 +116,7 @@ test "byName returns correct themes" {
 
     const hard_theme = byName(gpa, io, &env_map, "hard");
     try std.testing.expect(hard_theme != null);
-    try std.testing.expect(hard_theme.?.background[0] == '#');
+    try std.testing.expect(!hard_theme.?.background.isDefault());
     try std.testing.expect(byName(gpa, io, &env_map, "tokyonight") != null);
     try std.testing.expect(byName(gpa, io, &env_map, "nord") != null);
     try std.testing.expect(byName(gpa, io, &env_map, "nonexistent") == null);
@@ -122,7 +124,7 @@ test "byName returns correct themes" {
 
 test "theme lookup" {
     const theme = hard;
-    try std.testing.expectEqualStrings("#1b1b1b", theme.lookup("background").?);
-    try std.testing.expectEqualStrings("#458588", theme.lookup("primary").?);
+    try std.testing.expect(std.meta.eql(tui.Color.hex(0x1b1b1b), theme.lookup("background").?));
+    try std.testing.expect(std.meta.eql(tui.Color.hex(0x458588), theme.lookup("primary").?));
     try std.testing.expect(theme.lookup("nonexistent") == null);
 }

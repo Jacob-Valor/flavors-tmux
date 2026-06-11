@@ -1,4 +1,5 @@
 const std = @import("std");
+const tmux_renderer = @import("../tmux_renderer.zig");
 const WidgetContext = @import("../core/widget.zig").WidgetContext;
 
 pub fn run(
@@ -53,10 +54,46 @@ pub fn run(
     }
     defer if (display_owned) allocator.free(display_path);
 
+    var emphasis_hex: [32]u8 = undefined;
+    var bg_hex: [32]u8 = undefined;
+    const emphasis_str = tmux_renderer.colorHexString(theme.emphasis, &emphasis_hex);
+    const bg_str = tmux_renderer.colorHexString(theme.background, &bg_hex);
     try writer.print("{s}#[fg={s},bg={s},bold]󰉋 {s}", .{
         reset,
-        theme.emphasis,
-        theme.background,
+        emphasis_str,
+        bg_str,
         display_path,
     });
 }
+
+test "cwd WidgetContext initializes" {
+    const gpa = std.testing.allocator;
+    const io = std.Io.threaded_global.ioBasic();
+    var env_map = std.process.Environ.Map.init(gpa);
+    defer env_map.deinit();
+
+    var ctx = try WidgetContext.init(gpa, io, &env_map, "hard", false);
+    defer ctx.deinit();
+
+    try std.testing.expect(!ctx.theme.emphasis.isDefault());
+    try std.testing.expect(!ctx.theme.background.isDefault());
+    try std.testing.expect(std.mem.startsWith(u8, ctx.reset, "#[fg="));
+}
+
+test "cwd produces output for tmp dir" {
+    const gpa = std.testing.allocator;
+    const io = std.Io.threaded_global.ioBasic();
+    var env_map = std.process.Environ.Map.init(gpa);
+    defer env_map.deinit();
+
+    var buf: [2048]u8 = undefined;
+    var writer: std.Io.Writer = .fixed(&buf);
+
+    run(gpa, io, "hard", false, &env_map, "/tmp", &writer) catch return error.SkipZigTest;
+    const output = std.Io.Writer.buffered(&writer);
+
+    try std.testing.expect(output.len > 0);
+    try std.testing.expect(std.mem.containsAtLeast(u8, output, 1, "#[fg="));
+    try std.testing.expect(std.mem.containsAtLeast(u8, output, 1, "󰉋"));
+}
+

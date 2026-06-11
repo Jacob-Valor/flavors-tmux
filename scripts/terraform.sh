@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 SHOW_WIDGET=$(tmux show-option -gv @flavors-tmux_show_terraform 2>/dev/null || echo 0)
 if [ "$SHOW_WIDGET" == "0" ]; then

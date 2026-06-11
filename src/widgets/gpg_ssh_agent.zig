@@ -1,4 +1,5 @@
 const std = @import("std");
+const tmux_renderer = @import("../tmux_renderer.zig");
 const WidgetContext = @import("../core/widget.zig").WidgetContext;
 
 /// Check whether the SSH agent is running and count loaded keys.
@@ -57,15 +58,17 @@ pub fn run(
 
     var first = true;
 
+    var hex_buf: [32]u8 = undefined;
+
     if (ssh_count) |count| {
         const color = if (count > 0) theme.success else theme.warning;
-        try writer.print("{s}#[fg={s},bg={s},bold] {d}", .{ reset, color, theme.background, count });
+        try writer.print("{s}#[fg={s},bg={s},bold] {d}", .{ reset, tmux_renderer.colorHexString(color, &hex_buf), tmux_renderer.colorHexString(theme.background, &hex_buf), count });
         first = false;
     }
 
     if (gpg_running) {
         if (!first) try writer.print(" ", .{});
-        try writer.print("{s}#[fg={s},bg={s},bold]", .{ reset, theme.success, theme.background });
+        try writer.print("{s}#[fg={s},bg={s},bold]", .{ reset, tmux_renderer.colorHexString(theme.success, &hex_buf), tmux_renderer.colorHexString(theme.background, &hex_buf) });
     }
 }
 
@@ -78,8 +81,8 @@ test "gpg_ssh_agent WidgetContext initializes" {
     var ctx = try WidgetContext.init(gpa, io, &env_map, "hard", false);
     defer ctx.deinit();
 
-    try std.testing.expect(ctx.theme.success.len > 0);
-    try std.testing.expect(ctx.theme.warning.len > 0);
-    try std.testing.expect(ctx.theme.background.len > 0);
+    try std.testing.expect(!ctx.theme.success.isDefault());
+    try std.testing.expect(!ctx.theme.warning.isDefault());
+    try std.testing.expect(!ctx.theme.background.isDefault());
     try std.testing.expect(std.mem.startsWith(u8, ctx.reset, "#[fg="));
 }

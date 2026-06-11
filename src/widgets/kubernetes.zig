@@ -1,4 +1,7 @@
 const std = @import("std");
+const tui = @import("tui");
+const Color = tui.Color;
+const tmux_renderer = @import("../tmux_renderer.zig");
 const themes = @import("../themes/registry.zig");
 const Theme = @import("../core/theme.zig").Theme;
 const WidgetContext = @import("../core/widget.zig").WidgetContext;
@@ -33,7 +36,7 @@ fn contextMatchesAny(context: []const u8, needles: []const []const u8) bool {
     return false;
 }
 
-fn contextColor(theme: Theme, context: []const u8) []const u8 {
+fn contextColor(theme: Theme, context: []const u8) Color {
     if (contextMatchesAny(context, &.{ "prod", "production" })) return theme.danger;
     if (contextMatchesAny(context, &.{ "stage", "staging", "dev", "development" })) return theme.warning;
     return theme.info;
@@ -41,10 +44,10 @@ fn contextColor(theme: Theme, context: []const u8) []const u8 {
 
 test "contextColor maps environment names semantically" {
     const theme = themes.hard;
-    try std.testing.expectEqualStrings(theme.danger, contextColor(theme, "prod-cluster"));
-    try std.testing.expectEqualStrings(theme.warning, contextColor(theme, "staging-cluster"));
-    try std.testing.expectEqualStrings(theme.warning, contextColor(theme, "dev-cluster"));
-    try std.testing.expectEqualStrings(theme.info, contextColor(theme, "sandbox"));
+    try std.testing.expect(std.meta.eql(theme.danger, contextColor(theme, "prod-cluster")));
+    try std.testing.expect(std.meta.eql(theme.warning, contextColor(theme, "staging-cluster")));
+    try std.testing.expect(std.meta.eql(theme.warning, contextColor(theme, "dev-cluster")));
+    try std.testing.expect(std.meta.eql(theme.info, contextColor(theme, "sandbox")));
 }
 
 pub fn run(
@@ -73,11 +76,13 @@ pub fn run(
     const namespace = ns_opt orelse "default";
 
     const color = contextColor(theme, ctx);
+    var fg_buf: [32]u8 = undefined;
+    var bg_buf: [32]u8 = undefined;
 
     try writer.print("{s}#[fg={s},bg={s},bold]󱃾 {s}/{s}", .{
         reset,
-        color,
-        theme.background,
+        tmux_renderer.colorHexString(color, &fg_buf),
+        tmux_renderer.colorHexString(theme.background, &bg_buf),
         ctx,
         namespace,
     });

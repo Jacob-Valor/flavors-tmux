@@ -1,5 +1,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const tui = @import("tui");
+const Color = tui.Color;
+const tmux_renderer = @import("../tmux_renderer.zig");
 const themes = @import("../themes/registry.zig");
 const Theme = @import("../core/theme.zig").Theme;
 
@@ -42,8 +45,13 @@ fn parseCpuStatLine(line: []const u8) struct { total: usize, idle: usize } {
     return .{ .total = total, .idle = idle };
 }
 
+fn getCachePath(allocator: std.mem.Allocator) ![]const u8 {
+    const uid = std.os.linux.getuid();
+    return try std.fmt.allocPrint(allocator, "/tmp/flavors-tmux-cpu-cache-{d}", .{uid});
+}
+
 fn readLinuxStats(allocator: std.mem.Allocator, io: std.Io) !CpuMemStats {
-    const cache_path = try std.fmt.allocPrint(allocator, "/tmp/flavors-tmux-cpu-cache", .{});
+    const cache_path = try getCachePath(allocator);
     defer allocator.free(cache_path);
 
     // Read current /proc/stat sample
@@ -190,13 +198,13 @@ fn parseVmStatValue(line: []const u8) !usize {
     return 0;
 }
 
-fn getCpuColor(percent: u8, theme: Theme) []const u8 {
+fn getCpuColor(percent: u8, theme: Theme) Color {
     if (percent >= 80) return theme.danger;
     if (percent >= 50) return theme.warning;
     return theme.success;
 }
 
-fn getMemColor(percent: u8, theme: Theme) []const u8 {
+fn getMemColor(percent: u8, theme: Theme) Color {
     if (percent >= 80) return theme.danger;
     if (percent >= 50) return theme.warning;
     return theme.success;
@@ -224,19 +232,19 @@ test "parseLineValue returns 0 for missing key" {
 
 test "getCpuColor returns correct thresholds" {
     const theme = themes.hard;
-    try std.testing.expectEqualStrings(theme.danger, getCpuColor(80, theme));
-    try std.testing.expectEqualStrings(theme.danger, getCpuColor(100, theme));
-    try std.testing.expectEqualStrings(theme.warning, getCpuColor(50, theme));
-    try std.testing.expectEqualStrings(theme.warning, getCpuColor(79, theme));
-    try std.testing.expectEqualStrings(theme.success, getCpuColor(49, theme));
-    try std.testing.expectEqualStrings(theme.success, getCpuColor(0, theme));
+    try std.testing.expect(std.meta.eql(theme.danger, getCpuColor(80, theme)));
+    try std.testing.expect(std.meta.eql(theme.danger, getCpuColor(100, theme)));
+    try std.testing.expect(std.meta.eql(theme.warning, getCpuColor(50, theme)));
+    try std.testing.expect(std.meta.eql(theme.warning, getCpuColor(79, theme)));
+    try std.testing.expect(std.meta.eql(theme.success, getCpuColor(49, theme)));
+    try std.testing.expect(std.meta.eql(theme.success, getCpuColor(0, theme)));
 }
 
 test "getMemColor returns correct thresholds" {
     const theme = themes.hard;
-    try std.testing.expectEqualStrings(theme.danger, getMemColor(80, theme));
-    try std.testing.expectEqualStrings(theme.warning, getMemColor(50, theme));
-    try std.testing.expectEqualStrings(theme.success, getMemColor(0, theme));
+    try std.testing.expect(std.meta.eql(theme.danger, getMemColor(80, theme)));
+    try std.testing.expect(std.meta.eql(theme.warning, getMemColor(50, theme)));
+    try std.testing.expect(std.meta.eql(theme.success, getMemColor(0, theme)));
 }
 
 pub fn run(
@@ -257,9 +265,14 @@ pub fn run(
 
     const cpu_color = getCpuColor(stats.cpu_percent, theme);
     const mem_color = getMemColor(stats.mem_percent, theme);
+    var bg_buf: [32]u8 = undefined;
 
     try writer.print("#[fg={s},bg={s},bold]▒ 󰍛 {d}% #[fg={s},bg={s},bold]󰘚 {d}%", .{
-        cpu_color, theme.background, stats.cpu_percent,
-        mem_color, theme.background, stats.mem_percent,
+        tmux_renderer.colorHexString(cpu_color, &bg_buf),
+        tmux_renderer.colorHexString(theme.background, &bg_buf),
+        stats.cpu_percent,
+        tmux_renderer.colorHexString(mem_color, &bg_buf),
+        tmux_renderer.colorHexString(theme.background, &bg_buf),
+        stats.mem_percent,
     });
 }

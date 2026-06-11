@@ -1,4 +1,5 @@
 const std = @import("std");
+const tmux_renderer = @import("../tmux_renderer.zig");
 const themes = @import("../themes/registry.zig");
 
 const TimeFormat = @import("../cli/args.zig").TimeFormat;
@@ -71,11 +72,14 @@ pub fn run(allocator: std.mem.Allocator, theme_name: []const u8, time_format: Ti
         }
     }
 
+    var accent_buf: [32]u8 = undefined;
+    var surface_buf: [32]u8 = undefined;
+    var emph_buf: [32]u8 = undefined;
     try writer.print("#[fg={s},bg={s}]{s} #[fg={s}]{s} {s}", .{
-        theme.accent,
-        theme.surface_alt,
+        tmux_renderer.colorHexString(theme.accent, &accent_buf),
+        tmux_renderer.colorHexString(theme.surface_alt, &surface_buf),
         separator,
-        theme.emphasis,
+        tmux_renderer.colorHexString(theme.emphasis, &emph_buf),
         time_icon,
         time_str,
     });

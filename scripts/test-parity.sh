@@ -152,6 +152,24 @@ else
     export SSH_CLIENT="$saved_client"
 
     # -----------------------------------------------------------------------
+    # CWD widget parity (requires tmux)
+    # -----------------------------------------------------------------------
+    echo ""
+    echo "--- cwd ---"
+    tmux set-option -g @flavors-tmux_theme hard
+    tmux set-option -g @flavors-tmux_show_cwd 1
+
+    zig_cwd="$("$ZIG_BIN" cwd --theme hard /tmp 2>/dev/null)" || true
+    bash_cwd="$(bash -c "
+        tmux set-option -g @flavors-tmux_theme hard
+        source '${SCRIPT_DIR}/themes.sh' 2>/dev/null
+        RESET=\"#[fg=\${THEME[foreground]},bg=\${THEME[background]},nobold,noitalics,nounderscore,nodim]\"
+        BASENAME=\$(basename /tmp)
+        echo \"\${RESET}#[fg=\${THEME[emphasis]},bg=\${THEME[background]},bold]󰉋 \${BASENAME}\"
+    ")" || true
+    check "cwd /tmp" "$zig_cwd" "$bash_cwd"
+
+    # -----------------------------------------------------------------------
     # Git status widget parity (requires tmux + git repo)
     # -----------------------------------------------------------------------
     echo ""
@@ -161,11 +179,7 @@ else
         tmux set-option -g @flavors-tmux_transparent 0
 
         zig_git="$("$ZIG_BIN" git-status --theme hard . 2>/dev/null)" || true
-        bash_git="$(bash -c "
-            tmux set-option -g @flavors-tmux_theme hard
-            source '${SCRIPT_DIR}/themes.sh' 2>/dev/null
-            source '${SCRIPT_DIR}/git-status.sh' .
-        " | tr -d '\n')" || true
+        bash_git="$(bash "${SCRIPT_DIR}/git-status.sh" . 2>/dev/null | tr -d '\n')" || true
         check "git-status output" "$zig_git" "$bash_git"
     else
         skip "git-status output" "not in a git repository"

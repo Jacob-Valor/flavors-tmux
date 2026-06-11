@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 SHOW_WIDGET=$(tmux show-option -gv @flavors-tmux_show_wbg 2>/dev/null || echo 1)
 if [ "$SHOW_WIDGET" == "0" ]; then
   exit 0
@@ -89,7 +90,9 @@ elif [[ $PROVIDER == "codeberg.org" ]]; then
   # a race on stdout interleaving. jq 'length' extracts count from JSON array.
   TMP_PR=$(mktemp)
   TMP_ISSUE=$(mktemp)
+  # shellcheck disable=SC2086
   (curl ${CURL_OPTS} -K <(echo "${CURL_CONFIG}") "${API_BASE}/repos/${OWNER}/${REPO}/pulls?state=open&limit=100" 2>/dev/null | jq 'length' 2>/dev/null > "$TMP_PR") &
+  # shellcheck disable=SC2086
   (curl ${CURL_OPTS} -K <(echo "${CURL_CONFIG}") "${API_BASE}/repos/${OWNER}/${REPO}/issues?state=open&limit=100" 2>/dev/null | jq 'length' 2>/dev/null > "$TMP_ISSUE") &
   wait
   PR_COUNT=$(cat "$TMP_PR" 2>/dev/null || echo 0)

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
 . "${ROOT_DIR}/scripts/themes.sh" || {
@@ -87,7 +88,7 @@ get_battery_stats() {
 }
 
 # Fetch the battery status and percentage
-read -r BATTERY_STATUS BATTERY_PERCENTAGE < <(get_battery_stats "$BATTERY_NAME")
+read -r BATTERY_STATUS BATTERY_PERCENTAGE < <(get_battery_stats "$BATTERY_NAME") || true
 
 # Ensure percentage is a number
 if ! [[ $BATTERY_PERCENTAGE =~ ^[0-9]+$ ]]; then

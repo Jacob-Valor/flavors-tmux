@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$CURRENT_DIR/themes.sh"
@@ -11,12 +12,14 @@ MEM_PERCENT=0
 case "$(uname -s)" in
     Linux)
         # Take two samples to calculate instantaneous CPU usage
+        # shellcheck disable=SC2034
         read -r CPU_LABEL1 USER1 NICE1 SYSTEM1 IDLE1 IOWAIT1 IRQ1 SOFTIRQ1 STEAL1 REST1 < /proc/stat
         TOTAL1=$((USER1 + NICE1 + SYSTEM1 + IDLE1 + IOWAIT1 + IRQ1 + SOFTIRQ1 + STEAL1))
         IDLE_TOTAL1=$((IDLE1 + IOWAIT1))
 
         sleep 0.02
 
+        # shellcheck disable=SC2034
         read -r CPU_LABEL2 USER2 NICE2 SYSTEM2 IDLE2 IOWAIT2 IRQ2 SOFTIRQ2 STEAL2 REST2 < /proc/stat
         TOTAL2=$((USER2 + NICE2 + SYSTEM2 + IDLE2 + IOWAIT2 + IRQ2 + SOFTIRQ2 + STEAL2))
         IDLE_TOTAL2=$((IDLE2 + IOWAIT2))
@@ -27,7 +30,7 @@ case "$(uname -s)" in
             CPU_PERCENT=$(( (TOTAL_DELTA - IDLE_DELTA) * 100 / TOTAL_DELTA ))
         fi
 
-        read -r MEM_TOTAL MEM_AVAILABLE < <(awk '/^MemTotal:/{total=$2} /^MemAvailable:/{avail=$2} /^MemFree:/{if (!avail) free=$2} END{printf "%d %d\n", total, avail ? avail : free}' /proc/meminfo)
+        read -r MEM_TOTAL MEM_AVAILABLE < <(awk '/^MemTotal:/{total=$2} /^MemAvailable:/{avail=$2} /^MemFree:/{if (!avail) free=$2} END{printf "%d %d\n", total, avail ? avail : free}' /proc/meminfo) || true
         if [[ -n $MEM_TOTAL && $MEM_TOTAL -gt 0 && -n $MEM_AVAILABLE ]]; then
             MEM_PERCENT=$(( (MEM_TOTAL - MEM_AVAILABLE) * 100 / MEM_TOTAL ))
         fi

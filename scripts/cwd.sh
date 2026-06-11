@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 SHOW_WIDGET=$(tmux show-option -gv @flavors-tmux_show_cwd 2>/dev/null || echo 0)
 if [ "$SHOW_WIDGET" == "0" ]; then
@@ -13,7 +14,7 @@ RESET="#[fg=${THEME[foreground]},bg=${THEME[background]},nobold,noitalics,nounde
 PATH_ARG="${1:-$PWD}"
 BASENAME=$(basename "$PATH_ARG")
 
-GIT_ROOT=$(cd "$PATH_ARG" && git rev-parse --show-toplevel 2>/dev/null)
+GIT_ROOT=$(cd "$PATH_ARG" && git rev-parse --show-toplevel 2>/dev/null) || true
 if [ -n "$GIT_ROOT" ]; then
   REPO_NAME=$(basename "$GIT_ROOT")
   if [ "$REPO_NAME" = "$BASENAME" ]; then

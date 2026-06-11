@@ -14,6 +14,33 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install shellcheck
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+
+      - name: ShellCheck linting
+        run: shellcheck -e SC1091 -f gcc flavors.tmux scripts/*.sh
+
+      - name: Setup Zig 0.16.0
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
+
+      - name: Run tests
+        run: zig build test
+
+      - name: Build debug binary
+        run: zig build
+
+      - name: Verify binary exists
+        run: test -f zig-out/bin/flavors_tmux
+
+  test-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Setup Zig 0.16.0
         uses: mlugg/setup-zig@v2
         with:

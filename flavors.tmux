@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPTS_PATH="$CURRENT_DIR/scripts"
@@ -20,12 +21,18 @@ source "$SCRIPTS_PATH/themes.sh" || {
 }
 
 # Validate theme name
+# BEGIN_CODEGEN_VALID_THEMES
 VALID_THEMES=("hard" "medium" "soft" "light" "tokyonight" "catppuccin" "dracula" "nord" "github_dark" "onedark" "solarized_dark" "solarized_light" "monokai" "monokai_nebula" "github_light" "ayu_dark" "ayu_light" "flexoki_dark" "flexoki_light" "rose_pine" "rose_pine_dawn" "everforest" "kanagawa")
+# END_CODEGEN_VALID_THEMES
 CUSTOM_THEME_PATH=""
 if [[ "$SELECTED_THEME" =~ ^[A-Za-z0-9_-]+$ ]]; then
     CUSTOM_THEME_PATH="${HOME}/.config/flavors-tmux/themes/${SELECTED_THEME}.json"
 fi
-if [[ ! " ${VALID_THEMES[*]} " =~ " ${SELECTED_THEME} " && ( -z "$CUSTOM_THEME_PATH" || ! -f "$CUSTOM_THEME_PATH" ) ]]; then
+theme_valid=false
+for vt in "${VALID_THEMES[@]}"; do
+    [[ "$vt" == "$SELECTED_THEME" ]] && theme_valid=true && break
+done
+if [[ $theme_valid == false && ( -z "$CUSTOM_THEME_PATH" || ! -f "$CUSTOM_THEME_PATH" ) ]]; then
     echo "flavors-tmux: unknown theme '${SELECTED_THEME}', using 'hard'. Available: ${VALID_THEMES[*]}" >&2
     SELECTED_THEME="hard"
 fi
@@ -216,6 +223,10 @@ else
         [[ "$show_gpg_ssh_agent" == "1" ]] || return
         echo "#($SCRIPTS_PATH/gpg-ssh-agent.sh)"
     }
+    ai_assistant_cmd() {
+        [[ "$show_ai_assistant" == "1" ]] || return
+        echo "#($SCRIPTS_PATH/ai-assistant.sh)"
+    }
 fi
 
 tmux set -g status-left-length 80
@@ -278,6 +289,7 @@ ACTIVE_WIDGETS=""
 [[ "$show_terraform" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}terraform,"
 [[ "$show_yadm" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}yadm,"
 [[ "$show_gpg_ssh_agent" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}gpg-ssh,"
+[[ "$show_ai_assistant" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}ai-assistant,"
 [[ "$show_time" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}datetime,"
 ACTIVE_WIDGETS="${ACTIVE_WIDGETS%,}"
 
@@ -320,6 +332,7 @@ else
     [[ -n "$terraform_status" ]] && right_status_parts+=("#[fg=${THEME[primary]},bg=${THEME[surface_alt]}]$terraform_status")
     [[ -n "$yadm_status" ]] && right_status_parts+=("#[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$yadm_status")
     [[ -n "$gpg_ssh_agent_status" ]] && right_status_parts+=("#[fg=${THEME[primary_bright]},bg=${THEME[surface_alt]}]$gpg_ssh_agent_status")
+    [[ -n "$ai_assistant_status" ]] && right_status_parts+=("#[fg=${THEME[success]},bg=${THEME[surface_alt]}]$ai_assistant_status")
     [[ -n "$date_and_time" ]] && right_status_parts+=("#[fg=${THEME[warning]},bg=${THEME[surface_alt]}]$date_and_time")
 
     right_status=""
@@ -349,10 +362,5 @@ tmux set -g window-status-separator ""
 
 auto_update="$(tmux show-option -gv @flavors-tmux_auto_update 2>/dev/null || echo "0")"
 if [[ "$auto_update" == "1" ]]; then
-    ("$SCRIPTS_PATH/auto-update.sh" &)
-fi
- ("$SCRIPTS_PATH/auto-update.sh" &)
-fi
-then
     ("$SCRIPTS_PATH/auto-update.sh" &)
 fi

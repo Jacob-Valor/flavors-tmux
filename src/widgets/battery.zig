@@ -1,5 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const tmux_renderer = @import("../tmux_renderer.zig");
 const themes = @import("../themes/registry.zig");
 
 const discharging_icons = [_][]const u8{
@@ -171,8 +172,9 @@ pub fn run(
     else
         theme.warning;
 
+    var hex_buf: [32]u8 = undefined;
     try writer.print("#[fg={s}{s},bg=default]░ {s}#[bg=default] {d}% ", .{
-        color,
+        tmux_renderer.colorHexString(color, &hex_buf),
         if (info.percentage < low_threshold) ",bold" else "",
         icon,
         info.percentage,

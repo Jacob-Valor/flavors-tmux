@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 SHOW_WIDGET=$(tmux show-option -gv @flavors-tmux_show_kubernetes 2>/dev/null || echo 0)
 if [ "$SHOW_WIDGET" == "0" ]; then
@@ -21,8 +22,8 @@ if [ -z "$KUBE_OUTPUT" ]; then
 fi
 
 {
-  read -r CONTEXT
-  read -r NAMESPACE
+  read -r CONTEXT || true
+  read -r NAMESPACE || true
 } <<< "$KUBE_OUTPUT"
 NAMESPACE=${NAMESPACE:-default}
 

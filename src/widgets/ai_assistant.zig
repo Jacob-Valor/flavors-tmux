@@ -1,4 +1,5 @@
 const std = @import("std");
+const tmux_renderer = @import("../tmux_renderer.zig");
 const WidgetContext = @import("../core/widget.zig").WidgetContext;
 
 const Assistant = struct {
@@ -76,11 +77,12 @@ pub fn run(
     }
 
     const assistant_list = active_buf[0..active_len];
+    var hex_buf: [32]u8 = undefined;
 
     try writer.print("{s}#[fg={s},bg={s},bold]▒   {s}", .{
         reset,
-        theme.success,
-        theme.background,
+        tmux_renderer.colorHexString(theme.success, &hex_buf),
+        tmux_renderer.colorHexString(theme.background, &hex_buf),
         assistant_list,
     });
 }
