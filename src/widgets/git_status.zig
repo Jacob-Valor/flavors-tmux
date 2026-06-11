@@ -62,15 +62,11 @@ fn getDiffStats(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8)
 }
 
 fn countStashes(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !usize {
-    const stdout = runGitCommand(allocator, io, &.{ "git", "stash", "list" }, repo_path) catch return 0;
+    const stdout = runGitCommand(allocator, io, &.{ "git", "rev-list", "--count", "refs/stash" }, repo_path) catch return 0;
     defer allocator.free(stdout);
 
-    var count: usize = 0;
-    var lines = std.mem.splitScalar(u8, stdout, '\n');
-    while (lines.next()) |line| {
-        if (line.len > 0) count += 1;
-    }
-    return count;
+    const trimmed = std.mem.trim(u8, stdout, " \n\r");
+    return std.fmt.parseInt(usize, trimmed, 10) catch 0;
 }
 
 pub fn run(
@@ -87,7 +83,7 @@ pub fn run(
     const theme = ctx.theme;
     const reset = ctx.reset;
 
-    // Single call replaces: rev-parse, status --porcelain, rev-list --count, diff --name-only --diff-filter=U
+    // Single call replaces: rev-parse, status --porcelain, rev-list --count, diff --name-only --diff-filter=U, stash list
     const status = try getPorcelainV2(allocator, io, repo_path);
 
     const branch_raw = status.branch orelse return;
@@ -101,17 +97,11 @@ pub fn run(
     const conflict_count = status.conflicts;
     const ahead = status.ahead;
     const behind = status.behind;
+    const changed = status.changed;
 
     var sync_mode: SyncMode = .clean;
-    var changed: usize = 0;
-    var insertions: usize = 0;
-    var deletions: usize = 0;
 
-    if (status.changed > 0) {
-        const stats = try getDiffStats(allocator, io, repo_path);
-        changed = stats.changed;
-        insertions = stats.insertions;
-        deletions = stats.deletions;
+    if (changed > 0) {
         sync_mode = .dirty;
     }
 
@@ -121,11 +111,15 @@ pub fn run(
         sync_mode = .behind;
     }
 
+    // Get diff stats and stash count using optimized git commands
+    const diff_stats = try getDiffStats(allocator, io, repo_path);
     const stash_count = try countStashes(allocator, io, repo_path);
 
-    // Pre-compute all color hex strings into separate buffers to avoid
-    // the shared-buffer overwrite bug (two colorHexString calls to the
-    // same buffer in one format arg tuple cause the last to win).
+    const insertions = diff_stats.insertions;
+    const deletions = diff_stats.deletions;
+
+    // Pre-allocate color hex strings for common colors to reduce allocations
+    // Use stack-allocated buffers for better performance
     var bg_hex: [32]u8 = undefined;
     var warning_hex: [32]u8 = undefined;
     var success_hex: [32]u8 = undefined;

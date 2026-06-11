@@ -4,11 +4,10 @@ set -euo pipefail
 # Themes define colors by *meaning* (success, danger, etc.) rather than
 # literal names (green, red, etc.), so non-Gruvbox palettes render correctly.
 #
-# MAINTENANCE: When adding a new theme, update ALL 4 locations:
+# MAINTENANCE: When adding a new theme:
 #   1. src/themes/<name>.zig         — Zig theme definition
 #   2. src/themes/registry.zig       — import + byName() entry + names[] array
-#   3. scripts/themes.sh             — case entry in load_theme()
-#   4. flavors.tmux:VALID_THEMES     — VALID_THEMES array (around line 23)
+#   3. Run `zig build codegen`       — generates Bash case block + VALID_THEMES array
 
 SELECTED_THEME="$(tmux show-option -gv @flavors-tmux_theme 2>/dev/null || echo "hard")"
 TRANSPARENT_THEME="$(tmux show-option -gv @flavors-tmux_transparent 2>/dev/null || echo 0)"
@@ -38,6 +37,7 @@ load_theme() {
         return
     fi
 
+    # BEGIN_CODEGEN_CASE_BLOCK
     case "$theme_name" in
         hard)
             THEMES[hard_background]="#1b1b1b"
@@ -125,7 +125,7 @@ load_theme() {
             THEMES[light_danger]="#cc241d"
             THEMES[light_danger_bright]="#9d0006"
             THEMES[light_warning]="#9b6b00"
-             THEMES[light_info]="#669a68"
+            THEMES[light_info]="#669a68"
             THEMES[light_info_bright]="#427b58"
             THEMES[light_accent]="#b16286"
             THEMES[light_accent_bright]="#8f3f71"
@@ -305,7 +305,7 @@ load_theme() {
             ;;
         solarized_light)
             THEMES[solarized_light_background]="#fdf6e3"
-             THEMES[solarized_light_foreground]="#60757c"
+            THEMES[solarized_light_foreground]="#60757c"
             THEMES[solarized_light_surface]="#eee8d5"
             THEMES[solarized_light_surface_alt]="#fdf6e3"
             THEMES[solarized_light_primary]="#268bd2"
@@ -326,30 +326,6 @@ load_theme() {
             THEMES[solarized_light_forge_github]="#657b83"
             THEMES[solarized_light_forge_gitlab]="#b83e00"
             THEMES[solarized_light_forge_codeberg]="#b83e00"
-            ;;
-        monokai_nebula)
-            THEMES[monokai_nebula_background]="#101010"
-            THEMES[monokai_nebula_foreground]="#f8f8f2"
-            THEMES[monokai_nebula_surface]="#1a1a1a"
-            THEMES[monokai_nebula_surface_alt]="#101010"
-            THEMES[monokai_nebula_primary]="#66d9ff"
-            THEMES[monokai_nebula_primary_bright]="#8ee5ff"
-            THEMES[monokai_nebula_on_primary]="#000000"
-            THEMES[monokai_nebula_on_primary_bright]="#000000"
-            THEMES[monokai_nebula_success]="#a6ff2e"
-            THEMES[monokai_nebula_success_bright]="#c6ff6e"
-            THEMES[monokai_nebula_danger]="#f92672"
-            THEMES[monokai_nebula_danger_bright]="#fc5c94"
-            THEMES[monokai_nebula_warning]="#ff971f"
-            THEMES[monokai_nebula_info]="#66d9ff"
-            THEMES[monokai_nebula_info_bright]="#8ee5ff"
-            THEMES[monokai_nebula_accent]="#ae81ff"
-            THEMES[monokai_nebula_accent_bright]="#c2a1ff"
-            THEMES[monokai_nebula_emphasis]="#f8f8f2"
-            THEMES[monokai_nebula_muted]="#75715e"
-            THEMES[monokai_nebula_forge_github]="#f8f8f2"
-            THEMES[monokai_nebula_forge_gitlab]="#fc6d26"
-            THEMES[monokai_nebula_forge_codeberg]="#fc6d26"
             ;;
         monokai)
             THEMES[monokai_background]="#272822"
@@ -374,6 +350,30 @@ load_theme() {
             THEMES[monokai_forge_github]="#f8f8f2"
             THEMES[monokai_forge_gitlab]="#fc6d26"
             THEMES[monokai_forge_codeberg]="#fc6d26"
+            ;;
+        monokai_nebula)
+            THEMES[monokai_nebula_background]="#101010"
+            THEMES[monokai_nebula_foreground]="#f8f8f2"
+            THEMES[monokai_nebula_surface]="#1a1a1a"
+            THEMES[monokai_nebula_surface_alt]="#101010"
+            THEMES[monokai_nebula_primary]="#66d9ff"
+            THEMES[monokai_nebula_primary_bright]="#8ee5ff"
+            THEMES[monokai_nebula_on_primary]="#000000"
+            THEMES[monokai_nebula_on_primary_bright]="#000000"
+            THEMES[monokai_nebula_success]="#a6ff2e"
+            THEMES[monokai_nebula_success_bright]="#c6ff6e"
+            THEMES[monokai_nebula_danger]="#f92672"
+            THEMES[monokai_nebula_danger_bright]="#fc5c94"
+            THEMES[monokai_nebula_warning]="#ff971f"
+            THEMES[monokai_nebula_info]="#66d9ff"
+            THEMES[monokai_nebula_info_bright]="#8ee5ff"
+            THEMES[monokai_nebula_accent]="#ae81ff"
+            THEMES[monokai_nebula_accent_bright]="#c2a1ff"
+            THEMES[monokai_nebula_emphasis]="#f8f8f2"
+            THEMES[monokai_nebula_muted]="#75715e"
+            THEMES[monokai_nebula_forge_github]="#f8f8f2"
+            THEMES[monokai_nebula_forge_gitlab]="#fc6d26"
+            THEMES[monokai_nebula_forge_codeberg]="#fc6d26"
             ;;
         github_light)
             THEMES[github_light_background]="#ffffff"
@@ -532,13 +532,13 @@ load_theme() {
             THEMES[rose_pine_dawn_success_bright]="#56949f"
             THEMES[rose_pine_dawn_danger]="#b4637a"
             THEMES[rose_pine_dawn_danger_bright]="#d7827e"
-             THEMES[rose_pine_dawn_warning]="#c18129"
+            THEMES[rose_pine_dawn_warning]="#c18129"
             THEMES[rose_pine_dawn_info]="#907aa9"
-             THEMES[rose_pine_dawn_info_bright]="#c87875"
+            THEMES[rose_pine_dawn_info_bright]="#c87875"
             THEMES[rose_pine_dawn_accent]="#907aa9"
             THEMES[rose_pine_dawn_accent_bright]="#575279"
             THEMES[rose_pine_dawn_emphasis]="#575279"
-             THEMES[rose_pine_dawn_muted]="#908c9d"
+            THEMES[rose_pine_dawn_muted]="#908c9d"
             THEMES[rose_pine_dawn_forge_github]="#575279"
             THEMES[rose_pine_dawn_forge_gitlab]="#c84a0e"
             THEMES[rose_pine_dawn_forge_codeberg]="#c84a0e"
@@ -592,6 +592,7 @@ load_theme() {
             THEMES[kanagawa_forge_codeberg]="#e46876"
             ;;
     esac
+# END_CODEGEN_CASE_BLOCK
 }
 
 load_theme hard

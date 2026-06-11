@@ -14,10 +14,9 @@
 
 ## Adding a theme
 
-### Built-in theme (3 places)
+### Built-in theme (2 places + run codegen)
 1. `src/themes/<name>.zig` — Zig theme definition + import/export in `src/themes/registry.zig`
-2. `scripts/themes.sh` — Bash associative array entry in `load_theme()` case statement
-3. `flavors.tmux:23` — `VALID_THEMES` array
+2. Run `zig build codegen` — auto-generates Bash case block in `scripts/themes.sh` and `VALID_THEMES` in `flavors.tmux`
 
 ### Custom user theme (JSON, no code changes)
 Create `~/.config/flavors-tmux/themes/<name>.json` with any subset of the 22 theme fields. Missing keys fall back to defaults. Zig `byName()` checks custom themes first; Bash `load_theme()` checks via `jq` if available. No registry edits needed.

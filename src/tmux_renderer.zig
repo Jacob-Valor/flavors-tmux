@@ -117,17 +117,97 @@ pub fn writeReset(fg: Color, bg: Color, writer: anytype) !void {
 
 /// Format a Color as a hex string for CLI output (e.g., `#1b1b1b`).
 /// Returns .default as "default". Caller provides output buffer.
+/// Optimized to reduce allocations and improve performance.
 pub fn colorHexString(color: Color, buf: []u8) []const u8 {
     switch (color) {
         .default => return "default",
         .rgb => |c| {
-            return std.fmt.bufPrint(buf, "#{x:0>2}{x:0>2}{x:0>2}", .{ c.r, c.g, c.b }) catch "default";
+            // Use direct buffer writing for better performance
+            const buf_len = buf.len;
+            if (buf_len < 9) return "default"; // Need: # + 6 hex chars + null terminator
+            
+            // Write hex color directly to buffer
+            var pos: usize = 0;
+            buf[pos] = '#'; pos += 1;
+            
+            // Write red component
+            const hex_chars = "0123456789abcdef";
+            buf[pos] = hex_chars[c.r >> 4]; pos += 1;
+            buf[pos] = hex_chars[c.r & 0xF]; pos += 1;
+            
+            // Write green component
+            buf[pos] = hex_chars[c.g >> 4]; pos += 1;
+            buf[pos] = hex_chars[c.g & 0xF]; pos += 1;
+            
+            // Write blue component
+            buf[pos] = hex_chars[c.b >> 4]; pos += 1;
+            buf[pos] = hex_chars[c.b & 0xF]; pos += 1;
+            
+            // Null-terminate
+            buf[pos] = 0;
+            return buf[0..pos];
         },
         .basic => |b| {
-            return std.fmt.bufPrint(buf, "colour{d}", .{@intFromEnum(b)}) catch "default";
+            // Use direct buffer writing for basic colors
+            const buf_len = buf.len;
+            if (buf_len < 9) return "default"; // Need: "colour" + digits + null terminator
+            
+            // Format color number directly into buffer
+            var pos: usize = 0;
+            const prefix = "colour";
+            const prefix_len = prefix.len;
+            
+            // Copy prefix
+            @memcpy(buf[0..prefix_len], prefix);
+            pos += prefix_len;
+            
+            // Format color number directly into buffer
+            const color_num = @intFromEnum(b);
+            
+            // Write digits directly to buffer
+            var temp_buf: [16]u8 = undefined;
+            const num_str = std.fmt.bufPrint(&temp_buf, "{d}", .{color_num}) catch return "default";
+            const num_len = num_str.len;
+            
+            if (pos + num_len >= buf_len) return "default";
+            
+            @memcpy(buf[pos..pos + num_len], num_str);
+            pos += num_len;
+            
+            // Null-terminate
+            buf[pos] = 0;
+            return buf[0..pos];
         },
         .palette => |p| {
-            return std.fmt.bufPrint(buf, "colour{d}", .{p}) catch "default";
+            // Use direct buffer writing for palette colors
+            const buf_len = buf.len;
+            if (buf_len < 9) return "default"; // Need: "colour" + digits + null terminator
+            
+            // Format color number directly into buffer
+            var pos: usize = 0;
+            const prefix = "colour";
+            const prefix_len = prefix.len;
+            
+            // Copy prefix
+            @memcpy(buf[0..prefix_len], prefix);
+            pos += prefix_len;
+            
+            // Format color number directly into buffer
+            const color_num = p;
+            
+            // Write digits directly to buffer
+            var temp_buf: [16]u8 = undefined;
+            const num_str = std.fmt.bufPrint(&temp_buf, "{d}", .{color_num}) catch return "default";
+            const num_len = num_str.len;
+            
+            if (pos + num_len >= buf_len) return "default";
+            
+            @memcpy(buf[pos..pos + num_len], num_str);
+            pos += num_len;
+            
+            // Null-terminate
+            buf[pos] = 0;
+            return buf[0..pos];
         },
     }
 }

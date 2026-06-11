@@ -72,7 +72,7 @@ test "yadm WidgetContext initializes" {
 
     try std.testing.expect(!ctx.theme.muted.isDefault());
     try std.testing.expect(!ctx.theme.warning.isDefault());
-    try std.testing.expect(ctx.theme.background.len > 0);
+    try std.testing.expect(!ctx.theme.background.isDefault());
     try std.testing.expect(std.mem.startsWith(u8, ctx.reset, "#[fg="));
 }
 

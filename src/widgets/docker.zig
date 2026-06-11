@@ -61,8 +61,8 @@ test "docker WidgetContext initializes" {
     var ctx = try WidgetContext.init(gpa, io, &env_map, "hard", false);
     defer ctx.deinit();
 
-    try std.testing.expect(ctx.theme.muted.len > 0);
-    try std.testing.expect(ctx.theme.info.len > 0);
-    try std.testing.expect(ctx.theme.background.len > 0);
+    try std.testing.expect(!ctx.theme.muted.isDefault());
+    try std.testing.expect(!ctx.theme.info.isDefault());
+    try std.testing.expect(!ctx.theme.background.isDefault());
     try std.testing.expect(std.mem.startsWith(u8, ctx.reset, "#[fg="));
 }

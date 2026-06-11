@@ -159,3 +159,68 @@ pub fn run(
         prev_no_sep = item.no_sep;
     }
 }
+
+test "lookupEntry returns correct colors for all widget names" {
+    const cases = [_]struct { name: []const u8, color: WidgetColor, no_sep: bool }{
+        .{ .name = "cwd", .color = .emphasis, .no_sep = false },
+        .{ .name = "git", .color = .success, .no_sep = false },
+        .{ .name = "wb-git", .color = .accent, .no_sep = true },
+        .{ .name = "docker", .color = .info, .no_sep = true },
+        .{ .name = "battery", .color = .danger, .no_sep = false },
+        .{ .name = "hostname", .color = .info, .no_sep = false },
+        .{ .name = "cpu", .color = .accent_bright, .no_sep = false },
+        .{ .name = "kubernetes", .color = .info, .no_sep = false },
+        .{ .name = "terraform", .color = .primary, .no_sep = false },
+        .{ .name = "yadm", .color = .accent, .no_sep = false },
+        .{ .name = "gpg-ssh", .color = .primary_bright, .no_sep = false },
+        .{ .name = "ai-assistant", .color = .success, .no_sep = false },
+        .{ .name = "datetime", .color = .warning, .no_sep = false },
+    };
+
+    for (cases) |c| {
+        const entry = lookupEntry(c.name) orelse return error.TestFailed;
+        try std.testing.expectEqual(c.color, entry.color);
+        try std.testing.expectEqual(c.no_sep, entry.no_sep);
+    }
+
+    try std.testing.expectEqual(@as(@TypeOf(lookupEntry("")), null), lookupEntry("nonexistent"));
+}
+
+test "colorFromTheme maps WidgetColor to correct Theme fields" {
+    const theme = themes.hard;
+    try std.testing.expect(std.meta.eql(theme.emphasis, colorFromTheme(theme, .emphasis)));
+    try std.testing.expect(std.meta.eql(theme.success, colorFromTheme(theme, .success)));
+    try std.testing.expect(std.meta.eql(theme.accent, colorFromTheme(theme, .accent)));
+    try std.testing.expect(std.meta.eql(theme.info, colorFromTheme(theme, .info)));
+    try std.testing.expect(std.meta.eql(theme.danger, colorFromTheme(theme, .danger)));
+    try std.testing.expect(std.meta.eql(theme.accent_bright, colorFromTheme(theme, .accent_bright)));
+    try std.testing.expect(std.meta.eql(theme.primary, colorFromTheme(theme, .primary)));
+    try std.testing.expect(std.meta.eql(theme.primary_bright, colorFromTheme(theme, .primary_bright)));
+    try std.testing.expect(std.meta.eql(theme.warning, colorFromTheme(theme, .warning)));
+}
+
+test "status run produces empty output for empty widget list" {
+    const gpa = std.testing.allocator;
+    const io = std.Io.threaded_global.ioBasic();
+    var env_map = std.process.Environ.Map.init(gpa);
+    defer env_map.deinit();
+
+    var buf: [256]u8 = undefined;
+    var writer: std.Io.Writer = .fixed(&buf);
+
+    try run(gpa, io, &env_map, "hard", false, null, &.{}, null, 20, "24H", 300, &writer);
+    try std.testing.expectEqual(@as(usize, 0), std.Io.Writer.buffered(&writer).len);
+}
+
+test "status run handles unknown widget names gracefully" {
+    const gpa = std.testing.allocator;
+    const io = std.Io.threaded_global.ioBasic();
+    var env_map = std.process.Environ.Map.init(gpa);
+    defer env_map.deinit();
+
+    var buf: [256]u8 = undefined;
+    var writer: std.Io.Writer = .fixed(&buf);
+
+    try run(gpa, io, &env_map, "hard", false, null, &.{ "nonexistent", "also-fake" }, null, 20, "24H", 300, &writer);
+    try std.testing.expectEqual(@as(usize, 0), std.Io.Writer.buffered(&writer).len);
+}

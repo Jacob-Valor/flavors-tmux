@@ -174,6 +174,24 @@ pub fn build(b: *std.Build) void {
     full_parity_cmd.step.dependOn(b.getInstallStep());
     full_parity_step.dependOn(&full_parity_cmd.step);
 
+    const codegen_mod = b.createModule(.{
+        .root_source_file = b.path("src/codegen/main.zig"),
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{
+            .{ .name = "flavors_tmux", .module = mod },
+            .{ .name = "tui", .module = tui_module },
+        },
+    });
+    const codegen_exe = b.addExecutable(.{
+        .name = "flavors_codegen",
+        .root_module = codegen_mod,
+    });
+    const codegen_step = b.step("codegen", "Generate Bash theme case block + VALID_THEMES from Zig themes");
+    const codegen_run = b.addRunArtifact(codegen_exe);
+    codegen_run.addArg(b.build_root.path orelse ".");
+    codegen_step.dependOn(&codegen_run.step);
+
     // Just like flags, top level steps are also listed in the `--help` menu.
     //
     // The Zig build system is entirely implemented in userland, which means

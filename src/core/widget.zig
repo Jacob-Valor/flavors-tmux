@@ -61,10 +61,12 @@ pub const WidgetContext = struct {
         icon: []const u8,
         value: usize,
     ) ![]const u8 {
+        var fg_buf: [32]u8 = undefined;
+        var bg_buf: [32]u8 = undefined;
         return std.fmt.allocPrint(self.allocator, " {s}#[fg={s},bg={s},bold]{s} {d}", .{
             self.reset,
-            tmux_renderer.colorHexString(color, &std.mem.zeroes([32]u8)),
-            tmux_renderer.colorHexString(self.theme.background, &std.mem.zeroes([32]u8)),
+            tmux_renderer.colorHexString(color, &fg_buf),
+            tmux_renderer.colorHexString(self.theme.background, &bg_buf),
             icon,
             value,
         });

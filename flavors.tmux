@@ -21,7 +21,9 @@ source "$SCRIPTS_PATH/themes.sh" || {
 }
 
 # Validate theme name
+# BEGIN_CODEGEN_VALID_THEMES
 VALID_THEMES=("hard" "medium" "soft" "light" "tokyonight" "catppuccin" "dracula" "nord" "github_dark" "onedark" "solarized_dark" "solarized_light" "monokai" "monokai_nebula" "github_light" "ayu_dark" "ayu_light" "flexoki_dark" "flexoki_light" "rose_pine" "rose_pine_dawn" "everforest" "kanagawa")
+# END_CODEGEN_VALID_THEMES
 CUSTOM_THEME_PATH=""
 if [[ "$SELECTED_THEME" =~ ^[A-Za-z0-9_-]+$ ]]; then
     CUSTOM_THEME_PATH="${HOME}/.config/flavors-tmux/themes/${SELECTED_THEME}.json"
