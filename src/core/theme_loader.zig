@@ -20,12 +20,11 @@ fn parseColorField(value: ?[]const u8, default: Color) Color {
     return Color.hex(hex_val);
 }
 
-fn loadFromJsonValue(allocator: std.mem.Allocator, value: std.json.Value) !Theme {
-    _ = allocator; // No longer needed for strings — Color values are copied by value
+fn loadFromJsonValue(value: std.json.Value) !Theme {
     if (value != .object) return error.InvalidThemeFormat;
     const obj = value.object;
 
-    var result = Theme{
+    return Theme{
         .background = parseColorField(getStringField(obj, "background"), hard_theme.background),
         .foreground = parseColorField(getStringField(obj, "foreground"), hard_theme.foreground),
         .surface = parseColorField(getStringField(obj, "surface"), hard_theme.surface),
@@ -49,20 +48,6 @@ fn loadFromJsonValue(allocator: std.mem.Allocator, value: std.json.Value) !Theme
         .forge_gitlab = parseColorField(getStringField(obj, "forge_gitlab"), hard_theme.forge_gitlab),
         .forge_codeberg = parseColorField(getStringField(obj, "forge_codeberg"), hard_theme.forge_codeberg),
     };
-
-    // Validate all color fields — reject anything that isn't a hex color or "default"
-    // to prevent tmux format injection via custom themes
-    inline for (@typeInfo(Theme).@"struct".fields) |field| {
-        const val = @field(result, field.name);
-        // Color values are tagged unions; only .default and .rgb are valid.
-        // If parseColorField couldn't parse it, the value falls back to hard_theme default.
-        // Ensure it IS either default or rgb:
-        if (val != .default and val != .rgb) {
-            @field(result, field.name) = @field(hard_theme, field.name);
-        }
-    }
-
-    return result;
 }
 
 pub fn loadFromFile(allocator: std.mem.Allocator, io: std.Io, path: []const u8) !Theme {
@@ -76,7 +61,7 @@ pub fn loadFromFile(allocator: std.mem.Allocator, io: std.Io, path: []const u8) 
     const parsed = try std.json.parseFromSlice(std.json.Value, arena_alloc, content, .{});
     defer parsed.deinit();
 
-    return try loadFromJsonValue(allocator, parsed.value);
+    return try loadFromJsonValue(parsed.value);
 }
 
 pub fn customThemePath(allocator: std.mem.Allocator, environ_map: *std.process.Environ.Map, name: []const u8) !?[]u8 {
@@ -85,7 +70,6 @@ pub fn customThemePath(allocator: std.mem.Allocator, environ_map: *std.process.E
     return try std.fmt.allocPrint(allocator, "{s}/.config/flavors-tmux/themes/{s}.json", .{ home, name });
 }
 
-/// Stack-buffer variant of customThemePath.
 pub fn customThemePathBuf(environ_map: *std.process.Environ.Map, name: []const u8, buf: []u8) !?[]const u8 {
     if (!isSafeCustomThemeName(name)) return null;
     const home = environ_map.get("HOME") orelse return null;
@@ -115,7 +99,7 @@ test "custom themes fall back to hard colors for missing keys" {
     const parsed = try std.json.parseFromSlice(std.json.Value, arena.allocator(), "{\"background\":\"#123456\"}", .{});
     defer parsed.deinit();
 
-    const theme = try loadFromJsonValue(arena.allocator(), parsed.value);
+    const theme = try loadFromJsonValue(parsed.value);
     try std.testing.expect(std.meta.eql(Color.hex(0x123456), theme.background));
     try std.testing.expect(std.meta.eql(hard_theme.foreground, theme.foreground));
     try std.testing.expect(std.meta.eql(hard_theme.surface_alt, theme.surface_alt));

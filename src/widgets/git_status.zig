@@ -27,8 +27,6 @@ fn getPorcelainV2(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u
 
     var status = util.parsePorcelainV2(stdout);
 
-    // Dupe the branch name — parsePorcelainV2 returns a slice into stdout
-    // which will be freed by the defer above. All other fields are integers.
     if (status.branch) |branch| {
         status.branch = try allocator.dupe(u8, branch);
     }
@@ -36,11 +34,10 @@ fn getPorcelainV2(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u
     return status;
 }
 
-fn getDiffStats(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !struct { changed: usize, insertions: usize, deletions: usize } {
-    const stdout = runGitCommand(allocator, io, &.{ "git", "diff", "--numstat", "HEAD" }, repo_path) catch return .{ .changed = 0, .insertions = 0, .deletions = 0 };
+fn getDiffStats(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !struct { insertions: usize, deletions: usize } {
+    const stdout = runGitCommand(allocator, io, &.{ "git", "diff", "--numstat", "HEAD" }, repo_path) catch return .{ .insertions = 0, .deletions = 0 };
     defer allocator.free(stdout);
 
-    var changed: usize = 0;
     var insertions: usize = 0;
     var deletions: usize = 0;
 
@@ -53,12 +50,11 @@ fn getDiffStats(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8)
 
         const ins = std.fmt.parseInt(usize, ins_str, 10) catch 0;
         const del = std.fmt.parseInt(usize, del_str, 10) catch 0;
-        changed += 1;
         insertions += ins;
         deletions += del;
     }
 
-    return .{ .changed = changed, .insertions = insertions, .deletions = deletions };
+    return .{ .insertions = insertions, .deletions = deletions };
 }
 
 fn countStashes(allocator: std.mem.Allocator, io: std.Io, repo_path: []const u8) !usize {
@@ -83,7 +79,6 @@ pub fn run(
     const theme = ctx.theme;
     const reset = ctx.reset;
 
-    // Single call replaces: rev-parse, status --porcelain, rev-list --count, diff --name-only --diff-filter=U, stash list
     const status = try getPorcelainV2(allocator, io, repo_path);
 
     const branch_raw = status.branch orelse return;
@@ -99,27 +94,21 @@ pub fn run(
     const behind = status.behind;
     const changed = status.changed;
 
-    var sync_mode: SyncMode = .clean;
+    const sync_mode: SyncMode = if (changed > 0)
+        .dirty
+    else if (ahead > 0)
+        .ahead
+    else if (behind > 0)
+        .behind
+    else
+        .clean;
 
-    if (changed > 0) {
-        sync_mode = .dirty;
-    }
-
-    if (ahead > 0 and sync_mode == .clean) {
-        sync_mode = .ahead;
-    } else if (behind > 0 and sync_mode == .clean) {
-        sync_mode = .behind;
-    }
-
-    // Get diff stats and stash count using optimized git commands
     const diff_stats = try getDiffStats(allocator, io, repo_path);
     const stash_count = try countStashes(allocator, io, repo_path);
 
     const insertions = diff_stats.insertions;
     const deletions = diff_stats.deletions;
 
-    // Pre-allocate color hex strings for common colors to reduce allocations
-    // Use stack-allocated buffers for better performance
     var bg_hex: [32]u8 = undefined;
     var warning_hex: [32]u8 = undefined;
     var success_hex: [32]u8 = undefined;
@@ -135,7 +124,6 @@ pub fn run(
     const info_bright_str = tmux_renderer.colorHexString(theme.info_bright, &info_bright_hex);
     const muted_str = tmux_renderer.colorHexString(theme.muted, &muted_hex);
 
-    // Write status segments directly to the output writer, avoiding intermediate allocations
     switch (sync_mode) {
         .dirty => try writer.print("{s}#[bg={s},fg={s},bold]▒ 󱓎", .{ reset, bg_str, danger_bright_str }),
         .ahead => try writer.print("{s}#[bg={s},fg={s},bold]▒ 󰛃", .{ reset, bg_str, danger_str }),
@@ -189,7 +177,6 @@ test "git_status renders sync status icons correctly" {
     var ctx = try WidgetContext.init(gpa, io, &env_map, "hard", false);
     defer ctx.deinit();
 
-    // Verify theme colors are non-empty (basic theme sanity)
     try std.testing.expect(!ctx.theme.success.isDefault());
     try std.testing.expect(!ctx.theme.danger.isDefault());
     try std.testing.expect(!ctx.theme.warning.isDefault());
@@ -198,7 +185,6 @@ test "git_status renders sync status icons correctly" {
     try std.testing.expect(!ctx.theme.muted.isDefault());
     try std.testing.expect(!ctx.theme.background.isDefault());
 
-    // Verify reset string is properly formatted
     try std.testing.expect(std.mem.startsWith(u8, ctx.reset, "#[fg="));
     try std.testing.expect(std.mem.containsAtLeast(u8, ctx.reset, 1, "nobold"));
 }
@@ -209,28 +195,22 @@ test "git_status.run produces valid tmux output in project repo" {
     var env_map = std.process.Environ.Map.init(gpa);
     defer env_map.deinit();
 
-    // Navigate from test's build-cache directory to the project root.
-    // @src().file is relative to build root; go up from src/widgets/ to project root.
     const project_root = comptime std.fs.path.dirname(std.fs.path.dirname(std.fs.path.dirname(@src().file))).?;
 
     var buf: [2048]u8 = undefined;
     var writer: std.Io.Writer = .fixed(&buf);
 
-    // Run in the project's own git repo (guaranteed to exist during tests)
     run(gpa, io, &env_map, "hard", false, project_root, &writer) catch |err| {
-        // Skip if git isn't available or repo state is unexpected
         if (err == error.GitError) return;
         return err;
     };
 
     const output = std.Io.Writer.buffered(&writer);
 
-    // The output should contain these structural elements for any non-empty repo:
     try std.testing.expect(std.mem.containsAtLeast(u8, output, 1, "#[fg="));
     try std.testing.expect(std.mem.containsAtLeast(u8, output, 1, "#[bg="));
     try std.testing.expect(std.mem.containsAtLeast(u8, output, 1, "▒"));
 
-    // Output ends with a trailing space (tmux status convention)
     try std.testing.expect(output.len > 0);
     try std.testing.expect(output[output.len - 1] == ' ');
 }

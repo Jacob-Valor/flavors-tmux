@@ -16,7 +16,7 @@ fn parseLineValue(content: []const u8, prefix: []const u8) !usize {
     while (lines.next()) |line| {
         if (std.mem.startsWith(u8, line, prefix)) {
             var it = std.mem.splitAny(u8, line, " \t");
-            _ = it.next(); // skip prefix
+            _ = it.next();
             while (it.next()) |token| {
                 const trimmed = std.mem.trim(u8, token, " \t");
                 if (trimmed.len > 0) {
@@ -54,7 +54,6 @@ fn readLinuxStats(allocator: std.mem.Allocator, io: std.Io) !CpuMemStats {
     const cache_path = try getCachePath(allocator);
     defer allocator.free(cache_path);
 
-    // Read current /proc/stat sample
     var cpu_buf: [4096]u8 = undefined;
     const cpu_content = std.Io.Dir.readFile(.cwd(), io, "/proc/stat", &cpu_buf) catch return CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 };
     var cpu_lines = std.mem.splitScalar(u8, cpu_content, '\n');
@@ -63,7 +62,6 @@ fn readLinuxStats(allocator: std.mem.Allocator, io: std.Io) !CpuMemStats {
     const current = parseCpuStatLine(first_line[4..]);
     const now_ns = std.Io.Timestamp.now(io, .real).nanoseconds;
 
-    // Try to read previous sample from cache
     var cpu_percent: u8 = 0;
     const cache_content = std.Io.Dir.readFile(.cwd(), io, cache_path, &cpu_buf) catch null;
     if (cache_content) |content| {
@@ -88,12 +86,10 @@ fn readLinuxStats(allocator: std.mem.Allocator, io: std.Io) !CpuMemStats {
         }
     }
 
-    // Write current sample for next invocation
     var cache_line_buf: [128]u8 = undefined;
     const cache_line = try std.fmt.bufPrint(&cache_line_buf, "{d} {d} {d}\n", .{ now_ns, current.total, current.idle });
     std.Io.Dir.writeFile(.cwd(), io, .{ .sub_path = cache_path, .data = cache_line }) catch {};
 
-    // Memory: read /proc/meminfo
     var mem_buf: [4096]u8 = undefined;
     const mem_content = std.Io.Dir.readFile(.cwd(), io, "/proc/meminfo", &mem_buf) catch return CpuMemStats{ .cpu_percent = cpu_percent, .mem_percent = 0 };
 
@@ -110,7 +106,6 @@ fn readLinuxStats(allocator: std.mem.Allocator, io: std.Io) !CpuMemStats {
 }
 
 fn readDarwinStats(allocator: std.mem.Allocator, io: std.Io) !CpuMemStats {
-    // CPU: top -l 1 -n 0 | head -n 5
     const top_result = try std.process.run(allocator, io, .{
         .argv = &.{ "top", "-l", "1", "-n", "0" },
     });
@@ -148,7 +143,6 @@ fn readDarwinStats(allocator: std.mem.Allocator, io: std.Io) !CpuMemStats {
         }
     }
 
-    // Memory: vm_stat
     const vm_result = try std.process.run(allocator, io, .{
         .argv = &.{ "vm_stat" },
     });
@@ -198,13 +192,7 @@ fn parseVmStatValue(line: []const u8) !usize {
     return 0;
 }
 
-fn getCpuColor(percent: u8, theme: Theme) Color {
-    if (percent >= 80) return theme.danger;
-    if (percent >= 50) return theme.warning;
-    return theme.success;
-}
-
-fn getMemColor(percent: u8, theme: Theme) Color {
+fn getUsageColor(percent: u8, theme: Theme) Color {
     if (percent >= 80) return theme.danger;
     if (percent >= 50) return theme.warning;
     return theme.success;
@@ -230,21 +218,14 @@ test "parseLineValue returns 0 for missing key" {
     try std.testing.expectEqual(@as(usize, 0), result);
 }
 
-test "getCpuColor returns correct thresholds" {
+test "getUsageColor returns correct thresholds" {
     const theme = themes.hard;
-    try std.testing.expect(std.meta.eql(theme.danger, getCpuColor(80, theme)));
-    try std.testing.expect(std.meta.eql(theme.danger, getCpuColor(100, theme)));
-    try std.testing.expect(std.meta.eql(theme.warning, getCpuColor(50, theme)));
-    try std.testing.expect(std.meta.eql(theme.warning, getCpuColor(79, theme)));
-    try std.testing.expect(std.meta.eql(theme.success, getCpuColor(49, theme)));
-    try std.testing.expect(std.meta.eql(theme.success, getCpuColor(0, theme)));
-}
-
-test "getMemColor returns correct thresholds" {
-    const theme = themes.hard;
-    try std.testing.expect(std.meta.eql(theme.danger, getMemColor(80, theme)));
-    try std.testing.expect(std.meta.eql(theme.warning, getMemColor(50, theme)));
-    try std.testing.expect(std.meta.eql(theme.success, getMemColor(0, theme)));
+    try std.testing.expect(std.meta.eql(theme.danger, getUsageColor(80, theme)));
+    try std.testing.expect(std.meta.eql(theme.danger, getUsageColor(100, theme)));
+    try std.testing.expect(std.meta.eql(theme.warning, getUsageColor(50, theme)));
+    try std.testing.expect(std.meta.eql(theme.warning, getUsageColor(79, theme)));
+    try std.testing.expect(std.meta.eql(theme.success, getUsageColor(49, theme)));
+    try std.testing.expect(std.meta.eql(theme.success, getUsageColor(0, theme)));
 }
 
 pub fn run(
@@ -263,8 +244,8 @@ pub fn run(
         else => CpuMemStats{ .cpu_percent = 0, .mem_percent = 0 },
     };
 
-    const cpu_color = getCpuColor(stats.cpu_percent, theme);
-    const mem_color = getMemColor(stats.mem_percent, theme);
+    const cpu_color = getUsageColor(stats.cpu_percent, theme);
+    const mem_color = getUsageColor(stats.mem_percent, theme);
     var bg_buf: [32]u8 = undefined;
 
     try writer.print("#[fg={s},bg={s},bold]▒ 󰍛 {d}% #[fg={s},bg={s},bold]󰘚 {d}%", .{

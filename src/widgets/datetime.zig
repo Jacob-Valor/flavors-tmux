@@ -91,7 +91,11 @@ fn format24h(buf: *[32]u8, hour: u5, minute: u6) []const u8 {
 
 fn format12h(buf: *[32]u8, hour: u5, minute: u6) []const u8 {
     const is_pm = hour >= 12;
-    const display_hour = if (hour == 0) 12 else if (hour > 12) hour - 12 else hour;
+    const display_hour = switch (hour) {
+        0 => 12,
+        13...23 => hour - 12,
+        else => hour,
+    };
     const suffix = if (is_pm) "PM" else "AM";
     return std.fmt.bufPrint(buf[0..], "{d:0>2}:{d:0>2} {s} ", .{ display_hour, minute, suffix }) catch unreachable;
 }

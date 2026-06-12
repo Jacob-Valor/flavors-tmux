@@ -1,5 +1,4 @@
 const std = @import("std");
-const tui = @import("tui");
 const tmux_renderer = @import("../tmux_renderer.zig");
 const util = @import("../core/util.zig");
 const WidgetContext = @import("../core/widget.zig").WidgetContext;
@@ -198,8 +197,7 @@ fn commandExists(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.pro
     return false;
 }
 
-fn getCodebergToken(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.Environ.Map) !?[]u8 {
-    _ = io;
+fn getCodebergToken(allocator: std.mem.Allocator, environ_map: *std.process.Environ.Map) !?[]u8 {
     if (environ_map.get("FLAVORS_TMUX_CODEBERG_TOKEN")) |token| {
         const trimmed = std.mem.trim(u8, token, " \n\r\t");
         if (trimmed.len > 0) return try allocator.dupe(u8, trimmed);
@@ -222,15 +220,15 @@ fn isValidToken(token: []const u8) bool {
 }
 
 fn parseCodebergOwnerRepo(allocator: std.mem.Allocator, remote_url: []const u8) !?[]const u8 {
-    // Supports git@codeberg.org:owner/repo.git and https://codeberg.org/owner/repo.git
-    var start: usize = 0;
-    if (std.mem.startsWith(u8, remote_url, "git@codeberg.org:")) {
-        start = 17; // len("git@codeberg.org:")
-    } else if (std.mem.startsWith(u8, remote_url, "https://codeberg.org/")) {
-        start = 21; // len("https://codeberg.org/")
-    } else {
+    const ssh_prefix = "git@codeberg.org:";
+    const https_prefix = "https://codeberg.org/";
+
+    const start = if (std.mem.startsWith(u8, remote_url, ssh_prefix))
+        ssh_prefix.len
+    else if (std.mem.startsWith(u8, remote_url, https_prefix))
+        https_prefix.len
+    else
         return null;
-    }
 
     var end = remote_url.len;
     if (std.mem.endsWith(u8, remote_url, ".git")) {
@@ -267,8 +265,6 @@ fn renderUncached(
     provider_str: []const u8,
     environ_map: *std.process.Environ.Map,
 ) ![]u8 {
-    // Build output into an ArrayList. Pre-allocate 512 bytes to avoid
-    // repeated capacity-doubling reallocations (typical output is <500 bytes).
     var result: std.ArrayList(u8) = .empty;
     try result.ensureTotalCapacity(allocator, 512);
     defer result.deinit(allocator);
@@ -280,7 +276,6 @@ fn renderUncached(
     const theme = ctx.theme;
     const reset = ctx.reset;
 
-    // Get branch name
     const branch_raw = runGitCommand(allocator, io, &.{ "git", "rev-parse", "--abbrev-ref", "HEAD" }, repo_path) catch {
         return result.toOwnedSlice(allocator);
     };
@@ -360,14 +355,13 @@ fn renderUncached(
     } else if (std.mem.eql(u8, provider_str, "codeberg.org")) {
         if (!commandExists(allocator, io, environ_map, "curl")) return result.toOwnedSlice(allocator);
 
-        const token = try getCodebergToken(allocator, io, environ_map);
+        const token = try getCodebergToken(allocator, environ_map);
         defer if (token) |t| allocator.free(t);
         if (token == null) return result.toOwnedSlice(allocator);
         if (!isValidToken(token.?)) return result.toOwnedSlice(allocator);
 
         provider_icon = " ";
 
-        // Get remote URL to parse owner/repo
         const remote_url_opt = try getRemoteUrl(allocator, io, repo_path);
         defer if (remote_url_opt) |url| allocator.free(url);
         if (remote_url_opt == null) return result.toOwnedSlice(allocator);
@@ -391,14 +385,9 @@ fn renderUncached(
         const issue_json = fetchWithToken(allocator, io, issue_url, token.?, repo_path);
         defer if (issue_json.len > 0) allocator.free(issue_json);
         issue_count = countJsonArrayItems(allocator, issue_json) catch 0;
-    } else {
-        return result.toOwnedSlice(allocator); // Unsupported provider
-    }
+    } else return result.toOwnedSlice(allocator);
 
     var hex_buf: [32]u8 = undefined;
-
-    // Write segments directly via appendSlice — no per-segment heap allocations
-    // Header:  + provider icon
     try result.appendSlice(allocator, "#[fg=");
     try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.muted, &hex_buf));
     try result.appendSlice(allocator, ",bg=");

@@ -21,8 +21,8 @@ if [ -z "$STATUS" ]; then
   exit 0
 fi
 
-CHANGED=$(echo "$STATUS" | grep -cE '^(M| A| D|R|C|U| M| A| D)') || true
-UNTRACKED=$(echo "$STATUS" | grep -cE '^\?\?') || true
+CHANGED=$(grep -cE '^(M|R|C|U| [MAD])' <<< "$STATUS") || true
+UNTRACKED=$(grep -cE '^\?\?' <<< "$STATUS") || true
 
 STATUS_STR=""
 if [ "$CHANGED" -gt 0 ]; then

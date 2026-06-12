@@ -12,6 +12,7 @@ if [[ "${SHOW_BATTERY_WIDGET}" != 1 ]]; then
     exit 0
 fi
 
+OS_NAME="$(uname -s)"
 BATTERY_NAME=$(tmux show-option -gv @flavors-tmux_battery_name 2>/dev/null)
 BATTERY_LOW=$(tmux show-option -gv @flavors-tmux_battery_low_threshold 2>/dev/null)
 DEFAULT_BATTERY_LOW=20
@@ -25,7 +26,7 @@ CHARGING_ICONS=("󰢜" "󰂆" "󰂇" "󰂈" "󰢝" "󰂉" "󰢞" "󰂊" "󰂋" "
 NOT_CHARGING_ICON="󰚥"
 NO_BATTERY_ICON="󱉝"
 
-case "$(uname -s)" in
+case "$OS_NAME" in
     Darwin*)    default_battery_name="InternalBattery-0" ;;
     Linux*)     default_battery_name="BAT0" ;;
     *)          default_battery_name="BAT0" ;;
@@ -33,7 +34,7 @@ esac
 BATTERY_NAME="${BATTERY_NAME:-$default_battery_name}"
 
 battery_exists() {
-    case "$(uname -s)" in
+    case "$OS_NAME" in
         Darwin*)
             pmset -g batt | grep -q "$BATTERY_NAME"
             ;;
@@ -53,14 +54,14 @@ if ! battery_exists; then
     exit 0
 fi
 
-# Get battery stats for different OS
 get_battery_stats() {
   local battery_name=$1
   local battery_status=""
   local battery_percentage=""
 
-  case "$(uname)" in
+  case "$OS_NAME" in
   "Darwin")
+    local pmstat
     pmstat=$(pmset -g batt | grep "$battery_name")
     battery_status=$(echo "$pmstat" | awk '{print $4}' | sed 's/[^a-zA-Z]*//g')
     battery_percentage=$(echo "$pmstat" | awk '{print $3}' | sed 's/[^0-9]*//g')
@@ -87,10 +88,8 @@ get_battery_stats() {
   echo "$battery_status $battery_percentage"
 }
 
-# Fetch the battery status and percentage
 read -r BATTERY_STATUS BATTERY_PERCENTAGE < <(get_battery_stats "$BATTERY_NAME") || true
 
-# Ensure percentage is a number
 if ! [[ $BATTERY_PERCENTAGE =~ ^[0-9]+$ ]]; then
   BATTERY_PERCENTAGE=0
 fi
@@ -100,7 +99,6 @@ if [[ $BATTERY_ICON_INDEX -gt 9 ]]; then
   BATTERY_ICON_INDEX=9
 fi
 
-# Determine icon and color based on battery status and percentage
 case "$BATTERY_STATUS" in
 "Charging" | "Charged" | "charging")
   ICON="${CHARGING_ICONS[$BATTERY_ICON_INDEX]}"
@@ -117,11 +115,11 @@ case "$BATTERY_STATUS" in
 esac
 
 if [[ "$BATTERY_PERCENTAGE" -lt "$BATTERY_LOW" ]]; then
-    color="#[fg=${THEME[danger]},bg=default,bold]"
+    color="#[fg=${THEME[danger]},bold]"
 elif [[ "$BATTERY_PERCENTAGE" -ge 100 ]]; then
-    color="#[fg=${THEME[success]},bg=default]"
+    color="#[fg=${THEME[success]}]"
 else
-    color="#[fg=${THEME[warning]},bg=default]"
+    color="#[fg=${THEME[warning]}]"
 fi
 
-echo -n "${color}░ ${ICON}#[bg=default] ${BATTERY_PERCENTAGE}% "
+echo -n "${color}░ ${ICON} ${BATTERY_PERCENTAGE}% "
