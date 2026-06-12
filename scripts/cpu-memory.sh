@@ -12,15 +12,13 @@ MEM_PERCENT=0
 case "$(uname -s)" in
     Linux)
         # Take two samples to calculate instantaneous CPU usage
-        # shellcheck disable=SC2034
-        read -r CPU_LABEL1 USER1 NICE1 SYSTEM1 IDLE1 IOWAIT1 IRQ1 SOFTIRQ1 STEAL1 REST1 < /proc/stat
+        read -r _ USER1 NICE1 SYSTEM1 IDLE1 IOWAIT1 IRQ1 SOFTIRQ1 STEAL1 _ < /proc/stat
         TOTAL1=$((USER1 + NICE1 + SYSTEM1 + IDLE1 + IOWAIT1 + IRQ1 + SOFTIRQ1 + STEAL1))
         IDLE_TOTAL1=$((IDLE1 + IOWAIT1))
 
         sleep 0.02
 
-        # shellcheck disable=SC2034
-        read -r CPU_LABEL2 USER2 NICE2 SYSTEM2 IDLE2 IOWAIT2 IRQ2 SOFTIRQ2 STEAL2 REST2 < /proc/stat
+        read -r _ USER2 NICE2 SYSTEM2 IDLE2 IOWAIT2 IRQ2 SOFTIRQ2 STEAL2 _ < /proc/stat
         TOTAL2=$((USER2 + NICE2 + SYSTEM2 + IDLE2 + IOWAIT2 + IRQ2 + SOFTIRQ2 + STEAL2))
         IDLE_TOTAL2=$((IDLE2 + IOWAIT2))
 

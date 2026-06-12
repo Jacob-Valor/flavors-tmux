@@ -27,8 +27,6 @@ elif [[ "$REMOTE_URL" =~ ^https://([^/]+)/ ]]; then
   PROVIDER="${BASH_REMATCH[1]}"
 fi
 
-PROVIDER_ICON=""
-
 PR_COUNT=0
 REVIEW_COUNT=0
 ISSUE_COUNT=0
@@ -51,8 +49,8 @@ if [[ $PROVIDER == "github.com" ]]; then
   PR_COUNT=$(gh pr list --json number --limit 100 --jq 'length' 2>/dev/null || echo 0)
   REVIEW_COUNT=$(gh pr list --reviewer @me --json number --limit 100 --jq 'length' 2>/dev/null || echo 0)
   RES=$(gh issue list --json "assignees,labels" --assignee @me --limit 100 2>/dev/null || echo '[]')
-  ISSUE_COUNT=$(echo "$RES" | jq 'length' 2>/dev/null || echo 0)
-  BUG_COUNT=$(echo "$RES" | jq 'map(select(any(.labels[]?; .name == "bug"))) | length' 2>/dev/null || echo 0)
+  ISSUE_COUNT=$(jq 'length' <<<"$RES" 2>/dev/null || echo 0)
+  BUG_COUNT=$(jq 'map(select(any(.labels[]?; .name == "bug"))) | length' <<<"$RES" 2>/dev/null || echo 0)
   ISSUE_COUNT=$((ISSUE_COUNT - BUG_COUNT))
 elif [[ $PROVIDER == "gitlab.com" ]]; then
   if ! command -v glab &>/dev/null; then
@@ -86,8 +84,6 @@ elif [[ $PROVIDER == "codeberg.org" ]]; then
   CURL_OPTS="-fsS --max-time 5"
   CURL_CONFIG="header = \"Authorization: token ${CODEBERG_TOKEN}\""
 
-  # Run both curl requests concurrently; each writes its own temp file to avoid
-  # a race on stdout interleaving. jq 'length' extracts count from JSON array.
   TMP_PR=$(mktemp)
   TMP_ISSUE=$(mktemp)
   # shellcheck disable=SC2086
