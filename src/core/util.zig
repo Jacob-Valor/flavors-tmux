@@ -29,8 +29,7 @@ pub const PorcelainStatus = struct {
     untracked: usize,
 };
 
-/// Parses `git status --porcelain` or `yadm status --porcelain` output,
-/// counting changed (tracked modifications) and untracked files.
+/// Parses `git status --porcelain` or `yadm status --porcelain` output.
 /// Untracked files are identified by the `??` prefix.
 pub fn parsePorcelain(stdout: []const u8) PorcelainStatus {
     var changed: usize = 0;
@@ -85,13 +84,7 @@ pub const ParsedStatusV2 = struct {
 /// Parses `git status --porcelain=v2 --branch` output.
 ///
 /// Extracts branch name, ahead/behind counts, changed file count,
-/// untracked file count, and merge conflict count from a single
-/// git invocation — replacing what previously required separate
-/// `rev-parse`, `status --porcelain`, `rev-list --count`, and
-/// `diff --name-only --diff-filter=U` calls.
-///
-/// Optimized for performance: uses manual scanning instead of split iterators
-/// and pre-allocates buffers where possible.
+/// untracked file count, and merge conflict count.
 pub fn parsePorcelainV2(stdout: []const u8) ParsedStatusV2 {
     var branch: ?[]const u8 = null;
     var ahead: usize = 0;
@@ -100,11 +93,9 @@ pub fn parsePorcelainV2(stdout: []const u8) ParsedStatusV2 {
     var untracked: usize = 0;
     var conflicts: usize = 0;
 
-    // Manual scanning for better performance than split iterators
     var line_start: usize = 0;
     var line_end: usize = 0;
     while (line_end < stdout.len) {
-        // Find end of current line
         while (line_end < stdout.len and stdout[line_end] != '\n') {
             line_end += 1;
         }
@@ -112,7 +103,6 @@ pub fn parsePorcelainV2(stdout: []const u8) ParsedStatusV2 {
         if (line_end > line_start) {
             const line = stdout[line_start..line_end];
 
-            // Header lines
             if (line[0] == '#') {
                 if (std.mem.startsWith(u8, line, "# branch.head ")) {
                     const name = line["# branch.head ".len..];
@@ -121,7 +111,6 @@ pub fn parsePorcelainV2(stdout: []const u8) ParsedStatusV2 {
                     }
                 } else if (std.mem.startsWith(u8, line, "# branch.ab ")) {
                     const rest = line["# branch.ab ".len..];
-                    // Manual parsing of +X -Y format
                     var i: usize = 0;
                     while (i < rest.len) {
                         if (rest[i] == '+') {
@@ -148,17 +137,10 @@ pub fn parsePorcelainV2(stdout: []const u8) ParsedStatusV2 {
                             i += 1;
                         }
                     }
-                } else if (std.mem.startsWith(u8, line, "# branch.stash ")) {
-                    // Extract stash count from porcelain v2 header (no longer used)
-                    // const rest = line["# branch.stash ".len..];
-                    // stashes = std.fmt.parseInt(usize, rest, 10) catch 0;
                 }
             } else {
-                // File entries: type is the first character
                 switch (line[0]) {
                     '1', '2' => {
-                        // Ordinary changed or renamed/copied entry.
-                        // XY status is at positions 2-3 (after "1 " or "2 ")
                         if (line.len >= 4) {
                             const xy = line[2..4];
                             if (!std.mem.eql(u8, xy, "..")) {

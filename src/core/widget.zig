@@ -40,21 +40,18 @@ pub const WidgetContext = struct {
         self.allocator.free(self.reset);
     }
 
-    /// Returns danger for >=80%, warning for >=50%, success otherwise
     pub fn thresholdColor(self: WidgetContext, percent: u8) Color {
         if (percent >= 80) return self.theme.danger;
         if (percent >= 50) return self.theme.warning;
         return self.theme.success;
     }
 
-    /// Returns danger for low battery, success for full, warning otherwise
     pub fn batteryColor(self: WidgetContext, percentage: u8, low_threshold: u8) Color {
         if (percentage < low_threshold) return self.theme.danger;
         if (percentage >= 100) return self.theme.success;
         return self.theme.warning;
     }
 
-    /// Format a status segment with the given color and icon
     pub fn formatSegment(
         self: WidgetContext,
         color: Color,
