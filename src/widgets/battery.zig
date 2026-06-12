@@ -1,6 +1,9 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const tmux_renderer = @import("../tmux_renderer.zig");
+const theme_core = @import("../core/theme.zig");
+const Color = theme_core.Color;
+const Theme = theme_core.Theme;
 const themes = @import("../themes/registry.zig");
 
 const discharging_icons = [_][]const u8{
@@ -34,6 +37,28 @@ const BatteryInfo = struct {
     status: []const u8,
     percentage: u8,
 };
+
+fn batteryIcon(status: []const u8, percentage: u8) []const u8 {
+    const idx = @min(percentage / 10, 9);
+    const s = std.mem.trim(u8, status, " \n\r\t");
+
+    if (std.mem.eql(u8, s, "Charging") or std.mem.eql(u8, s, "Charged") or std.mem.eql(u8, s, "charging")) {
+        return charging_icons[idx];
+    }
+    if (std.mem.eql(u8, s, "Discharging") or std.mem.eql(u8, s, "discharging")) {
+        return discharging_icons[idx];
+    }
+    if (std.mem.eql(u8, s, "Full") or std.mem.eql(u8, s, "charged") or std.mem.eql(u8, s, "full") or std.mem.eql(u8, s, "AC")) {
+        return not_charging_icon;
+    }
+    return no_battery_icon;
+}
+
+fn batteryColor(theme: Theme, percentage: u8, low_threshold: u8) Color {
+    if (percentage < low_threshold) return theme.danger;
+    if (percentage >= 100) return theme.success;
+    return theme.warning;
+}
 
 fn readLinuxBattery(allocator: std.mem.Allocator, io: std.Io, name: []const u8) !BatteryInfo {
     var status_path_buf: [64]u8 = undefined;
@@ -72,7 +97,6 @@ fn readDarwinBattery(allocator: std.mem.Allocator, io: std.Io, name: []const u8)
         return error.NoBattery;
     }
 
-    // Parse pmset output looking for the battery line
     var lines = std.mem.splitScalar(u8, result.stdout, '\n');
     while (lines.next()) |line| {
         if (!std.mem.containsAtLeast(u8, line, 1, name)) continue;
@@ -150,30 +174,11 @@ pub fn run(
     };
     defer allocator.free(info.status);
 
-    const idx = @min(info.percentage / 10, 9);
-
-    const icon = blk: {
-        const s = std.mem.trim(u8, info.status, " \n\r\t");
-        if (std.mem.eql(u8, s, "Charging") or std.mem.eql(u8, s, "Charged") or std.mem.eql(u8, s, "charging")) {
-            break :blk charging_icons[idx];
-        } else if (std.mem.eql(u8, s, "Discharging") or std.mem.eql(u8, s, "discharging")) {
-            break :blk discharging_icons[idx];
-        } else if (std.mem.eql(u8, s, "Full") or std.mem.eql(u8, s, "charged") or std.mem.eql(u8, s, "full") or std.mem.eql(u8, s, "AC")) {
-            break :blk not_charging_icon;
-        } else {
-            break :blk no_battery_icon;
-        }
-    };
-
-    const color = if (info.percentage < low_threshold)
-        theme.danger
-    else if (info.percentage >= 100)
-        theme.success
-    else
-        theme.warning;
+    const icon = batteryIcon(info.status, info.percentage);
+    const color = batteryColor(theme, info.percentage, low_threshold);
 
     var hex_buf: [32]u8 = undefined;
-    try writer.print("#[fg={s}{s},bg=default]░ {s}#[bg=default] {d}% ", .{
+    try writer.print("#[fg={s}{s}]░ {s} {d}% ", .{
         tmux_renderer.colorHexString(color, &hex_buf),
         if (info.percentage < low_threshold) ",bold" else "",
         icon,
@@ -182,65 +187,22 @@ pub fn run(
 }
 
 test "getBatteryIcon selects correct icon for charging" {
-    const idx = @min(50 / 10, 9);
-    const icon = blk: {
-        const s = "Charging";
-        if (std.mem.eql(u8, s, "Charging") or std.mem.eql(u8, s, "Charged") or std.mem.eql(u8, s, "charging")) {
-            break :blk charging_icons[idx];
-        } else if (std.mem.eql(u8, s, "Discharging") or std.mem.eql(u8, s, "discharging")) {
-            break :blk discharging_icons[idx];
-        } else if (std.mem.eql(u8, s, "Full") or std.mem.eql(u8, s, "charged") or std.mem.eql(u8, s, "full") or std.mem.eql(u8, s, "AC")) {
-            break :blk not_charging_icon;
-        } else {
-            break :blk no_battery_icon;
-        }
-    };
-    try std.testing.expectEqualStrings(charging_icons[5], icon);
+    try std.testing.expectEqualStrings(charging_icons[5], batteryIcon("Charging", 50));
 }
 
 test "getBatteryIcon selects correct icon for discharging" {
-    const idx = @min(75 / 10, 9);
-    const icon = blk: {
-        const s = "Discharging";
-        if (std.mem.eql(u8, s, "Charging") or std.mem.eql(u8, s, "Charged") or std.mem.eql(u8, s, "charging")) {
-            break :blk charging_icons[idx];
-        } else if (std.mem.eql(u8, s, "Discharging") or std.mem.eql(u8, s, "discharging")) {
-            break :blk discharging_icons[idx];
-        } else if (std.mem.eql(u8, s, "Full") or std.mem.eql(u8, s, "charged") or std.mem.eql(u8, s, "full") or std.mem.eql(u8, s, "AC")) {
-            break :blk not_charging_icon;
-        } else {
-            break :blk no_battery_icon;
-        }
-    };
-    try std.testing.expectEqualStrings(discharging_icons[7], icon);
+    try std.testing.expectEqualStrings(discharging_icons[7], batteryIcon("Discharging", 75));
 }
 
 test "getBatteryIcon selects not_charging for full battery" {
-    const icon = blk: {
-        const s = "Full";
-        if (std.mem.eql(u8, s, "Charging") or std.mem.eql(u8, s, "Charged") or std.mem.eql(u8, s, "charging")) {
-            break :blk charging_icons[0];
-        } else if (std.mem.eql(u8, s, "Discharging") or std.mem.eql(u8, s, "discharging")) {
-            break :blk discharging_icons[0];
-        } else if (std.mem.eql(u8, s, "Full") or std.mem.eql(u8, s, "charged") or std.mem.eql(u8, s, "full") or std.mem.eql(u8, s, "AC")) {
-            break :blk not_charging_icon;
-        } else {
-            break :blk no_battery_icon;
-        }
-    };
-    try std.testing.expectEqualStrings(not_charging_icon, icon);
+    try std.testing.expectEqualStrings(not_charging_icon, batteryIcon("Full", 0));
 }
 
 test "battery color selection" {
     const theme = themes.hard;
     const low_threshold: u8 = 20;
-    
-    const color_low = if (10 < low_threshold) theme.danger else if (10 >= 100) theme.success else theme.warning;
-    try std.testing.expectEqualStrings(theme.danger, color_low);
-    
-    const color_mid = if (50 < low_threshold) theme.danger else if (50 >= 100) theme.success else theme.warning;
-    try std.testing.expectEqualStrings(theme.warning, color_mid);
-    
-    const color_full = if (100 < low_threshold) theme.danger else if (100 >= 100) theme.success else theme.warning;
-    try std.testing.expectEqualStrings(theme.success, color_full);
+
+    try std.testing.expectEqualStrings(theme.danger, batteryColor(theme, 10, low_threshold));
+    try std.testing.expectEqualStrings(theme.warning, batteryColor(theme, 50, low_threshold));
+    try std.testing.expectEqualStrings(theme.success, batteryColor(theme, 100, low_threshold));
 }

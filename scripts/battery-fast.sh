@@ -51,4 +51,4 @@ else
     color="$warning"
 fi
 
-printf '#[fg=%s,bg=default]░ %s#[bg=default] %s%% ' "$color" "$icon" "$percentage"
+printf '#[fg=%s]░ %s %s%% ' "$color" "$icon" "$percentage"
