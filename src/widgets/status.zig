@@ -18,7 +18,6 @@ const terraform = @import("terraform.zig");
 const docker_mod = @import("docker.zig");
 const yadm = @import("yadm.zig");
 const gpg_ssh_agent = @import("gpg_ssh_agent.zig");
-const ai_assistant = @import("ai_assistant.zig");
 
 const WidgetColor = enum {
     emphasis,
@@ -49,7 +48,6 @@ fn lookupEntry(name: []const u8) ?WidgetEntry {
     if (std.mem.eql(u8, name, "terraform")) return .{ .color = .primary };
     if (std.mem.eql(u8, name, "yadm")) return .{ .color = .accent };
     if (std.mem.eql(u8, name, "gpg-ssh")) return .{ .color = .primary_bright };
-    if (std.mem.eql(u8, name, "ai-assistant")) return .{ .color = .success };
     if (std.mem.eql(u8, name, "datetime")) return .{ .color = .warning };
     return null;
 }
@@ -108,8 +106,6 @@ fn renderWidget(
         yadm.run(arena, io, theme_name, transparent, environ_map, &writer) catch return null;
     } else if (std.mem.eql(u8, widget_name, "gpg-ssh")) {
         gpg_ssh_agent.run(arena, io, environ_map, theme_name, transparent, &writer) catch return null;
-    } else if (std.mem.eql(u8, widget_name, "ai-assistant")) {
-        ai_assistant.run(arena, io, environ_map, theme_name, transparent, &writer) catch return null;
     } else return null;
 
     const output = std.Io.Writer.buffered(&writer);
@@ -173,7 +169,6 @@ test "lookupEntry returns correct colors for all widget names" {
         .{ .name = "terraform", .color = .primary, .no_sep = false },
         .{ .name = "yadm", .color = .accent, .no_sep = false },
         .{ .name = "gpg-ssh", .color = .primary_bright, .no_sep = false },
-        .{ .name = "ai-assistant", .color = .success, .no_sep = false },
         .{ .name = "datetime", .color = .warning, .no_sep = false },
     };
 

@@ -68,7 +68,6 @@ show_terraform="$(tmux show-option -gv @flavors-tmux_show_terraform 2>/dev/null 
 show_docker="$(tmux show-option -gv @flavors-tmux_show_docker 2>/dev/null || echo "0")"
 show_yadm="$(tmux show-option -gv @flavors-tmux_show_yadm 2>/dev/null || echo "0")"
 show_gpg_ssh_agent="$(tmux show-option -gv @flavors-tmux_show_gpg_ssh_agent 2>/dev/null || echo "0")"
-show_ai_assistant="$(tmux show-option -gv @flavors-tmux_show_ai_assistant 2>/dev/null || echo "0")"
 forge_cache_ttl="$(tmux show-option -gv @flavors-tmux_forge_cache_ttl 2>/dev/null || echo "300")"
 
 # Validate numeric fields to prevent injection in #(...) shell commands
@@ -223,10 +222,6 @@ else
         [[ "$show_gpg_ssh_agent" == "1" ]] || return
         echo "#($SCRIPTS_PATH/gpg-ssh-agent.sh)"
     }
-    ai_assistant_cmd() {
-        [[ "$show_ai_assistant" == "1" ]] || return
-        echo "#($SCRIPTS_PATH/ai-assistant.sh)"
-    }
 fi
 
 tmux set -g status-left-length 80
@@ -289,7 +284,6 @@ ACTIVE_WIDGETS=""
 [[ "$show_terraform" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}terraform,"
 [[ "$show_yadm" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}yadm,"
 [[ "$show_gpg_ssh_agent" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}gpg-ssh,"
-[[ "$show_ai_assistant" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}ai-assistant,"
 [[ "$show_time" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}datetime,"
 ACTIVE_WIDGETS="${ACTIVE_WIDGETS%,}"
 
@@ -318,7 +312,6 @@ else
     docker_status="$(docker_cmd)"
     yadm_status="$(yadm_cmd)"
     gpg_ssh_agent_status="$(gpg_ssh_agent_cmd)"
-    ai_assistant_status="$(ai_assistant_cmd)"
 
     right_status_parts=()
     [[ -n "$cwd_status" ]] && right_status_parts+=("#[fg=${THEME[emphasis]},bg=${THEME[surface_alt]}]$cwd_status")
@@ -332,7 +325,6 @@ else
     [[ -n "$terraform_status" ]] && right_status_parts+=("#[fg=${THEME[primary]},bg=${THEME[surface_alt]}]$terraform_status")
     [[ -n "$yadm_status" ]] && right_status_parts+=("#[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$yadm_status")
     [[ -n "$gpg_ssh_agent_status" ]] && right_status_parts+=("#[fg=${THEME[primary_bright]},bg=${THEME[surface_alt]}]$gpg_ssh_agent_status")
-    [[ -n "$ai_assistant_status" ]] && right_status_parts+=("#[fg=${THEME[success]},bg=${THEME[surface_alt]}]$ai_assistant_status")
     [[ -n "$date_and_time" ]] && right_status_parts+=("#[fg=${THEME[warning]},bg=${THEME[surface_alt]}]$date_and_time")
 
     right_status=""

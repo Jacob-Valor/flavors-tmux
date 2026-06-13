@@ -17,7 +17,6 @@ const terraform = @import("widgets/terraform.zig");
 const docker = @import("widgets/docker.zig");
 const yadm = @import("widgets/yadm.zig");
 const gpg_ssh_agent = @import("widgets/gpg_ssh_agent.zig");
-const ai_assistant = @import("widgets/ai_assistant.zig");
 const status_mod = @import("widgets/status.zig");
 
 const usage =
@@ -130,10 +129,6 @@ fn handleGpgSshAgent(arena: std.mem.Allocator, io: std.Io, env: *std.process.Env
     try gpg_ssh_agent.run(arena, io, env, args.theme, args.transparent, stdout);
 }
 
-fn handleAiAssistant(arena: std.mem.Allocator, io: std.Io, env: *std.process.Environ.Map, args: *const cli.Args, _: *std.Io.Writer, stdout: *std.Io.Writer) !void {
-    try ai_assistant.run(arena, io, env, args.theme, args.transparent, stdout);
-}
-
 fn handleStatus(arena: std.mem.Allocator, io: std.Io, env: *std.process.Environ.Map, args: *const cli.Args, stderr: *std.Io.Writer, stdout: *std.Io.Writer) !void {
     if (args.positional.items.len < 1) {
         try stderr.print("Usage: flavors-tmux status --theme <name> --show <widgets> [--pane-path <path>]\n", .{});
@@ -190,7 +185,6 @@ const handlers = std.StaticStringMap(HandlerFn).initComptime(.{
     .{ "docker", &handleDocker },
     .{ "yadm", &handleYadm },
     .{ "gpg-ssh-agent", &handleGpgSshAgent },
-    .{ "ai-assistant", &handleAiAssistant },
     .{ "status", &handleStatus },
     .{ "theme", &handleTheme },
     .{ "theme-list", &handleThemeList },
