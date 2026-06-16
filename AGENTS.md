@@ -32,7 +32,7 @@ Semantic colors used as text foregrounds and their backgrounds (update when addi
 
 | Field   | Used in                     | On background      |
 |---------|-----------------------------|--------------------|
-| success | battery 100%, git synced, wb PR/issue, CPU <50%, mem <50%, AI assistant active | `background` |
+| success | battery 100%, git synced, wb PR/issue, CPU <50%, mem <50% | `background` |
 | danger  | battery low, git need-push, wb bug, CPU ≥80%, mem ≥80%    | `background` |
 | danger_bright | git conflict count `󰅘`       | `background` |
 | warning | battery mid, git changed, window last, hostname SSH, CPU 50-79%, mem 50-79% | `background` |

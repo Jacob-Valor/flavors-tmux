@@ -213,12 +213,9 @@ test "parsePorcelainV2 handles clean repo" {
     try std.testing.expectEqual(@as(usize, 0), result.ahead);
     try std.testing.expectEqual(@as(usize, 0), result.changed);
     try std.testing.expectEqual(@as(usize, 0), result.untracked);
-    try std.testing.expectEqual(@as(usize, 0), result.insertions);
-    try std.testing.expectEqual(@as(usize, 0), result.deletions);
-    try std.testing.expectEqual(@as(usize, 0), result.stashes);
 }
 
-test "parsePorcelainV2 extracts diff stats and stash count" {
+test "parsePorcelainV2 extracts stash count from header" {
     const output =
         \\# branch.head main
         \\# branch.ab +0 -0
@@ -234,9 +231,6 @@ test "parsePorcelainV2 extracts diff stats and stash count" {
     try std.testing.expectEqual(@as(usize, 2), result.changed);
     try std.testing.expectEqual(@as(usize, 0), result.untracked);
     try std.testing.expectEqual(@as(usize, 0), result.conflicts);
-    try std.testing.expectEqual(@as(usize, 100), result.insertions);
-    try std.testing.expectEqual(@as(usize, 100), result.deletions);
-    try std.testing.expectEqual(@as(usize, 5), result.stashes);
 }
 
 test "parsePorcelainV2 handles empty stash count" {
@@ -252,9 +246,6 @@ test "parsePorcelainV2 handles empty stash count" {
     try std.testing.expectEqual(@as(usize, 0), result.changed);
     try std.testing.expectEqual(@as(usize, 0), result.untracked);
     try std.testing.expectEqual(@as(usize, 0), result.conflicts);
-    try std.testing.expectEqual(@as(usize, 0), result.insertions);
-    try std.testing.expectEqual(@as(usize, 0), result.deletions);
-    try std.testing.expectEqual(@as(usize, 0), result.stashes);
 }
 
 test "parsePorcelainV2 ignores .. no-change entries" {

@@ -121,95 +121,45 @@ pub fn writeReset(fg: Color, bg: Color, writer: anytype) !void {
 pub fn colorHexString(color: Color, buf: []u8) []const u8 {
     switch (color) {
         .default => return "default",
-        .rgb => |c| {
-            // Use direct buffer writing for better performance
-            const buf_len = buf.len;
-            if (buf_len < 9) return "default"; // Need: # + 6 hex chars + null terminator
-            
-            // Write hex color directly to buffer
-            var pos: usize = 0;
-            buf[pos] = '#'; pos += 1;
-            
-            // Write red component
-            const hex_chars = "0123456789abcdef";
-            buf[pos] = hex_chars[c.r >> 4]; pos += 1;
-            buf[pos] = hex_chars[c.r & 0xF]; pos += 1;
-            
-            // Write green component
-            buf[pos] = hex_chars[c.g >> 4]; pos += 1;
-            buf[pos] = hex_chars[c.g & 0xF]; pos += 1;
-            
-            // Write blue component
-            buf[pos] = hex_chars[c.b >> 4]; pos += 1;
-            buf[pos] = hex_chars[c.b & 0xF]; pos += 1;
-            
-            // Null-terminate
-            buf[pos] = 0;
-            return buf[0..pos];
-        },
-        .basic => |b| {
-            // Use direct buffer writing for basic colors
-            const buf_len = buf.len;
-            if (buf_len < 9) return "default"; // Need: "colour" + digits + null terminator
-            
-            // Format color number directly into buffer
-            var pos: usize = 0;
-            const prefix = "colour";
-            const prefix_len = prefix.len;
-            
-            // Copy prefix
-            @memcpy(buf[0..prefix_len], prefix);
-            pos += prefix_len;
-            
-            // Format color number directly into buffer
-            const color_num = @intFromEnum(b);
-            
-            // Write digits directly to buffer
-            var temp_buf: [16]u8 = undefined;
-            const num_str = std.fmt.bufPrint(&temp_buf, "{d}", .{color_num}) catch return "default";
-            const num_len = num_str.len;
-            
-            if (pos + num_len >= buf_len) return "default";
-            
-            @memcpy(buf[pos..pos + num_len], num_str);
-            pos += num_len;
-            
-            // Null-terminate
-            buf[pos] = 0;
-            return buf[0..pos];
-        },
-        .palette => |p| {
-            // Use direct buffer writing for palette colors
-            const buf_len = buf.len;
-            if (buf_len < 9) return "default"; // Need: "colour" + digits + null terminator
-            
-            // Format color number directly into buffer
-            var pos: usize = 0;
-            const prefix = "colour";
-            const prefix_len = prefix.len;
-            
-            // Copy prefix
-            @memcpy(buf[0..prefix_len], prefix);
-            pos += prefix_len;
-            
-            // Format color number directly into buffer
-            const color_num = p;
-            
-            // Write digits directly to buffer
-            var temp_buf: [16]u8 = undefined;
-            const num_str = std.fmt.bufPrint(&temp_buf, "{d}", .{color_num}) catch return "default";
-            const num_len = num_str.len;
-            
-            if (pos + num_len >= buf_len) return "default";
-            
-            @memcpy(buf[pos..pos + num_len], num_str);
-            pos += num_len;
-            
-            // Null-terminate
-            buf[pos] = 0;
-            return buf[0..pos];
-        },
+        .rgb => |c| writeRgbHex(c, buf),
+        .basic => |b| writeColour(buf, @intFromEnum(b)),
+        .palette => |p| writeColour(buf, p),
     }
+}
+
+fn writeRgbHex(c: Color.Rgb, buf: []u8) []const u8 {
+    const buf_len = buf.len;
+    if (buf_len < 7) return "default";
+
+    var pos: usize = 0;
+    buf[pos] = '#'; pos += 1;
+
+    const hex_chars = "0123456789abcdef";
+    buf[pos] = hex_chars[c.r >> 4]; pos += 1;
+    buf[pos] = hex_chars[c.r & 0xF]; pos += 1;
+    buf[pos] = hex_chars[c.g >> 4]; pos += 1;
+    buf[pos] = hex_chars[c.g & 0xF]; pos += 1;
+    buf[pos] = hex_chars[c.b >> 4]; pos += 1;
+    buf[pos] = hex_chars[c.b & 0xF]; pos += 1;
+
+    return buf[0..pos];
+}
+
+fn writeColour(buf: []u8, color_num: usize) []const u8 {
+    const buf_len = buf.len;
+    const prefix = "colour";
+    const prefix_len = prefix.len;
+    if (buf_len < prefix_len + 1) return "default";
+
+    @memcpy(buf[0..prefix_len], prefix);
+
+    var temp_buf: [16]u8 = undefined;
+    const num_str = std.fmt.bufPrint(&temp_buf, "{d}", .{color_num}) catch return "default";
+    const num_len = num_str.len;
+
+    if (prefix_len + num_len > buf_len) return "default";
+    @memcpy(buf[prefix_len .. prefix_len + num_len], num_str);
+    return buf[0 .. prefix_len + num_len];
 }
 
 // --- Tests ---
