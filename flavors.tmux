@@ -38,7 +38,7 @@ if [[ $theme_valid == false && ( -z "$CUSTOM_THEME_PATH" || ! -f "$CUSTOM_THEME_
 fi
 
 # ---------------------------------------------------------------------------
-# Widget command builders: prefer Zig binary when available
+# Configuration option reads
 # ---------------------------------------------------------------------------
 
 window_id_style="$(tmux show-option -gv @flavors-tmux_window_id_style 2>/dev/null || echo "hsquare")"
@@ -68,7 +68,6 @@ show_terraform="$(tmux show-option -gv @flavors-tmux_show_terraform 2>/dev/null 
 show_docker="$(tmux show-option -gv @flavors-tmux_show_docker 2>/dev/null || echo "0")"
 show_yadm="$(tmux show-option -gv @flavors-tmux_show_yadm 2>/dev/null || echo "0")"
 show_gpg_ssh_agent="$(tmux show-option -gv @flavors-tmux_show_gpg_ssh_agent 2>/dev/null || echo "0")"
-show_ai_assistant="$(tmux show-option -gv @flavors-tmux_show_ai_assistant 2>/dev/null || echo "0")"
 forge_cache_ttl="$(tmux show-option -gv @flavors-tmux_forge_cache_ttl 2>/dev/null || echo "300")"
 
 # Validate numeric fields to prevent injection in #(...) shell commands
@@ -77,6 +76,19 @@ forge_cache_ttl="$(tmux show-option -gv @flavors-tmux_forge_cache_ttl 2>/dev/nul
 
 transparent_arg=""
 [[ "$TRANSPARENT_THEME" == "1" ]] && transparent_arg="--transparent"
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+# Emit a tmux #() shell command only if the named show_* flag is "1".
+# Usage: if_enabled show_git "#($BINARY_PATH git-status ...)"
+if_enabled() {
+    local flag_var="$1"
+    local cmd="$2"
+    [[ "${!flag_var}" == "1" ]] || return
+    echo "$cmd"
+}
 
 custom_number_format() {
     local id="$1"
@@ -116,13 +128,18 @@ datetime_format() {
 
 FLAVORS_OS="$(uname -s)"
 
+# ---------------------------------------------------------------------------
+# Widget command builders: identical in both binary and bash branches
+# ---------------------------------------------------------------------------
+
+custom_number_cmd() { custom_number_format "$1" "$2"; }
+datetime_cmd() { datetime_format; }
+
+# ---------------------------------------------------------------------------
+# Widget command builders: binary path overrides
+# ---------------------------------------------------------------------------
+
 if [[ -x "$BINARY_PATH" ]]; then
-    custom_number_cmd() {
-        custom_number_format "$1" "$2"
-    }
-    datetime_cmd() {
-        datetime_format
-    }
     battery_cmd() {
         [[ "$show_battery_widget" == "1" ]] || return
         local escaped_name
@@ -136,96 +153,68 @@ if [[ -x "$BINARY_PATH" ]]; then
         fi
     }
     git_status_cmd() {
-        [[ "$show_git" == "1" ]] || return
-        echo "#($BINARY_PATH git-status --theme $SELECTED_THEME $transparent_arg #{q:pane_current_path})"
+        if_enabled show_git "#($BINARY_PATH git-status --theme $SELECTED_THEME $transparent_arg #{q:pane_current_path})"
     }
     wb_git_status_cmd() {
-        [[ "$show_wbg" == "1" ]] || return
-        echo "#($BINARY_PATH wb-git-status --theme $SELECTED_THEME $transparent_arg --cache-ttl ${forge_cache_ttl:-300} #{q:pane_current_path})"
+        if_enabled show_wbg "#($BINARY_PATH wb-git-status --theme $SELECTED_THEME $transparent_arg --cache-ttl ${forge_cache_ttl:-300} #{q:pane_current_path})"
     }
     hostname_cmd() {
-        [[ "$show_hostname" == "1" ]] || return
-        echo "#($BINARY_PATH hostname --theme $SELECTED_THEME $transparent_arg)"
+        if_enabled show_hostname "#($BINARY_PATH hostname --theme $SELECTED_THEME $transparent_arg)"
     }
     cpu_memory_cmd() {
-        [[ "$show_cpu_memory" == "1" ]] || return
-        echo "#($BINARY_PATH cpu-memory --theme $SELECTED_THEME $transparent_arg)"
+        if_enabled show_cpu_memory "#($BINARY_PATH cpu-memory --theme $SELECTED_THEME $transparent_arg)"
     }
     kubernetes_cmd() {
-        [[ "$show_kubernetes" == "1" ]] || return
-        echo "#($BINARY_PATH kubernetes --theme $SELECTED_THEME $transparent_arg)"
+        if_enabled show_kubernetes "#($BINARY_PATH kubernetes --theme $SELECTED_THEME $transparent_arg)"
     }
     cwd_cmd() {
-        [[ "$show_cwd" == "1" ]] || return
-        echo "#($BINARY_PATH cwd --theme $SELECTED_THEME $transparent_arg #{q:pane_current_path})"
+        if_enabled show_cwd "#($BINARY_PATH cwd --theme $SELECTED_THEME $transparent_arg #{q:pane_current_path})"
     }
     terraform_cmd() {
-        [[ "$show_terraform" == "1" ]] || return
-        echo "#($BINARY_PATH terraform --theme $SELECTED_THEME $transparent_arg #{q:pane_current_path})"
+        if_enabled show_terraform "#($BINARY_PATH terraform --theme $SELECTED_THEME $transparent_arg #{q:pane_current_path})"
     }
     docker_cmd() {
-        [[ "$show_docker" == "1" ]] || return
-        echo "#($BINARY_PATH docker --theme $SELECTED_THEME $transparent_arg)"
+        if_enabled show_docker "#($BINARY_PATH docker --theme $SELECTED_THEME $transparent_arg)"
     }
     yadm_cmd() {
-        [[ "$show_yadm" == "1" ]] || return
-        echo "#($BINARY_PATH yadm --theme $SELECTED_THEME $transparent_arg)"
+        if_enabled show_yadm "#($BINARY_PATH yadm --theme $SELECTED_THEME $transparent_arg)"
     }
     gpg_ssh_agent_cmd() {
-        [[ "$show_gpg_ssh_agent" == "1" ]] || return
-        echo "#($BINARY_PATH gpg-ssh-agent --theme $SELECTED_THEME $transparent_arg)"
+        if_enabled show_gpg_ssh_agent "#($BINARY_PATH gpg-ssh-agent --theme $SELECTED_THEME $transparent_arg)"
     }
 else
-    custom_number_cmd() {
-        custom_number_format "$1" "$2"
-    }
-    datetime_cmd() {
-        datetime_format
-    }
     battery_cmd() {
         echo "#($SCRIPTS_PATH/battery-widget.sh)"
     }
     git_status_cmd() {
-        echo "#($SCRIPTS_PATH/git-status.sh #{q:pane_current_path})"
+        if_enabled show_git "#($SCRIPTS_PATH/git-status.sh #{q:pane_current_path})"
     }
     wb_git_status_cmd() {
-        echo "#($SCRIPTS_PATH/wb-git-status.sh #{q:pane_current_path})"
+        if_enabled show_wbg "#($SCRIPTS_PATH/wb-git-status.sh #{q:pane_current_path})"
     }
     hostname_cmd() {
-        [[ "$show_hostname" == "1" ]] || return
-        echo "#($SCRIPTS_PATH/hostname.sh)"
+        if_enabled show_hostname "#($SCRIPTS_PATH/hostname.sh)"
     }
     cpu_memory_cmd() {
-        [[ "$show_cpu_memory" == "1" ]] || return
-        echo "#($SCRIPTS_PATH/cpu-memory.sh)"
+        if_enabled show_cpu_memory "#($SCRIPTS_PATH/cpu-memory.sh)"
     }
     kubernetes_cmd() {
-        [[ "$show_kubernetes" == "1" ]] || return
-        echo "#($SCRIPTS_PATH/kubernetes.sh)"
+        if_enabled show_kubernetes "#($SCRIPTS_PATH/kubernetes.sh)"
     }
     cwd_cmd() {
-        [[ "$show_cwd" == "1" ]] || return
-        echo "#($SCRIPTS_PATH/cwd.sh #{q:pane_current_path})"
+        if_enabled show_cwd "#($SCRIPTS_PATH/cwd.sh #{q:pane_current_path})"
     }
     terraform_cmd() {
-        [[ "$show_terraform" == "1" ]] || return
-        echo "#($SCRIPTS_PATH/terraform.sh #{q:pane_current_path})"
+        if_enabled show_terraform "#($SCRIPTS_PATH/terraform.sh #{q:pane_current_path})"
     }
     docker_cmd() {
-        [[ "$show_docker" == "1" ]] || return
-        echo "#($SCRIPTS_PATH/docker.sh)"
+        if_enabled show_docker "#($SCRIPTS_PATH/docker.sh)"
     }
     yadm_cmd() {
-        [[ "$show_yadm" == "1" ]] || return
-        echo "#($SCRIPTS_PATH/yadm.sh)"
+        if_enabled show_yadm "#($SCRIPTS_PATH/yadm.sh)"
     }
     gpg_ssh_agent_cmd() {
-        [[ "$show_gpg_ssh_agent" == "1" ]] || return
-        echo "#($SCRIPTS_PATH/gpg-ssh-agent.sh)"
-    }
-    ai_assistant_cmd() {
-        [[ "$show_ai_assistant" == "1" ]] || return
-        echo "#($SCRIPTS_PATH/ai-assistant.sh)"
+        if_enabled show_gpg_ssh_agent "#($SCRIPTS_PATH/gpg-ssh-agent.sh)"
     }
 fi
 
@@ -289,7 +278,6 @@ ACTIVE_WIDGETS=""
 [[ "$show_terraform" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}terraform,"
 [[ "$show_yadm" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}yadm,"
 [[ "$show_gpg_ssh_agent" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}gpg-ssh,"
-[[ "$show_ai_assistant" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}ai-assistant,"
 [[ "$show_time" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}datetime,"
 ACTIVE_WIDGETS="${ACTIVE_WIDGETS%,}"
 
@@ -318,7 +306,6 @@ else
     docker_status="$(docker_cmd)"
     yadm_status="$(yadm_cmd)"
     gpg_ssh_agent_status="$(gpg_ssh_agent_cmd)"
-    ai_assistant_status="$(ai_assistant_cmd)"
 
     right_status_parts=()
     [[ -n "$cwd_status" ]] && right_status_parts+=("#[fg=${THEME[emphasis]},bg=${THEME[surface_alt]}]$cwd_status")
@@ -332,7 +319,6 @@ else
     [[ -n "$terraform_status" ]] && right_status_parts+=("#[fg=${THEME[primary]},bg=${THEME[surface_alt]}]$terraform_status")
     [[ -n "$yadm_status" ]] && right_status_parts+=("#[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$yadm_status")
     [[ -n "$gpg_ssh_agent_status" ]] && right_status_parts+=("#[fg=${THEME[primary_bright]},bg=${THEME[surface_alt]}]$gpg_ssh_agent_status")
-    [[ -n "$ai_assistant_status" ]] && right_status_parts+=("#[fg=${THEME[success]},bg=${THEME[surface_alt]}]$ai_assistant_status")
     [[ -n "$date_and_time" ]] && right_status_parts+=("#[fg=${THEME[warning]},bg=${THEME[surface_alt]}]$date_and_time")
 
     right_status=""

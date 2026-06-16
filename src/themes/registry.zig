@@ -1,87 +1,79 @@
 const std = @import("std");
 const tui = @import("tui");
 const Theme = @import("../core/theme.zig").Theme;
-const tmux_renderer = @import("../tmux_renderer.zig");
 const theme_loader = @import("../core/theme_loader.zig");
 
 const log = std.log.scoped(.themes);
 
-const hard_mod = @import("hard.zig");
-const medium_mod = @import("medium.zig");
-const soft_mod = @import("soft.zig");
-const light_mod = @import("light.zig");
-const tokyonight_mod = @import("tokyonight.zig");
-const catppuccin_mod = @import("catppuccin.zig");
-const dracula_mod = @import("dracula.zig");
-const nord_mod = @import("nord.zig");
-const github_dark_mod = @import("github_dark.zig");
-const onedark_mod = @import("onedark.zig");
-const solarized_dark_mod = @import("solarized_dark.zig");
-const solarized_light_mod = @import("solarized_light.zig");
-const monokai_mod = @import("monokai.zig");
-const monokai_nebula_mod = @import("monokai_nebula.zig");
-const github_light_mod = @import("github_light.zig");
-const ayu_dark_mod = @import("ayu_dark.zig");
-const ayu_light_mod = @import("ayu_light.zig");
-const flexoki_dark_mod = @import("flexoki_dark.zig");
-const flexoki_light_mod = @import("flexoki_light.zig");
-const rose_pine_mod = @import("rose_pine.zig");
-const rose_pine_dawn_mod = @import("rose_pine_dawn.zig");
-const everforest_mod = @import("everforest.zig");
-const kanagawa_mod = @import("kanagawa.zig");
+const hard = @import("hard.zig").theme;
+const medium = @import("medium.zig").theme;
+const soft = @import("soft.zig").theme;
+const light = @import("light.zig").theme;
+const tokyonight = @import("tokyonight.zig").theme;
+const catppuccin = @import("catppuccin.zig").theme;
+const dracula = @import("dracula.zig").theme;
+const nord = @import("nord.zig").theme;
+const github_dark = @import("github_dark.zig").theme;
+const onedark = @import("onedark.zig").theme;
+const solarized_dark = @import("solarized_dark.zig").theme;
+const solarized_light = @import("solarized_light.zig").theme;
+const monokai = @import("monokai.zig").theme;
+const monokai_nebula = @import("monokai_nebula.zig").theme;
+const github_light = @import("github_light.zig").theme;
+const ayu_dark = @import("ayu_dark.zig").theme;
+const ayu_light = @import("ayu_light.zig").theme;
+const flexoki_dark = @import("flexoki_dark.zig").theme;
+const flexoki_light = @import("flexoki_light.zig").theme;
+const rose_pine = @import("rose_pine.zig").theme;
+const rose_pine_dawn = @import("rose_pine_dawn.zig").theme;
+const everforest = @import("everforest.zig").theme;
+const kanagawa = @import("kanagawa.zig").theme;
 
-pub const hard = hard_mod.theme;
-pub const medium = medium_mod.theme;
-pub const soft = soft_mod.theme;
-pub const light = light_mod.theme;
-pub const tokyonight = tokyonight_mod.theme;
-pub const catppuccin = catppuccin_mod.theme;
-pub const dracula = dracula_mod.theme;
-pub const nord = nord_mod.theme;
-pub const github_dark = github_dark_mod.theme;
-pub const onedark = onedark_mod.theme;
-pub const solarized_dark = solarized_dark_mod.theme;
-pub const solarized_light = solarized_light_mod.theme;
-pub const monokai = monokai_mod.theme;
-pub const monokai_nebula = monokai_nebula_mod.theme;
-pub const github_light = github_light_mod.theme;
-pub const ayu_dark = ayu_dark_mod.theme;
-pub const ayu_light = ayu_light_mod.theme;
-pub const flexoki_dark = flexoki_dark_mod.theme;
-pub const flexoki_light = flexoki_light_mod.theme;
-pub const rose_pine = rose_pine_mod.theme;
-pub const rose_pine_dawn = rose_pine_dawn_mod.theme;
-pub const everforest = everforest_mod.theme;
-pub const kanagawa = kanagawa_mod.theme;
+/// Single source of truth: every theme appears here once.
+/// `names`, `byName()`, and any future theme iteration derive from this array.
+const builtin_themes = comptime [_]struct { name: []const u8, theme: Theme }{
+    .{ .name = "hard", .theme = hard },
+    .{ .name = "medium", .theme = medium },
+    .{ .name = "soft", .theme = soft },
+    .{ .name = "light", .theme = light },
+    .{ .name = "tokyonight", .theme = tokyonight },
+    .{ .name = "catppuccin", .theme = catppuccin },
+    .{ .name = "dracula", .theme = dracula },
+    .{ .name = "nord", .theme = nord },
+    .{ .name = "github_dark", .theme = github_dark },
+    .{ .name = "onedark", .theme = onedark },
+    .{ .name = "solarized_dark", .theme = solarized_dark },
+    .{ .name = "solarized_light", .theme = solarized_light },
+    .{ .name = "monokai", .theme = monokai },
+    .{ .name = "monokai_nebula", .theme = monokai_nebula },
+    .{ .name = "github_light", .theme = github_light },
+    .{ .name = "ayu_dark", .theme = ayu_dark },
+    .{ .name = "ayu_light", .theme = ayu_light },
+    .{ .name = "flexoki_dark", .theme = flexoki_dark },
+    .{ .name = "flexoki_light", .theme = flexoki_light },
+    .{ .name = "rose_pine", .theme = rose_pine },
+    .{ .name = "rose_pine_dawn", .theme = rose_pine_dawn },
+    .{ .name = "everforest", .theme = everforest },
+    .{ .name = "kanagawa", .theme = kanagawa },
+};
+
+/// Derived from `builtin_themes` — no separate maintenance.
+pub const names: []const []const u8 = comptime blk: {
+    var result: [builtin_themes.len][]const u8 = undefined;
+    for (&result, 0..) |*r, i| {
+        r.* = builtin_themes[i].name;
+    }
+    break :blk &result;
+};
+
+/// Convenience aliases — single theme re-exports so consumers don't need
+/// to re-run a name lookup for the most common fallback.
+pub const hard = builtin_themes[0].theme;
 
 pub fn byName(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.process.Environ.Map, name: []const u8) ?Theme {
     // Check built-in themes first (O(1) amortized, zero allocation)
-    inline for (comptime .{
-        .{ "hard", hard },
-        .{ "medium", medium },
-        .{ "soft", soft },
-        .{ "light", light },
-        .{ "tokyonight", tokyonight },
-        .{ "catppuccin", catppuccin },
-        .{ "dracula", dracula },
-        .{ "nord", nord },
-        .{ "github_dark", github_dark },
-        .{ "onedark", onedark },
-        .{ "solarized_dark", solarized_dark },
-        .{ "solarized_light", solarized_light },
-        .{ "monokai", monokai },
-        .{ "monokai_nebula", monokai_nebula },
-        .{ "github_light", github_light },
-        .{ "ayu_dark", ayu_dark },
-        .{ "ayu_light", ayu_light },
-        .{ "flexoki_dark", flexoki_dark },
-        .{ "flexoki_light", flexoki_light },
-        .{ "rose_pine", rose_pine },
-        .{ "rose_pine_dawn", rose_pine_dawn },
-        .{ "everforest", everforest },
-        .{ "kanagawa", kanagawa },
-    }) |entry| {
-        if (std.mem.eql(u8, name, entry.@"0")) return entry.@"1";
+    inline for (builtin_themes) |entry| {
+        if (std.mem.eql(u8, name, entry.name)) return entry.theme;
     }
 
     // Fall back to custom theme file lookup
@@ -99,15 +91,6 @@ pub fn byName(allocator: std.mem.Allocator, io: std.Io, environ_map: *std.proces
     return null;
 }
 
-pub const names = [_][]const u8{
-    "hard",        "medium",         "soft",           "light",
-    "tokyonight",  "catppuccin",     "dracula",        "nord",
-    "github_dark", "onedark",        "solarized_dark", "solarized_light",
-    "monokai",     "monokai_nebula", "github_light",   "ayu_dark",
-    "ayu_light",   "flexoki_dark",   "flexoki_light",  "rose_pine",
-    "rose_pine_dawn", "everforest",  "kanagawa",
-};
-
 test "byName returns correct themes" {
     const gpa = std.testing.allocator;
     const io = std.Io.threaded_global.ioBasic();
@@ -123,7 +106,8 @@ test "byName returns correct themes" {
 }
 
 test "theme lookup" {
-    const theme = hard;
+    const theme = builtin_themes[0].theme;
+    try std.testing.expect(std.meta.eql(hard, theme));
     try std.testing.expect(std.meta.eql(tui.Color.hex(0x1b1b1b), theme.lookup("background").?));
     try std.testing.expect(std.meta.eql(tui.Color.hex(0x458588), theme.lookup("primary").?));
     try std.testing.expect(theme.lookup("nonexistent") == null);

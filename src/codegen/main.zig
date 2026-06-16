@@ -4,31 +4,11 @@ const flavors = @import("flavors_tmux");
 const Theme = flavors.theme.Theme;
 const themes = flavors.themes;
 
-const known_themes = [_]struct { name: []const u8, theme: Theme }{
-    .{ .name = "hard", .theme = themes.hard },
-    .{ .name = "medium", .theme = themes.medium },
-    .{ .name = "soft", .theme = themes.soft },
-    .{ .name = "light", .theme = themes.light },
-    .{ .name = "tokyonight", .theme = themes.tokyonight },
-    .{ .name = "catppuccin", .theme = themes.catppuccin },
-    .{ .name = "dracula", .theme = themes.dracula },
-    .{ .name = "nord", .theme = themes.nord },
-    .{ .name = "github_dark", .theme = themes.github_dark },
-    .{ .name = "onedark", .theme = themes.onedark },
-    .{ .name = "solarized_dark", .theme = themes.solarized_dark },
-    .{ .name = "solarized_light", .theme = themes.solarized_light },
-    .{ .name = "monokai", .theme = themes.monokai },
-    .{ .name = "monokai_nebula", .theme = themes.monokai_nebula },
-    .{ .name = "github_light", .theme = themes.github_light },
-    .{ .name = "ayu_dark", .theme = themes.ayu_dark },
-    .{ .name = "ayu_light", .theme = themes.ayu_light },
-    .{ .name = "flexoki_dark", .theme = themes.flexoki_dark },
-    .{ .name = "flexoki_light", .theme = themes.flexoki_light },
-    .{ .name = "rose_pine", .theme = themes.rose_pine },
-    .{ .name = "rose_pine_dawn", .theme = themes.rose_pine_dawn },
-    .{ .name = "everforest", .theme = themes.everforest },
-    .{ .name = "kanagawa", .theme = themes.kanagawa },
-};
+fn loadTheme(arena: std.mem.Allocator, io: std.Io, name: []const u8) Theme {
+    var env_map = std.process.Environ.Map.init(arena);
+    defer env_map.deinit();
+    return themes.byName(arena, io, &env_map, name) orelse themes.hard;
+}
 
 fn colorToHexBuf(color: tui.Color, buf: *[7]u8) []const u8 {
     return switch (color) {
@@ -59,21 +39,22 @@ fn getField(theme: Theme, field_name: []const u8) tui.Color {
     @panic("unknown field");
 }
 
-fn generateBashCaseBlock(arena: std.mem.Allocator) ![]const u8 {
+fn generateBashCaseBlock(arena: std.mem.Allocator, io: std.Io) ![]const u8 {
     var list: std.ArrayList(u8) = .empty;
 
     try list.appendSlice(arena, "    case \"$theme_name\" in\n");
 
-    for (known_themes) |entry| {
+    for (themes.names) |name| {
+        const theme = loadTheme(arena, io, name);
         var line_buf: [256]u8 = undefined;
-        const line = try std.fmt.bufPrint(&line_buf, "        {s})\n", .{entry.name});
+        const line = try std.fmt.bufPrint(&line_buf, "        {s})\n", .{name});
         try list.appendSlice(arena, line);
 
         for (field_names) |field| {
             var hex_buf: [7]u8 = undefined;
-            const hex = colorToHexBuf(getField(entry.theme, field), &hex_buf);
+            const hex = colorToHexBuf(getField(theme, field), &hex_buf);
             var entry_buf: [128]u8 = undefined;
-            const entry_line = try std.fmt.bufPrint(&entry_buf, "            THEMES[{s}_{s}]=\"{s}\"\n", .{ entry.name, field, hex });
+            const entry_line = try std.fmt.bufPrint(&entry_buf, "            THEMES[{s}_{s}]=\"{s}\"\n", .{ name, field, hex });
             try list.appendSlice(arena, entry_line);
         }
         try list.appendSlice(arena, "            ;;\n");
@@ -87,10 +68,10 @@ fn generateBashCaseBlock(arena: std.mem.Allocator) ![]const u8 {
 fn generateValidThemesLine(arena: std.mem.Allocator) ![]const u8 {
     var list: std.ArrayList(u8) = .empty;
     try list.appendSlice(arena, "VALID_THEMES=(");
-    for (known_themes, 0..) |entry, i| {
+    for (themes.names, 0..) |name, i| {
         if (i > 0) try list.append(arena, ' ');
         var name_buf: [64]u8 = undefined;
-        const quoted = try std.fmt.bufPrint(&name_buf, "\"{s}\"", .{entry.name});
+        const quoted = try std.fmt.bufPrint(&name_buf, "\"{s}\"", .{name});
         try list.appendSlice(arena, quoted);
     }
     try list.appendSlice(arena, ")\n");
@@ -125,7 +106,7 @@ pub fn main(init: std.process.Init) void {
     var stdout_file_writer: std.Io.File.Writer = .init(.stdout(), io, &stdout_buffer);
     const stdout_writer = &stdout_file_writer.interface;
 
-    const bash_block = generateBashCaseBlock(arena) catch {
+    const bash_block = generateBashCaseBlock(arena, io) catch {
         std.process.exit(1);
     };
 

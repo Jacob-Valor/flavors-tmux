@@ -46,7 +46,7 @@ fn parseCpuStatLine(line: []const u8) struct { total: usize, idle: usize } {
 }
 
 fn getCachePath(allocator: std.mem.Allocator) ![]const u8 {
-    const uid = std.os.linux.getuid();
+    const uid = std.os.getuid();
     return try std.fmt.allocPrint(allocator, "/tmp/flavors-tmux-cpu-cache-{d}", .{uid});
 }
 
@@ -86,9 +86,14 @@ fn readLinuxStats(allocator: std.mem.Allocator, io: std.Io) !CpuMemStats {
         }
     }
 
+    // Write to temp file then rename for atomic update — prevents readers
+    // from seeing a partially-written cache file (race with concurrent tmux panes).
     var cache_line_buf: [128]u8 = undefined;
     const cache_line = try std.fmt.bufPrint(&cache_line_buf, "{d} {d} {d}\n", .{ now_ns, current.total, current.idle });
-    std.Io.Dir.writeFile(.cwd(), io, .{ .sub_path = cache_path, .data = cache_line }) catch {};
+    var tmp_path_buf: [256]u8 = undefined;
+    const tmp_path = try std.fmt.bufPrint(&tmp_path_buf, "{s}.tmp", .{cache_path});
+    std.Io.Dir.writeFile(.cwd(), io, .{ .sub_path = tmp_path, .data = cache_line }) catch {};
+    std.Io.Dir.rename(.cwd(), io, tmp_path, cache_path) catch {};
 
     var mem_buf: [4096]u8 = undefined;
     const mem_content = std.Io.Dir.readFile(.cwd(), io, "/proc/meminfo", &mem_buf) catch return CpuMemStats{ .cpu_percent = cpu_percent, .mem_percent = 0 };
@@ -246,14 +251,17 @@ pub fn run(
 
     const cpu_color = getUsageColor(stats.cpu_percent, theme);
     const mem_color = getUsageColor(stats.mem_percent, theme);
-    var bg_buf: [32]u8 = undefined;
+    var cpu_fg_buf: [32]u8 = undefined;
+    var cpu_bg_buf: [32]u8 = undefined;
+    var mem_fg_buf: [32]u8 = undefined;
+    var mem_bg_buf: [32]u8 = undefined;
 
     try writer.print("#[fg={s},bg={s},bold]▒ 󰍛 {d}% #[fg={s},bg={s},bold]󰘚 {d}%", .{
-        tmux_renderer.colorHexString(cpu_color, &bg_buf),
-        tmux_renderer.colorHexString(theme.background, &bg_buf),
+        tmux_renderer.colorHexString(cpu_color, &cpu_fg_buf),
+        tmux_renderer.colorHexString(theme.background, &cpu_bg_buf),
         stats.cpu_percent,
-        tmux_renderer.colorHexString(mem_color, &bg_buf),
-        tmux_renderer.colorHexString(theme.background, &bg_buf),
+        tmux_renderer.colorHexString(mem_color, &mem_fg_buf),
+        tmux_renderer.colorHexString(theme.background, &mem_bg_buf),
         stats.mem_percent,
     });
 }

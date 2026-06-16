@@ -256,6 +256,32 @@ fn countLinesMatching(text: []const u8, prefix: []const u8) usize {
     return count;
 }
 
+/// Append a colored tmux segment: #[fg=color,bg=bg,bold]icon reset count
+fn appendSegment(
+    list: *std.ArrayList(u8),
+    allocator: std.mem.Allocator,
+    color: Color,
+    bg: Color,
+    icon: []const u8,
+    count: usize,
+    reset: []const u8,
+    hex_buf: *[32]u8,
+    num_buf: *[20]u8,
+) !void {
+    if (count == 0) return;
+    try list.appendSlice(allocator, "#[fg=");
+    try list.appendSlice(allocator, tmux_renderer.colorHexString(color, hex_buf));
+    try list.appendSlice(allocator, ",bg=");
+    try list.appendSlice(allocator, tmux_renderer.colorHexString(bg, hex_buf));
+    try list.appendSlice(allocator, ",bold]");
+    try list.appendSlice(allocator, icon);
+    try list.appendSlice(allocator, reset);
+    try list.appendSlice(allocator, " ");
+    const num_str = try std.fmt.bufPrint(num_buf, "{d}", .{count});
+    try list.appendSlice(allocator, num_str);
+    try list.appendSlice(allocator, " ");
+}
+
 fn renderUncached(
     allocator: std.mem.Allocator,
     io: std.Io,
@@ -410,57 +436,10 @@ fn renderUncached(
 
     var num_buf: [20]u8 = undefined;
 
-    if (pr_count > 0) {
-        try result.appendSlice(allocator, "#[fg=");
-        try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.success, &hex_buf));
-        try result.appendSlice(allocator, ",bg=");
-        try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.background, &hex_buf));
-        try result.appendSlice(allocator, ",bold] ");
-        try result.appendSlice(allocator, reset);
-        try result.appendSlice(allocator, " ");
-        const num = try std.fmt.bufPrint(&num_buf, "{d}", .{pr_count});
-        try result.appendSlice(allocator, num);
-        try result.appendSlice(allocator, " ");
-    }
-
-    if (review_count > 0) {
-        try result.appendSlice(allocator, "#[fg=");
-        try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.warning, &hex_buf));
-        try result.appendSlice(allocator, ",bg=");
-        try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.background, &hex_buf));
-        try result.appendSlice(allocator, ",bold] ");
-        try result.appendSlice(allocator, reset);
-        try result.appendSlice(allocator, " ");
-        const num = try std.fmt.bufPrint(&num_buf, "{d}", .{review_count});
-        try result.appendSlice(allocator, num);
-        try result.appendSlice(allocator, " ");
-    }
-
-    if (issue_count > 0) {
-        try result.appendSlice(allocator, "#[fg=");
-        try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.success, &hex_buf));
-        try result.appendSlice(allocator, ",bg=");
-        try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.background, &hex_buf));
-        try result.appendSlice(allocator, ",bold] ");
-        try result.appendSlice(allocator, reset);
-        try result.appendSlice(allocator, " ");
-        const num = try std.fmt.bufPrint(&num_buf, "{d}", .{issue_count});
-        try result.appendSlice(allocator, num);
-        try result.appendSlice(allocator, " ");
-    }
-
-    if (bug_count > 0) {
-        try result.appendSlice(allocator, "#[fg=");
-        try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.danger, &hex_buf));
-        try result.appendSlice(allocator, ",bg=");
-        try result.appendSlice(allocator, tmux_renderer.colorHexString(theme.background, &hex_buf));
-        try result.appendSlice(allocator, ",bold] ");
-        try result.appendSlice(allocator, reset);
-        try result.appendSlice(allocator, " ");
-        const num = try std.fmt.bufPrint(&num_buf, "{d}", .{bug_count});
-        try result.appendSlice(allocator, num);
-        try result.appendSlice(allocator, " ");
-    }
+    try appendSegment(&result, allocator, theme.success, theme.background, " ", pr_count, reset, &hex_buf, &num_buf);
+    try appendSegment(&result, allocator, theme.warning, theme.background, " ", review_count, reset, &hex_buf, &num_buf);
+    try appendSegment(&result, allocator, theme.success, theme.background, " ", issue_count, reset, &hex_buf, &num_buf);
+    try appendSegment(&result, allocator, theme.danger, theme.background, " ", bug_count, reset, &hex_buf, &num_buf);
 
     return result.toOwnedSlice(allocator);
 }
