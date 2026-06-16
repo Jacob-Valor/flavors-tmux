@@ -4,7 +4,7 @@
 
 **Flavors Tmux** is a clean, multi-palette tmux theme with Nerd Font icons,
 semantic colors, and optional status widgets for Git, GitHub/GitLab, battery,
-Docker, Kubernetes, and more.
+AI assistants, Docker, Kubernetes, and more.
 
 It started from a Gruvbox-inspired style and now includes several familiar
 flavors: Gruvbox Hard, Medium, Soft, Light, Tokyo Night, Catppuccin, Dracula,
@@ -27,6 +27,7 @@ Rose Pine, Rose Pine Dawn, Everforest, and Kanagawa.
 - **Docker context** — Optional widget
 - **GPG/SSH agent** — Optional status widget
 - **YADM dotfiles** — Optional status widget
+- **AI assistant** — Optional detection widget for active coding assistants
 - **Number styles** — Custom window, pane, and zoom number styles (arabic, superscript, etc.)
 - **Terminal icons** — Custom terminal and active-terminal icons
 - **Transparent bar** — Optional transparent status bar background
@@ -49,6 +50,7 @@ Optional:
 
 - [Zig](https://ziglang.org/) 0.16.0+ — builds a native binary for faster
   widgets (auto-detected by TPM and manual install)
+- `pgrep` — for AI assistant detection widget
 
 ## Installation
 
@@ -365,6 +367,22 @@ set -g @flavors-tmux_show_yadm 1
 ```
 
 Requires `yadm` to be installed. Shows changed and untracked counts similar to the Git widget.
+
+### AI Assistant
+
+Shows active AI coding assistants when detected.
+
+```tmux
+set -g @flavors-tmux_show_ai_assistant 1
+```
+
+Requires `pgrep` to be installed. Detects running processes for:
+
+- Claude, Aider, GitHub Copilot, Ollama, Cursor
+- Codeium, Windsurf, Gemini, LM Studio, Continue
+- OpenCode, Pi, Command Code
+
+The widget is hidden when no assistants are running.
 
 ### Auto-update
 
