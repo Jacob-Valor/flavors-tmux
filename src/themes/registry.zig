@@ -5,56 +5,32 @@ const theme_loader = @import("../core/theme_loader.zig");
 
 const log = std.log.scoped(.themes);
 
-const hard = @import("hard.zig").theme;
-const medium = @import("medium.zig").theme;
-const soft = @import("soft.zig").theme;
-const light = @import("light.zig").theme;
-const tokyonight = @import("tokyonight.zig").theme;
-const catppuccin = @import("catppuccin.zig").theme;
-const dracula = @import("dracula.zig").theme;
-const nord = @import("nord.zig").theme;
-const github_dark = @import("github_dark.zig").theme;
-const onedark = @import("onedark.zig").theme;
-const solarized_dark = @import("solarized_dark.zig").theme;
-const solarized_light = @import("solarized_light.zig").theme;
-const monokai = @import("monokai.zig").theme;
-const monokai_nebula = @import("monokai_nebula.zig").theme;
-const github_light = @import("github_light.zig").theme;
-const ayu_dark = @import("ayu_dark.zig").theme;
-const ayu_light = @import("ayu_light.zig").theme;
-const flexoki_dark = @import("flexoki_dark.zig").theme;
-const flexoki_light = @import("flexoki_light.zig").theme;
-const rose_pine = @import("rose_pine.zig").theme;
-const rose_pine_dawn = @import("rose_pine_dawn.zig").theme;
-const everforest = @import("everforest.zig").theme;
-const kanagawa = @import("kanagawa.zig").theme;
-
 /// Single source of truth: every theme appears here once.
 /// `names`, `byName()`, and any future theme iteration derive from this array.
 const builtin_themes = comptime [_]struct { name: []const u8, theme: Theme }{
-    .{ .name = "hard", .theme = hard },
-    .{ .name = "medium", .theme = medium },
-    .{ .name = "soft", .theme = soft },
-    .{ .name = "light", .theme = light },
-    .{ .name = "tokyonight", .theme = tokyonight },
-    .{ .name = "catppuccin", .theme = catppuccin },
-    .{ .name = "dracula", .theme = dracula },
-    .{ .name = "nord", .theme = nord },
-    .{ .name = "github_dark", .theme = github_dark },
-    .{ .name = "onedark", .theme = onedark },
-    .{ .name = "solarized_dark", .theme = solarized_dark },
-    .{ .name = "solarized_light", .theme = solarized_light },
-    .{ .name = "monokai", .theme = monokai },
-    .{ .name = "monokai_nebula", .theme = monokai_nebula },
-    .{ .name = "github_light", .theme = github_light },
-    .{ .name = "ayu_dark", .theme = ayu_dark },
-    .{ .name = "ayu_light", .theme = ayu_light },
-    .{ .name = "flexoki_dark", .theme = flexoki_dark },
-    .{ .name = "flexoki_light", .theme = flexoki_light },
-    .{ .name = "rose_pine", .theme = rose_pine },
-    .{ .name = "rose_pine_dawn", .theme = rose_pine_dawn },
-    .{ .name = "everforest", .theme = everforest },
-    .{ .name = "kanagawa", .theme = kanagawa },
+    .{ .name = "hard", .theme = @import("hard.zig").theme },
+    .{ .name = "medium", .theme = @import("medium.zig").theme },
+    .{ .name = "soft", .theme = @import("soft.zig").theme },
+    .{ .name = "light", .theme = @import("light.zig").theme },
+    .{ .name = "tokyonight", .theme = @import("tokyonight.zig").theme },
+    .{ .name = "catppuccin", .theme = @import("catppuccin.zig").theme },
+    .{ .name = "dracula", .theme = @import("dracula.zig").theme },
+    .{ .name = "nord", .theme = @import("nord.zig").theme },
+    .{ .name = "github_dark", .theme = @import("github_dark.zig").theme },
+    .{ .name = "onedark", .theme = @import("onedark.zig").theme },
+    .{ .name = "solarized_dark", .theme = @import("solarized_dark.zig").theme },
+    .{ .name = "solarized_light", .theme = @import("solarized_light.zig").theme },
+    .{ .name = "monokai", .theme = @import("monokai.zig").theme },
+    .{ .name = "monokai_nebula", .theme = @import("monokai_nebula.zig").theme },
+    .{ .name = "github_light", .theme = @import("github_light.zig").theme },
+    .{ .name = "ayu_dark", .theme = @import("ayu_dark.zig").theme },
+    .{ .name = "ayu_light", .theme = @import("ayu_light.zig").theme },
+    .{ .name = "flexoki_dark", .theme = @import("flexoki_dark.zig").theme },
+    .{ .name = "flexoki_light", .theme = @import("flexoki_light.zig").theme },
+    .{ .name = "rose_pine", .theme = @import("rose_pine.zig").theme },
+    .{ .name = "rose_pine_dawn", .theme = @import("rose_pine_dawn.zig").theme },
+    .{ .name = "everforest", .theme = @import("everforest.zig").theme },
+    .{ .name = "kanagawa", .theme = @import("kanagawa.zig").theme },
 };
 
 /// Derived from `builtin_themes` — no separate maintenance.
