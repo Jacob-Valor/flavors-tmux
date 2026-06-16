@@ -121,7 +121,7 @@ pub fn writeReset(fg: Color, bg: Color, writer: anytype) !void {
 pub fn colorHexString(color: Color, buf: []u8) []const u8 {
     switch (color) {
         .default => return "default",
-        .rgb => |c| writeRgbHex(c, buf),
+        .rgb => |c| return writeRgbHex(c, buf),
         .basic => |b| writeColour(buf, @intFromEnum(b)),
         .palette => |p| writeColour(buf, p),
     }
