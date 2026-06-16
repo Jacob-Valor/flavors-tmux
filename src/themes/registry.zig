@@ -7,7 +7,7 @@ const log = std.log.scoped(.themes);
 
 /// Single source of truth: every theme appears here once.
 /// `names`, `byName()`, and any future theme iteration derive from this array.
-const builtin_themes = comptime [_]struct { name: []const u8, theme: Theme }{
+const builtin_themes = [_]struct { name: []const u8, theme: Theme }{
     .{ .name = "hard", .theme = @import("hard.zig").theme },
     .{ .name = "medium", .theme = @import("medium.zig").theme },
     .{ .name = "soft", .theme = @import("soft.zig").theme },
@@ -34,12 +34,13 @@ const builtin_themes = comptime [_]struct { name: []const u8, theme: Theme }{
 };
 
 /// Derived from `builtin_themes` — no separate maintenance.
-pub const names: []const []const u8 = comptime blk: {
-    var result: [builtin_themes.len][]const u8 = undefined;
+pub const names_len = builtin_themes.len;
+pub const names: [names_len][]const u8 = blk: {
+    var result: [names_len][]const u8 = undefined;
     for (&result, 0..) |*r, i| {
         r.* = builtin_themes[i].name;
     }
-    break :blk &result;
+    break :blk result;
 };
 
 /// Convenience aliases — single theme re-exports so consumers don't need
