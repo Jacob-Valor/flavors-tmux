@@ -1,4 +1,6 @@
 const std = @import("std");
+const tui = @import("tui");
+const Color = tui.Color;
 const tmux_renderer = @import("../tmux_renderer.zig");
 const util = @import("../core/util.zig");
 const WidgetContext = @import("../core/widget.zig").WidgetContext;
