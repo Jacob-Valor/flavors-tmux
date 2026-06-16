@@ -46,7 +46,7 @@ fn parseCpuStatLine(line: []const u8) struct { total: usize, idle: usize } {
 }
 
 fn getCachePath(allocator: std.mem.Allocator) ![]const u8 {
-    const uid = std.os.getuid();
+    const uid = std.os.linux.getuid();
     return try std.fmt.allocPrint(allocator, "/tmp/flavors-tmux-cpu-cache-{d}", .{uid});
 }
 
