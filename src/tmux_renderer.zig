@@ -127,7 +127,7 @@ pub fn colorHexString(color: Color, buf: []u8) []const u8 {
     }
 }
 
-fn writeRgbHex(c: Color.rgb, buf: []u8) []const u8 {
+fn writeRgbHex(c: Color.RGB, buf: []u8) []const u8 {
     const buf_len = buf.len;
     if (buf_len < 7) return "default";
 

@@ -93,7 +93,7 @@ fn readLinuxStats(allocator: std.mem.Allocator, io: std.Io) !CpuMemStats {
     var tmp_path_buf: [256]u8 = undefined;
     const tmp_path = try std.fmt.bufPrint(&tmp_path_buf, "{s}.tmp", .{cache_path});
     std.Io.Dir.writeFile(.cwd(), io, .{ .sub_path = tmp_path, .data = cache_line }) catch {};
-    std.Io.Dir.rename(.cwd(), io, tmp_path, cache_path) catch {};
+    std.Io.Dir.rename(.cwd(), tmp_path, .cwd(), cache_path, io) catch {};
 
     var mem_buf: [4096]u8 = undefined;
     const mem_content = std.Io.Dir.readFile(.cwd(), io, "/proc/meminfo", &mem_buf) catch return CpuMemStats{ .cpu_percent = cpu_percent, .mem_percent = 0 };
