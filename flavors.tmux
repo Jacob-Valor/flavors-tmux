@@ -3,15 +3,15 @@ set -euo pipefail
 
 CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPTS_PATH="$CURRENT_DIR/scripts"
-BINARY_PATH="$CURRENT_DIR/zig-out/bin/flavors_tmux"
+BINARY_PATH="$CURRENT_DIR/target/release/flavors_tmux"
 
 # ---------------------------------------------------------------------------
-# Auto-build Zig binary if missing and Zig is available
+# Auto-build Rust binary if missing and Cargo is available
 # ---------------------------------------------------------------------------
 
 if [[ ! -x "$BINARY_PATH" ]]; then
-    if command -v zig &>/dev/null; then
-        cd "$CURRENT_DIR" && zig build &>/dev/null
+    if command -v cargo &>/dev/null; then
+        cd "$CURRENT_DIR" && cargo build --release &>/dev/null
     fi
 fi
 

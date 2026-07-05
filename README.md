@@ -47,7 +47,7 @@ Recommended for full widget support:
 
 Optional:
 
-- [Zig](https://ziglang.org/) 0.16.0+ — builds a native binary for faster
+- [Rust](https://www.rust-lang.org/) / Cargo — builds a native binary for faster
   widgets (auto-detected by TPM and manual install)
 
 ## Installation
@@ -62,11 +62,9 @@ set -g @plugin "Jacob-Valor/flavors-tmux"
 
 Then press your TPM prefix followed by `I` to install.
 
-> **Note:** If [Zig](https://ziglang.org/) is installed, TPM will automatically
+> **Note:** If [Rust/Cargo](https://www.rust-lang.org/) is installed, TPM will automatically
 > build the native binary on install and update for faster widget rendering.
-> The binary uses typed color enums (via [TUI.zig](https://github.com/NoamLevy/TUI.zig))
-> for efficient rendering — ~18% faster than the Bash fallback in widget benchmarks.
-> Without Zig, the plugin falls back to Bash scripts.
+> Without Cargo, the plugin falls back to Bash scripts.
 
 ### Manual
 

@@ -1,0 +1,20 @@
+[package]
+name = "flavors_tmux"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+time = { version = "0.3", features = ["local-offset"] }
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "flavors_tmux"
+path = "src/main.rs"
+
+[[bin]]
+name = "codegen"
+path = "src/bin/codegen.rs"
