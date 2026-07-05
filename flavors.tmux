@@ -284,7 +284,7 @@ ACTIVE_WIDGETS="${ACTIVE_WIDGETS%,}"
 
 if [[ -x "$BINARY_PATH" && -n "$ACTIVE_WIDGETS" ]]; then
     battery_name_opt=""
-    [[ -n "$battery_name" ]] && printf -v battery_name_opt '--name %q' "$battery_name"
+    [[ -n "$battery_name" ]] && printf -v battery_name_opt -- '--name %q' "$battery_name"
     status_right="#($BINARY_PATH status --theme $SELECTED_THEME $transparent_arg \
   --pane-path '#{q:pane_current_path}' \
   $ACTIVE_WIDGETS \
