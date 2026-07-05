@@ -63,3 +63,10 @@ jobs:
 
       - name: Verify binary exists
         run: test -f target/release/flavors_tmux
+
+      - name: Bash/Rust parity tests
+        run: bash scripts/test-parity.sh
+
+      - name: Audit dependencies
+        uses: actions-rust-lang/audit@v1
+        continue-on-error: true
