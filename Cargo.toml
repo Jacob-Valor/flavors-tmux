@@ -2,6 +2,7 @@
 name = "flavors_tmux"
 version = "0.1.0"
 edition = "2021"
+default-run = "flavors_tmux"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
