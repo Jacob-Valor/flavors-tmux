@@ -70,9 +70,10 @@ show_yadm="$(tmux show-option -gv @flavors-tmux_show_yadm 2>/dev/null || echo "0
 show_gpg_ssh_agent="$(tmux show-option -gv @flavors-tmux_show_gpg_ssh_agent 2>/dev/null || echo "0")"
 forge_cache_ttl="$(tmux show-option -gv @flavors-tmux_forge_cache_ttl 2>/dev/null || echo "300")"
 
-# Validate numeric fields to prevent injection in #(...) shell commands
+# Validate numeric fields and identifiers to prevent injection in #(...) shell commands
 [[ "$battery_low" =~ ^[0-9]+$ ]] || battery_low=20
 [[ "$forge_cache_ttl" =~ ^[0-9]+$ ]] || forge_cache_ttl=300
+[[ "$battery_name" =~ ^[A-Za-z0-9_-]+$ ]] || battery_name=""
 
 transparent_arg=""
 [[ "$TRANSPARENT_THEME" == "1" ]] && transparent_arg="--transparent"
