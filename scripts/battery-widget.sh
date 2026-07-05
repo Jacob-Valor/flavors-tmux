@@ -122,4 +122,4 @@ else
     color="#[fg=${THEME[warning]}]"
 fi
 
-echo -n "${color}░ ${ICON} ${BATTERY_PERCENTAGE}% "
+echo -n "${color}▒ ${ICON} ${BATTERY_PERCENTAGE}% "

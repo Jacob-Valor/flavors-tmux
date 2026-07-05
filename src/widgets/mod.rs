@@ -1,0 +1,15 @@
+pub mod battery;
+pub mod cpu_memory;
+pub mod custom_number;
+pub mod cwd;
+pub mod datetime;
+pub mod docker;
+pub mod git_status;
+pub mod gpg_ssh_agent;
+pub mod hostname;
+pub mod kubernetes;
+pub mod status;
+pub mod status_entries;
+pub mod terraform;
+pub mod wb_git_status;
+pub mod yadm;

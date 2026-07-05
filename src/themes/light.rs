@@ -1,0 +1,26 @@
+use crate::core::{Color, Theme};
+
+pub const THEME: Theme = Theme {
+    background: Color::hex(0xF9F5D7),
+    foreground: Color::hex(0x1b1b1b),
+    surface: Color::hex(0xEBDBB2),
+    surface_alt: Color::hex(0xF9F5D7),
+    primary: Color::hex(0x2f7376),
+    primary_bright: Color::hex(0x076678),
+    on_primary: Color::hex(0x000000),
+    on_primary_bright: Color::hex(0xffffff),
+    success: Color::hex(0x5A7A0E),
+    success_bright: Color::hex(0x625e0a),
+    danger: Color::hex(0xcc241d),
+    danger_bright: Color::hex(0x9D0006),
+    warning: Color::hex(0x7a5500),
+    info: Color::hex(0x427B58),
+    info_bright: Color::hex(0x427B58),
+    accent: Color::hex(0x884a6a),
+    accent_bright: Color::hex(0x8F3F71),
+    emphasis: Color::hex(0x1b1b1b),
+    muted: Color::hex(0x5A5048),
+    forge_github: Color::hex(0x1b1b1b),
+    forge_gitlab: Color::hex(0x9a3a09),
+    forge_codeberg: Color::hex(0x9a3a09),
+};

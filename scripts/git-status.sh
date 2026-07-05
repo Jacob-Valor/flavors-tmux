@@ -2,7 +2,7 @@
 set -euo pipefail
 # ---------------------------------------------------------------------------
 # Git status widget — Bash fallback implementation.
-# Uses `git status --porcelain=v2 --branch` to consolidate what previously
+# Uses `git status --porcelain=v2 --branch --show-stash` to consolidate what previously
 # required separate rev-parse, status, rev-list, and diff-filter calls.
 # ---------------------------------------------------------------------------
 
@@ -22,7 +22,7 @@ RESET="#[fg=${THEME[foreground]},bg=${THEME[background]},nobold,noitalics,nounde
 
 # Single git invocation replaces: rev-parse, status --porcelain, rev-list --count,
 # and diff --name-only --diff-filter=U.
-V2_OUTPUT=$(git status --porcelain=v2 --branch 2>/dev/null) || {
+V2_OUTPUT=$(git status --porcelain=v2 --branch --show-stash 2>/dev/null || git status --porcelain=v2 --branch 2>/dev/null) || {
     exit 0  # Not a git repo
 }
 
@@ -71,7 +71,8 @@ if [[ $CHANGED_COUNT -gt 0 ]]; then
 fi
 
 # --- Stash count ---
-STASH_COUNT=$(git stash list 2>/dev/null | wc -l) || true
+STASH_COUNT=$(echo "$V2_OUTPUT" | sed -n 's/^# stash //p') || true
+STASH_COUNT=${STASH_COUNT:-0}
 
 # --- Build status segments ---
 STATUS_CHANGED=""

@@ -72,8 +72,8 @@ echo "$now" > "$CACHE_FILE"
 if [[ "$AUTO_UPDATE_PULL" == "1" ]]; then
     tmux display-message "flavors-tmux: updating plugin..."
     if git pull "$remote_name" "$BRANCH" --ff-only &>/dev/null; then
-        if command -v zig &>/dev/null; then
-            zig build &>/dev/null || true
+        if command -v cargo &>/dev/null; then
+            cargo build --release &>/dev/null || true
         fi
         tmux display-message "flavors-tmux: plugin updated — reload tmux config to apply"
     else

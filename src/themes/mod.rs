@@ -1,0 +1,26 @@
+pub mod ayu_dark;
+pub mod ayu_light;
+pub mod catppuccin;
+pub mod dracula;
+pub mod everforest;
+pub mod flexoki_dark;
+pub mod flexoki_light;
+pub mod github_dark;
+pub mod github_light;
+pub mod hard;
+pub mod kanagawa;
+pub mod light;
+pub mod medium;
+pub mod monokai;
+pub mod monokai_nebula;
+pub mod nord;
+pub mod onedark;
+pub mod registry;
+pub mod rose_pine;
+pub mod rose_pine_dawn;
+pub mod soft;
+pub mod solarized_dark;
+pub mod solarized_light;
+pub mod tokyonight;
+
+pub use registry::{builtin_by_name, by_name, NAMES, HARD};
