@@ -14,6 +14,7 @@ struct CpuMemStats {
     mem_percent: u8,
 }
 
+#[cfg(target_os = "linux")]
 fn parse_line_value(content: &str, prefix: &str) -> usize {
     for line in content.lines() {
         if line.starts_with(prefix) {
@@ -30,11 +31,13 @@ fn parse_line_value(content: &str, prefix: &str) -> usize {
     0
 }
 
+#[cfg(target_os = "linux")]
 struct CpuStat {
     total: usize,
     idle: usize,
 }
 
+#[cfg(target_os = "linux")]
 fn parse_cpu_stat_line(line: &str) -> CpuStat {
     let mut total = 0usize;
     let mut idle = 0usize;
@@ -216,6 +219,7 @@ fn read_darwin_stats() -> CpuMemStats {
 
             let total_pages = pages_free + pages_active + pages_inactive + pages_wired;
             let used_pages = pages_active + pages_inactive + pages_wired;
+            #[allow(clippy::manual_checked_ops)]
             if total_pages > 0 {
                 mem_percent = (used_pages * 100 / total_pages).min(100) as u8;
             }
@@ -295,6 +299,7 @@ pub fn run(theme_name: &str, transparent: bool) -> String {
 mod tests {
     use super::*;
 
+    #[cfg(target_os = "linux")]
     #[test]
     fn parse_cpu_stat_line_calculates_total_and_idle_correctly() {
         let result = parse_cpu_stat_line("  100 50 25 200 10 5 3 2");
@@ -302,6 +307,7 @@ mod tests {
         assert_eq!(210, result.idle);
     }
 
+    #[cfg(target_os = "linux")]
     #[test]
     fn parse_line_value_finds_value_in_content() {
         let content = "MemTotal:    16384000 kB\nMemAvailable: 8192000 kB\n";
@@ -309,6 +315,7 @@ mod tests {
         assert_eq!(8192000, parse_line_value(content, "MemAvailable:"));
     }
 
+    #[cfg(target_os = "linux")]
     #[test]
     fn parse_line_value_returns_zero_for_missing_key() {
         let content = "MemTotal: 1000 kB\n";
