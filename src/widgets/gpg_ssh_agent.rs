@@ -8,9 +8,7 @@ use crate::tmux_renderer;
 /// Returns `None` when the agent socket is absent or the command fails,
 /// `Some(0)` when the agent is running with no identities, and `Some(n)` for the key count.
 fn check_ssh_agent() -> Option<usize> {
-    if env::var_os("SSH_AUTH_SOCK").is_none() {
-        return None;
-    }
+    env::var_os("SSH_AUTH_SOCK")?;
 
     let output = Command::new("ssh-add").arg("-l").output().ok()?;
     let stdout = String::from_utf8_lossy(&output.stdout);

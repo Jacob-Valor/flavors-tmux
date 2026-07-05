@@ -109,6 +109,7 @@ fn read_linux_stats() -> CpuMemStats {
         if prev_ns > 0 && age_ns > 0 && age_ns < 5_000_000_000 {
             let total_delta = current.total.saturating_sub(prev_total);
             let idle_delta = current.idle.saturating_sub(prev_idle);
+            #[allow(clippy::manual_checked_ops)]
             if total_delta > 0 {
                 cpu_percent =
                     ((total_delta.saturating_sub(idle_delta)) * 100 / total_delta).min(100) as u8;
@@ -142,6 +143,7 @@ fn read_linux_stats() -> CpuMemStats {
         }
     };
 
+    #[allow(clippy::manual_checked_ops)]
     let mem_percent: u8 = if mem_total > 0 {
         ((mem_total.saturating_sub(mem_available)) * 100 / mem_total).min(100) as u8
     } else {

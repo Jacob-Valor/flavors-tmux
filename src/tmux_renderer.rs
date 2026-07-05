@@ -3,45 +3,55 @@ use std::fmt::{self, Write};
 use crate::core::{Color, Rgb, Style};
 
 pub fn write_style(style: Style, writer: &mut impl Write) -> fmt::Result {
-    let mut parts = Vec::with_capacity(10);
+    let mut started = false;
+
+    macro_rules! flush_prefix {
+        () => {{
+            if !started {
+                writer.write_str("#[")?;
+                started = true;
+            } else {
+                writer.write_char(',')?;
+            }
+        }};
+    }
 
     match style.fg {
         Color::Default => {}
-        color => parts.push(format!("fg={}", color_hex_string(color))),
+        color => {
+            flush_prefix!();
+            write!(writer, "fg={}", color_hex_string(color))?;
+        }
     }
 
     match style.bg {
         Color::Default => {}
-        color => parts.push(format!("bg={}", color_hex_string(color))),
+        color => {
+            flush_prefix!();
+            write!(writer, "bg={}", color_hex_string(color))?;
+        }
     }
 
-    if style.attrs.bold {
-        parts.push(String::from("bold"));
-    }
-    if style.attrs.dim {
-        parts.push(String::from("dim"));
-    }
-    if style.attrs.italic {
-        parts.push(String::from("italic"));
-    }
-    if style.attrs.underline {
-        parts.push(String::from("underscore"));
-    }
-    if style.attrs.blink {
-        parts.push(String::from("blink"));
-    }
-    if style.attrs.reverse {
-        parts.push(String::from("reverse"));
-    }
-    if style.attrs.strikethrough {
-        parts.push(String::from("strikethrough"));
-    }
-    if style.attrs.hidden {
-        parts.push(String::from("hidden"));
+    macro_rules! write_attr {
+        ($attr:ident, $label:expr) => {
+            if style.attrs.$attr {
+                flush_prefix!();
+                writer.write_str($label)?;
+            }
+        };
     }
 
-    if !parts.is_empty() {
-        write!(writer, "#[{}]", parts.join(","))?;
+    write_attr!(bold, "bold");
+    write_attr!(dim, "dim");
+    write_attr!(italic, "italic");
+    write_attr!(underline, "underscore");
+    write_attr!(blink, "blink");
+    write_attr!(reverse, "reverse");
+    write_attr!(strikethrough, "strikethrough");
+    write_attr!(hidden, "hidden");
+
+    if started {
+        writer.write_char(']')?;
     }
     Ok(())
 }

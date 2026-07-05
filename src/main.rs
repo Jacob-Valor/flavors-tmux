@@ -5,6 +5,15 @@ use flavors_tmux::themes;
 use flavors_tmux::tmux_renderer;
 use flavors_tmux::widgets;
 
+/// Write output to stdout or return a non-zero exit code on failure.
+macro_rules! write_output {
+    ($dst:expr, $bytes:expr) => {
+        if $dst.write_all($bytes.as_bytes()).is_err() {
+            return 1;
+        }
+    };
+}
+
 const USAGE: &str = "\
 Usage: flavors-tmux <command> [options]
 
@@ -67,7 +76,7 @@ fn run(raw_args: &[&str]) -> i32 {
         "custom-number" => {
             match widgets::custom_number::run(&args.positional) {
                 Ok(output) => {
-                    let _ = out.write_all(output.as_bytes());
+                    write_output!(out, output);
                     0
                 }
                 Err(widgets::custom_number::CustomNumberError::Usage) => {
@@ -80,7 +89,7 @@ fn run(raw_args: &[&str]) -> i32 {
 
         "datetime" => {
             let output = widgets::datetime::run(args.theme, args.time_format, args.transparent);
-            let _ = out.write_all(output.as_bytes());
+            write_output!(out, output);
             0
         }
 
@@ -91,7 +100,7 @@ fn run(raw_args: &[&str]) -> i32 {
                 args.battery_name,
                 args.low_threshold,
             );
-            let _ = out.write_all(output.as_bytes());
+            write_output!(out, output);
             0
         }
 
@@ -101,7 +110,7 @@ fn run(raw_args: &[&str]) -> i32 {
                 return 2;
             }
             let output = widgets::git_status::run(args.theme, args.transparent, args.positional[0]);
-            let _ = out.write_all(output.as_bytes());
+            write_output!(out, output);
             0
         }
 
@@ -112,25 +121,25 @@ fn run(raw_args: &[&str]) -> i32 {
             }
             let output =
                 widgets::wb_git_status::run(args.theme, args.transparent, args.positional[0], args.cache_ttl);
-            let _ = out.write_all(output.as_bytes());
+            write_output!(out, output);
             0
         }
 
         "hostname" => {
             let output = widgets::hostname::run(args.theme, args.transparent);
-            let _ = out.write_all(output.as_bytes());
+            write_output!(out, output);
             0
         }
 
         "cpu-memory" => {
             let output = widgets::cpu_memory::run(args.theme, args.transparent);
-            let _ = out.write_all(output.as_bytes());
+            write_output!(out, output);
             0
         }
 
         "kubernetes" => {
             let output = widgets::kubernetes::run(args.theme, args.transparent);
-            let _ = out.write_all(output.as_bytes());
+            write_output!(out, output);
             0
         }
 
@@ -140,7 +149,7 @@ fn run(raw_args: &[&str]) -> i32 {
                 return 2;
             }
             let output = widgets::cwd::run(args.theme, args.transparent, args.positional[0]);
-            let _ = out.write_all(output.as_bytes());
+            write_output!(out, output);
             0
         }
 
@@ -150,25 +159,25 @@ fn run(raw_args: &[&str]) -> i32 {
                 return 2;
             }
             let output = widgets::terraform::run(args.theme, args.transparent, args.positional[0]);
-            let _ = out.write_all(output.as_bytes());
+            write_output!(out, output);
             0
         }
 
         "docker" => {
             let output = widgets::docker::run(args.theme, args.transparent);
-            let _ = out.write_all(output.as_bytes());
+            write_output!(out, output);
             0
         }
 
         "yadm" => {
             let output = widgets::yadm::run(args.theme, args.transparent);
-            let _ = out.write_all(output.as_bytes());
+            write_output!(out, output);
             0
         }
 
         "gpg-ssh-agent" => {
             let output = widgets::gpg_ssh_agent::run(args.theme, args.transparent);
-            let _ = out.write_all(output.as_bytes());
+            write_output!(out, output);
             0
         }
 
@@ -185,17 +194,17 @@ fn run(raw_args: &[&str]) -> i32 {
                 .take(16)
                 .collect();
 
-            let output = widgets::status::run(
-                args.theme,
-                args.transparent,
-                args.pane_path,
-                &show_names,
-                args.battery_name,
-                args.low_threshold,
-                args.time_format,
-                args.cache_ttl,
-            );
-            let _ = out.write_all(output.as_bytes());
+            let status_cfg = widgets::status::WidgetConfig {
+                theme_name: args.theme,
+                transparent: args.transparent,
+                pane_path: args.pane_path.unwrap_or("."),
+                battery_name: args.battery_name,
+                low_threshold: args.low_threshold,
+                time_format: args.time_format,
+                cache_ttl: args.cache_ttl,
+            };
+            let output = widgets::status::run(status_cfg, &show_names);
+            write_output!(out, output);
             0
         }
 
@@ -220,7 +229,9 @@ fn run(raw_args: &[&str]) -> i32 {
             };
             match theme.lookup(args.positional[1]) {
                 Some(color) => {
-                    let _ = writeln!(out, "{}", tmux_renderer::color_hex_string(color));
+                    if writeln!(out, "{}", tmux_renderer::color_hex_string(color)).is_err() {
+                        return 1;
+                    }
                     0
                 }
                 None => {
@@ -232,7 +243,9 @@ fn run(raw_args: &[&str]) -> i32 {
 
         "theme-list" => {
             for name in themes::NAMES {
-                let _ = writeln!(out, "{}", name);
+                if writeln!(out, "{}", name).is_err() {
+                    return 1;
+                }
             }
             0
         }

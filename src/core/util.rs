@@ -78,11 +78,11 @@ fn parse_signed_count(rest: &str, marker: char) -> usize {
     let Some(start) = rest.find(marker) else {
         return 0;
     };
-    let digits = rest[start + marker.len_utf8()..]
-        .chars()
-        .take_while(char::is_ascii_digit)
-        .collect::<String>();
-    digits.parse::<usize>().unwrap_or(0)
+    // Parse digits directly from bytes — no intermediate String allocation.
+    rest[start + marker.len_utf8()..]
+        .bytes()
+        .take_while(|b| b.is_ascii_digit())
+        .fold(0usize, |acc, d| acc.wrapping_mul(10).wrapping_add((d - b'0') as usize))
 }
 
 pub fn parse_porcelain_v2(stdout: &str) -> ParsedStatusV2 {

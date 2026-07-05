@@ -2,6 +2,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::env;
 use std::fs;
 use std::hash::Hasher;
+use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::Command;
 use std::thread;
@@ -116,8 +117,8 @@ fn write_cache(path: &str, output: &str) {
     let _ = fs::write(path, output);
 }
 
-fn run_gh_command(argv: &[String], repo_path: &str) -> Result<String, ()> {
-    let output = Command::new(&argv[0])
+fn run_gh_command(argv: &[&str], repo_path: &str) -> Result<String, ()> {
+    let output = Command::new(argv[0])
         .args(&argv[1..])
         .current_dir(repo_path)
         .output()
@@ -153,17 +154,13 @@ fn get_codeberg_token() -> Option<String> {
 }
 
 fn is_valid_token(token: &str) -> bool {
-    token.bytes().all(|c| c >= 0x20 && c <= 0x7E)
+    token.bytes().all(|c| (0x20..=0x7E).contains(&c))
 }
 
 fn parse_codeberg_owner_repo(remote_url: &str) -> Option<String> {
     let start = if let Some(rest) = remote_url.strip_prefix("git@codeberg.org:") {
         rest
-    } else if let Some(rest) = remote_url.strip_prefix("https://codeberg.org/") {
-        rest
-    } else {
-        return None;
-    };
+    } else { remote_url.strip_prefix("https://codeberg.org/")? };
 
     let end = if remote_url.ends_with(".git") {
         remote_url.len() - 4
@@ -200,36 +197,51 @@ fn append_segment(
     if count == 0 {
         return;
     }
-    result.push_str(&format!(
+    use std::fmt::Write;
+    let _ = write!(
+        result,
         "#[fg={},bg={},bold]{} {} ",
         tmux_renderer::color_hex_string(color),
         bg,
         icon,
         count,
-    ));
+    );
 }
 
 /// Run curl with a token passed via temp config file (not argv) to avoid
 /// exposing the token in /proc/*/cmdline to other local users.
+/// Uses a restricted temp directory (0700) so that on crash the token
+/// file is not readable by other users — the kernel removes anonymous
+/// O_TMPFILE inodes on fd close, while a 0700 directory prevents
+/// cross-user access even if cleanup is skipped.
 fn fetch_with_token(url: &str, token: &str, repo_path: &str) -> String {
     let now_ns = std::time::SystemTime::now()
         .duration_since(std::time::SystemTime::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    let path = format!("/tmp/flavors-tmux-curl-{:x}.conf", now_ns);
+    let dir = format!("/tmp/flavors-tmux-curl-{:x}", now_ns);
 
+    // Create a temp directory with 0700 perms — crash-safe on multi-user
+    // systems because other users cannot traverse into it.
+    if fs::create_dir_all(&dir).is_err() {
+        return String::new();
+    }
+    let _ = fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700));
+
+    let config_path = format!("{dir}/curl.conf");
     let config_content = format!("header = \"Authorization: token {}\"\n", token);
 
-    if fs::write(&path, &config_content).is_err() {
+    if fs::write(&config_path, &config_content).is_err() {
+        let _ = fs::remove_dir_all(&dir);
         return String::new();
     }
 
     let result = Command::new("curl")
-        .args(["-sS", "--fail", "--max-time", "5", "-K", &path, "-L", url])
+        .args(["-sS", "--fail", "--max-time", "5", "-K", &config_path, "-L", url])
         .current_dir(repo_path)
         .output();
 
-    let _ = fs::remove_file(&path);
+    let _ = fs::remove_dir_all(&dir);
 
     match result {
         Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).into_owned(),
@@ -268,66 +280,16 @@ fn render_uncached(theme_name: &str, transparent: bool, repo_path: &str, provide
         }
         provider_icon = "\u{F408} ";
 
-        let pr_args: Vec<String> = vec![
-            "gh", "pr", "list", "--json", "number", "--limit", "100", "--jq", "length",
-        ]
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
-        let review_args: Vec<String> = vec![
-            "gh",
-            "pr",
-            "list",
-            "--reviewer",
-            "@me",
-            "--json",
-            "number",
-            "--limit",
-            "100",
-            "--jq",
-            "length",
-        ]
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
-        let issues_args: Vec<String> = vec![
-            "gh",
-            "issue",
-            "list",
-            "--json",
-            "assignees,labels",
-            "--assignee",
-            "@me",
-            "--limit",
-            "100",
-            "--jq",
-            "length",
-        ]
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
-        let bugs_args: Vec<String> = vec![
-            "gh",
-            "issue",
-            "list",
-            "--json",
-            "labels,assignees",
-            "--assignee",
-            "@me",
-            "--limit",
-            "100",
-            "--jq",
-            "[.[] | select(any(.labels[]?; .name == \"bug\"))] | length",
-        ]
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
+        let pr_args = &["gh", "pr", "list", "--json", "number", "--limit", "100", "--jq", "length"][..];
+        let review_args = &["gh", "pr", "list", "--reviewer", "@me", "--json", "number", "--limit", "100", "--jq", "length"][..];
+        let issues_args = &["gh", "issue", "list", "--json", "assignees,labels", "--assignee", "@me", "--limit", "100", "--jq", "length"][..];
+        let bugs_args = &["gh", "issue", "list", "--json", "labels,assignees", "--assignee", "@me", "--limit", "100", "--jq", "[.[] | select(any(.labels[]?; .name == \"bug\"))] | length"][..];
 
         let (pr_result, review_result, issues_result, bugs_result) = thread::scope(|s| {
-            let pr_t = s.spawn(|| run_gh_command(&pr_args, repo_path));
-            let review_t = s.spawn(|| run_gh_command(&review_args, repo_path));
-            let issues_t = s.spawn(|| run_gh_command(&issues_args, repo_path));
-            let bugs_t = s.spawn(|| run_gh_command(&bugs_args, repo_path));
+            let pr_t = s.spawn(|| run_gh_command(pr_args, repo_path));
+            let review_t = s.spawn(|| run_gh_command(review_args, repo_path));
+            let issues_t = s.spawn(|| run_gh_command(issues_args, repo_path));
+            let bugs_t = s.spawn(|| run_gh_command(bugs_args, repo_path));
             (
                 pr_t.join().unwrap_or(Err(())),
                 review_t.join().unwrap_or(Err(())),
@@ -352,34 +314,21 @@ fn render_uncached(theme_name: &str, transparent: bool, repo_path: &str, provide
             .ok()
             .and_then(|s| s.trim().parse::<usize>().ok())
             .unwrap_or(0);
-        issue_count = if total_issues > bug_count {
-            total_issues - bug_count
-        } else {
-            0
-        };
+        issue_count = total_issues.saturating_sub(bug_count);
     } else if provider == "gitlab.com" {
         if !command_exists("glab") {
             return String::new();
         }
         provider_icon = "\u{E65C} ";
 
-        let mr_args: Vec<String> = vec!["glab", "mr", "list"]
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
-        let review_args: Vec<String> = vec!["glab", "mr", "list", "--reviewer=@me"]
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
-        let issue_args: Vec<String> = vec!["glab", "issue", "list"]
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
+        let mr_args: &[&str] = &["glab", "mr", "list"];
+        let review_args: &[&str] = &["glab", "mr", "list", "--reviewer=@me"];
+        let issue_args: &[&str] = &["glab", "issue", "list"];
 
         let (mr_result, review_result, issue_result) = thread::scope(|s| {
-            let mr_t = s.spawn(|| run_gh_command(&mr_args, repo_path));
-            let review_t = s.spawn(|| run_gh_command(&review_args, repo_path));
-            let issue_t = s.spawn(|| run_gh_command(&issue_args, repo_path));
+            let mr_t = s.spawn(|| run_gh_command(mr_args, repo_path));
+            let review_t = s.spawn(|| run_gh_command(review_args, repo_path));
+            let issue_t = s.spawn(|| run_gh_command(issue_args, repo_path));
             (
                 mr_t.join().unwrap_or(Err(())),
                 review_t.join().unwrap_or(Err(())),
@@ -443,12 +392,14 @@ fn render_uncached(theme_name: &str, transparent: bool, repo_path: &str, provide
     let mut result = String::with_capacity(512);
 
     // Forge header: muted  icon
-    result.push_str(&format!(
+    use std::fmt::Write;
+    let _ = write!(
+        result,
         "#[fg={},bg={},bold]\u{EB3A} {}",
         tmux_renderer::color_hex_string(theme.muted),
         bg,
         ctx.reset,
-    ));
+    );
 
     // Provider icon with forge color
     let forge_color = if provider == "github.com" {
@@ -458,12 +409,13 @@ fn render_uncached(theme_name: &str, transparent: bool, repo_path: &str, provide
     } else {
         theme.forge_gitlab
     };
-    result.push_str(&format!(
+    let _ = write!(
+        result,
         "#[fg={}]{} {}",
         tmux_renderer::color_hex_string(forge_color),
         provider_icon,
         ctx.reset,
-    ));
+    );
 
     append_segment(
         &mut result,

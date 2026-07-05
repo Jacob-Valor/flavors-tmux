@@ -23,6 +23,9 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Clippy linting
+        run: cargo clippy --all-targets -- -D warnings
+
       - name: Run tests
         run: cargo test
 
@@ -35,6 +38,10 @@ jobs:
       - name: Bash/Rust parity tests
         run: bash scripts/test-parity.sh
 
+      - name: Audit dependencies
+        uses: actions-rust-lang/audit@v1
+        continue-on-error: true
+
   test-macos:
     runs-on: macos-latest
 
@@ -44,6 +51,9 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Clippy linting
+        run: cargo clippy --all-targets -- -D warnings
 
       - name: Run tests
         run: cargo test
