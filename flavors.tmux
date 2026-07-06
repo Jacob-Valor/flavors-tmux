@@ -6,12 +6,14 @@ SCRIPTS_PATH="$CURRENT_DIR/scripts"
 BINARY_PATH="$CURRENT_DIR/target/release/flavors_tmux"
 
 # ---------------------------------------------------------------------------
-# Auto-build Rust binary if missing and Cargo is available
+# Auto-build Rust binary if missing and Cargo is available.
+# Runs in background so tmux startup is not blocked — Bash fallback
+# handles widgets until the binary is ready on next reload.
 # ---------------------------------------------------------------------------
 
 if [[ ! -x "$BINARY_PATH" ]]; then
     if command -v cargo &>/dev/null; then
-        cd "$CURRENT_DIR" && cargo build --release &>/dev/null
+        (cd "$CURRENT_DIR" && cargo build --release &>/dev/null &)
     fi
 fi
 
@@ -38,41 +40,53 @@ if [[ $theme_valid == false && ( -z "$CUSTOM_THEME_PATH" || ! -f "$CUSTOM_THEME_
 fi
 
 # ---------------------------------------------------------------------------
-# Configuration option reads
+# Configuration option reads (single tmux roundtrip)
 # ---------------------------------------------------------------------------
 
-window_id_style="$(tmux show-option -gv @flavors-tmux_window_id_style 2>/dev/null || echo "hsquare")"
-pane_id_style="$(tmux show-option -gv @flavors-tmux_pane_id_style 2>/dev/null || echo "hsquare")"
-zoom_id_style="$(tmux show-option -gv @flavors-tmux_zoom_id_style 2>/dev/null || echo "dsquare")"
-terminal_icon="$(tmux show-option -gv @flavors-tmux_terminal_icon 2>/dev/null || echo '')"
-active_terminal_icon="$(tmux show-option -gv @flavors-tmux_active_terminal_icon 2>/dev/null || echo '')"
+declare -A _opt
+while IFS=' ' read -r _key _val; do
+    _opt["${_key#@flavors-tmux_}"]="$_val"
+done < <(tmux show-options -g 2>/dev/null | grep '^@flavors-tmux_' || true)
+
+window_id_style="${_opt[window_id_style]:-hsquare}"
+pane_id_style="${_opt[pane_id_style]:-hsquare}"
+zoom_id_style="${_opt[zoom_id_style]:-dsquare}"
+terminal_icon="${_opt[terminal_icon]:-}"
+active_terminal_icon="${_opt[active_terminal_icon]:-}"
 # Escape # to ## in user-supplied icon values to prevent tmux format injection
 # (CWE-94 — #(command) or #[style] embedded in icon strings).
 # Also handles #{variable} injection since ##{ renders as literal #{ in tmux.
 terminal_icon="${terminal_icon//#/##}"
 active_terminal_icon="${active_terminal_icon//#/##}"
 
-time_format="$(tmux show-option -gv @flavors-tmux_time_format 2>/dev/null || echo "")"
-show_time="$(tmux show-option -gv @flavors-tmux_show_time 2>/dev/null || echo "1")"
-show_git="$(tmux show-option -gv @flavors-tmux_show_git 2>/dev/null || echo "1")"
-show_wbg="$(tmux show-option -gv @flavors-tmux_show_wbg 2>/dev/null || echo "1")"
+time_format="${_opt[time_format]:-}"
+show_time="${_opt[show_time]:-1}"
+show_git="${_opt[show_git]:-1}"
+show_wbg="${_opt[show_wbg]:-1}"
 
-battery_name="$(tmux show-option -gv @flavors-tmux_battery_name 2>/dev/null || echo "")"
-battery_low="$(tmux show-option -gv @flavors-tmux_battery_low_threshold 2>/dev/null || echo "20")"
-show_battery_widget="$(tmux show-option -gv @flavors-tmux_show_battery_widget 2>/dev/null || echo "0")"
-show_hostname="$(tmux show-option -gv @flavors-tmux_show_hostname 2>/dev/null || echo "0")"
-show_cpu_memory="$(tmux show-option -gv @flavors-tmux_show_cpu_memory 2>/dev/null || echo "0")"
-show_kubernetes="$(tmux show-option -gv @flavors-tmux_show_kubernetes 2>/dev/null || echo "0")"
-show_cwd="$(tmux show-option -gv @flavors-tmux_show_cwd 2>/dev/null || echo "0")"
-show_terraform="$(tmux show-option -gv @flavors-tmux_show_terraform 2>/dev/null || echo "0")"
-show_docker="$(tmux show-option -gv @flavors-tmux_show_docker 2>/dev/null || echo "0")"
-show_yadm="$(tmux show-option -gv @flavors-tmux_show_yadm 2>/dev/null || echo "0")"
-show_gpg_ssh_agent="$(tmux show-option -gv @flavors-tmux_show_gpg_ssh_agent 2>/dev/null || echo "0")"
-forge_cache_ttl="$(tmux show-option -gv @flavors-tmux_forge_cache_ttl 2>/dev/null || echo "300")"
+battery_name="${_opt[battery_name]:-}"
+battery_low="${_opt[battery_low_threshold]:-20}"
+show_battery_widget="${_opt[show_battery_widget]:-0}"
+show_hostname="${_opt[show_hostname]:-0}"
+show_cpu_memory="${_opt[show_cpu_memory]:-0}"
+show_kubernetes="${_opt[show_kubernetes]:-0}"
+show_cwd="${_opt[show_cwd]:-0}"
+show_terraform="${_opt[show_terraform]:-0}"
+show_docker="${_opt[show_docker]:-0}"
+show_yadm="${_opt[show_yadm]:-0}"
+show_gpg_ssh_agent="${_opt[show_gpg_ssh_agent]:-0}"
+forge_cache_ttl="${_opt[forge_cache_ttl]:-300}"
+auto_update="${_opt[auto_update]:-0}"
+status_left_length="${_opt[status_left_length]:-80}"
+status_right_length="${_opt[status_right_length]:-150}"
+separator_style="${_opt[separator_style]:-space}"
 
 # Validate numeric fields and identifiers to prevent injection in #(...) shell commands
 [[ "$battery_low" =~ ^[0-9]+$ ]] || battery_low=20
 [[ "$forge_cache_ttl" =~ ^[0-9]+$ ]] || forge_cache_ttl=300
+[[ "$status_left_length" =~ ^[0-9]+$ ]] || status_left_length=80
+[[ "$status_right_length" =~ ^[0-9]+$ ]] || status_right_length=150
+[[ "$separator_style" =~ ^(space|pipe|chevron|none)$ ]] || separator_style=space
 [[ "$battery_name" =~ ^[A-Za-z0-9_-]+$ ]] || battery_name=""
 
 transparent_arg=""
@@ -219,8 +233,8 @@ else
     }
 fi
 
-tmux set -g status-left-length 80
-tmux set -g status-right-length 150
+tmux set -g status-left-length "$status_left_length"
+tmux set -g status-right-length "$status_right_length"
 
 tmux set -g mode-style "fg=${THEME[background]},bg=${THEME[foreground]},reverse"
 
@@ -291,7 +305,8 @@ if [[ -x "$BINARY_PATH" && -n "$ACTIVE_WIDGETS" ]]; then
   $battery_name_opt \
   --low-threshold ${battery_low:-20} \
   --format ${time_format:-24H} \
-  --cache-ttl ${forge_cache_ttl:-300})"
+  --cache-ttl ${forge_cache_ttl:-300} \
+  --separator ${separator_style:-space})"
     tmux set -g status-right "$status_right"
 else
     # Fallback: assemble from individual bash widget scripts
@@ -307,6 +322,13 @@ else
     docker_status="$(docker_cmd)"
     yadm_status="$(yadm_cmd)"
     gpg_ssh_agent_status="$(gpg_ssh_agent_cmd)"
+
+    case "${separator_style:-space}" in
+        pipe) _sep=" │ " ;;
+        chevron) _sep=" 〉" ;;
+        none) _sep="" ;;
+        *) _sep=" " ;;
+    esac
 
     right_status_parts=()
     [[ -n "$cwd_status" ]] && right_status_parts+=("#[fg=${THEME[emphasis]},bg=${THEME[surface_alt]}]$cwd_status")
@@ -332,7 +354,7 @@ else
         fi
         if [[ -n "$right_status" ]]; then
             if [[ "$is_no_sep" == false && "$prev_is_no_sep" == false ]]; then
-                right_status="${right_status} "
+                right_status="${right_status}${_sep}"
             fi
         fi
         right_status="${right_status}${part}"
@@ -347,7 +369,6 @@ tmux set -g window-status-separator ""
 # Auto-update check (runs in background)
 # ---------------------------------------------------------------------------
 
-auto_update="$(tmux show-option -gv @flavors-tmux_auto_update 2>/dev/null || echo "0")"
 if [[ "$auto_update" == "1" ]]; then
     ("$SCRIPTS_PATH/auto-update.sh" &)
 fi

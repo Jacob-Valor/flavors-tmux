@@ -9,7 +9,7 @@ use std::thread;
 
 use crate::core::util::run_git_command;
 use crate::core::widget::WidgetContext;
-use crate::core::Color;
+use crate::core::{Color, Theme};
 use crate::tmux_renderer;
 
 const MAX_CACHE_BYTES: usize = 8192;
@@ -70,17 +70,11 @@ fn cache_base() -> String {
 }
 
 fn cache_path(
-    theme_name: &str,
-    transparent: bool,
     repo_path: &str,
     remote_url: &str,
     head_hash: Option<&str>,
 ) -> String {
     let mut hasher = DefaultHasher::new();
-    hasher.write(theme_name.as_bytes());
-    hasher.write(b"\x00");
-    hasher.write(if transparent { b"1" } else { b"0" });
-    hasher.write(b"\x00");
     hasher.write(repo_path.as_bytes());
     hasher.write(b"\x00");
     hasher.write(remote_url.as_bytes());
@@ -250,8 +244,8 @@ fn fetch_with_token(url: &str, token: &str, repo_path: &str) -> String {
 }
 
 #[allow(unused_assignments)]
-fn render_uncached(theme_name: &str, transparent: bool, repo_path: &str, provider: &str) -> String {
-    let ctx = WidgetContext::new(theme_name, transparent);
+fn render_uncached(theme: Theme, repo_path: &str, provider: &str) -> String {
+    let ctx = WidgetContext::from_theme(theme);
     let theme = ctx.theme;
     let bg = tmux_renderer::color_hex_string(theme.background);
 
@@ -454,7 +448,7 @@ fn render_uncached(theme_name: &str, transparent: bool, repo_path: &str, provide
 }
 
 /// Render the forge (GitHub/GitLab/Codeberg) widget with caching.
-pub fn run(theme_name: &str, transparent: bool, repo_path: &str, cache_ttl: u64) -> String {
+pub fn run(theme: Theme, repo_path: &str, cache_ttl: u64) -> String {
     let remote_url = match get_remote_url(repo_path) {
         Some(u) => u,
         None => return String::new(),
@@ -468,8 +462,6 @@ pub fn run(theme_name: &str, transparent: bool, repo_path: &str, cache_ttl: u64)
     let head_hash = get_head_hash(repo_path);
 
     let path = cache_path(
-        theme_name,
-        transparent,
         repo_path,
         &remote_url,
         head_hash.as_deref(),
@@ -479,7 +471,7 @@ pub fn run(theme_name: &str, transparent: bool, repo_path: &str, cache_ttl: u64)
         return cached;
     }
 
-    let output = render_uncached(theme_name, transparent, repo_path, &provider);
+    let output = render_uncached(theme, repo_path, &provider);
 
     if !output.is_empty() {
         write_cache(&path, &output);

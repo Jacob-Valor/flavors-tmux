@@ -15,6 +15,11 @@ impl WidgetContext {
         Self { theme, reset }
     }
 
+    pub fn from_theme(theme: Theme) -> Self {
+        let reset = tmux_renderer::reset_string(theme.foreground, theme.background);
+        Self { theme, reset }
+    }
+
     pub const fn threshold_color(&self, percent: u8) -> Color {
         if percent >= 80 {
             self.theme.danger

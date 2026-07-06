@@ -2,6 +2,7 @@ use std::env;
 use std::process::Command;
 
 use crate::core::widget::WidgetContext;
+use crate::core::Theme;
 use crate::tmux_renderer;
 
 /// Check whether the SSH agent is running and count loaded keys.
@@ -36,8 +37,8 @@ fn check_gpg_agent() -> bool {
 
 /// Render the GPG/SSH agent status widget.
 /// Shows ` <count>` and/or `` segments with color-coded status.
-pub fn run(theme_name: &str, transparent: bool) -> String {
-    let ctx = WidgetContext::new(theme_name, transparent);
+pub fn run(theme: Theme) -> String {
+    let ctx = WidgetContext::from_theme(theme);
     let theme = ctx.theme;
 
     let ssh_count = check_ssh_agent();

@@ -2,12 +2,13 @@ use std::path::Path;
 use std::process::Command;
 
 use crate::core::widget::WidgetContext;
+use crate::core::Theme;
 use crate::tmux_renderer;
 
 /// Render the current working directory widget.
 /// Shows `󰉋 basename` outside a git repo, or `󰉋 repo-name/basename` inside one.
-pub fn run(theme_name: &str, transparent: bool, cwd: &str) -> String {
-    let ctx = WidgetContext::new(theme_name, transparent);
+pub fn run(theme: Theme, cwd: &str) -> String {
+    let ctx = WidgetContext::from_theme(theme);
     let theme = ctx.theme;
 
     if cwd.is_empty() {
@@ -58,10 +59,11 @@ pub fn run(theme_name: &str, transparent: bool, cwd: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::themes;
 
     #[test]
     fn cwd_produces_output_for_tmp_dir() {
-        let output = run("hard", false, "/tmp");
+        let output = run(themes::hard::THEME, "/tmp");
         assert!(output.contains("#[fg="));
         assert!(output.contains("󰉋"));
     }

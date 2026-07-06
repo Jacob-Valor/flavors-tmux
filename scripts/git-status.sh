@@ -36,7 +36,7 @@ if [[ -z "$BRANCH" ]]; then
 fi
 
 if [[ ${#BRANCH} -gt 25 ]]; then
-    BRANCH="${BRANCH:0:25}…"
+    BRANCH="${BRANCH:0:25}..."
 fi
 
 AHEAD_COUNT=0

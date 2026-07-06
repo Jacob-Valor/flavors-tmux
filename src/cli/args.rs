@@ -35,6 +35,7 @@ pub struct Args<'a> {
     pub cache_ttl: u64,
     pub transparent: bool,
     pub pane_path: Option<&'a str>,
+    pub separator_style: &'a str,
 }
 
 impl<'a> Args<'a> {
@@ -49,6 +50,7 @@ impl<'a> Args<'a> {
             cache_ttl: 300,
             transparent: false,
             pane_path: None,
+            separator_style: "space",
         }
     }
 }
@@ -126,6 +128,13 @@ pub fn parse_args<'a>(raw_args: &'a [&'a str]) -> Result<Args<'a>, ParseArgsErro
             }
             "--transparent" => {
                 args.transparent = true;
+            }
+            "--separator" => {
+                index += 1;
+                args.separator_style = rest
+                    .get(index)
+                    .copied()
+                    .ok_or(ParseArgsError::MissingValue)?;
             }
             "--pane-path" => {
                 index += 1;

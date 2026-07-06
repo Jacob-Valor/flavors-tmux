@@ -1,6 +1,7 @@
 use std::io::Write;
 
-use flavors_tmux::cli::args::{parse_args, ParseArgsError};
+use flavors_tmux::cli::args::{parse_args, Args, ParseArgsError};
+use flavors_tmux::core::Theme;
 use flavors_tmux::themes;
 use flavors_tmux::tmux_renderer;
 use flavors_tmux::widgets;
@@ -41,6 +42,7 @@ Options:
   --low-threshold <n>                 Low battery threshold (battery, default: 20)
   -c, --cache-ttl <seconds>           Forge widget cache TTL (default: 300)
   --transparent                       Use default terminal background
+  --separator <style>                  Separator between widgets (space, pipe, chevron, none)
 
 Styles for custom-number:
   arabic, fsquare, hsquare, dsquare, super, sub, earabic, hide
@@ -52,6 +54,10 @@ fn main() {
 
     let code = run(&raw_refs);
     std::process::exit(code);
+}
+
+fn resolve_theme(args: &Args<'_>) -> Theme {
+    themes::by_name(args.theme).with_transparent_background(args.transparent)
 }
 
 fn run(raw_args: &[&str]) -> i32 {
@@ -73,33 +79,28 @@ fn run(raw_args: &[&str]) -> i32 {
     let mut out = stdout.lock();
 
     match args.command {
-        "custom-number" => {
-            match widgets::custom_number::run(&args.positional) {
-                Ok(output) => {
-                    write_output!(out, output);
-                    0
-                }
-                Err(widgets::custom_number::CustomNumberError::Usage) => {
-                    eprint!("{}", USAGE);
-                    2
-                }
-                Err(widgets::custom_number::CustomNumberError::InvalidFormat) => 9,
+        "custom-number" => match widgets::custom_number::run(&args.positional) {
+            Ok(output) => {
+                write_output!(out, output);
+                0
             }
-        }
+            Err(widgets::custom_number::CustomNumberError::Usage) => {
+                eprint!("{}", USAGE);
+                2
+            }
+            Err(widgets::custom_number::CustomNumberError::InvalidFormat) => 9,
+        },
 
         "datetime" => {
-            let output = widgets::datetime::run(args.theme, args.time_format, args.transparent);
+            let theme = resolve_theme(&args);
+            let output = widgets::datetime::run(theme, args.time_format);
             write_output!(out, output);
             0
         }
 
         "battery" => {
-            let output = widgets::battery::run(
-                args.theme,
-                args.transparent,
-                args.battery_name,
-                args.low_threshold,
-            );
+            let theme = resolve_theme(&args);
+            let output = widgets::battery::run(theme, args.battery_name, args.low_threshold);
             write_output!(out, output);
             0
         }
@@ -109,7 +110,8 @@ fn run(raw_args: &[&str]) -> i32 {
                 eprintln!("Usage: flavors-tmux git-status --theme <name> <repo-path>");
                 return 2;
             }
-            let output = widgets::git_status::run(args.theme, args.transparent, args.positional[0]);
+            let theme = resolve_theme(&args);
+            let output = widgets::git_status::run(theme, args.positional[0]);
             write_output!(out, output);
             0
         }
@@ -119,26 +121,29 @@ fn run(raw_args: &[&str]) -> i32 {
                 eprintln!("Usage: flavors-tmux wb-git-status --theme <name> <repo-path>");
                 return 2;
             }
-            let output =
-                widgets::wb_git_status::run(args.theme, args.transparent, args.positional[0], args.cache_ttl);
+            let theme = resolve_theme(&args);
+            let output = widgets::wb_git_status::run(theme, args.positional[0], args.cache_ttl);
             write_output!(out, output);
             0
         }
 
         "hostname" => {
-            let output = widgets::hostname::run(args.theme, args.transparent);
+            let theme = resolve_theme(&args);
+            let output = widgets::hostname::run(theme);
             write_output!(out, output);
             0
         }
 
         "cpu-memory" => {
-            let output = widgets::cpu_memory::run(args.theme, args.transparent);
+            let theme = resolve_theme(&args);
+            let output = widgets::cpu_memory::run(theme);
             write_output!(out, output);
             0
         }
 
         "kubernetes" => {
-            let output = widgets::kubernetes::run(args.theme, args.transparent);
+            let theme = resolve_theme(&args);
+            let output = widgets::kubernetes::run(theme);
             write_output!(out, output);
             0
         }
@@ -148,7 +153,8 @@ fn run(raw_args: &[&str]) -> i32 {
                 eprintln!("Usage: flavors-tmux cwd --theme <name> <path>");
                 return 2;
             }
-            let output = widgets::cwd::run(args.theme, args.transparent, args.positional[0]);
+            let theme = resolve_theme(&args);
+            let output = widgets::cwd::run(theme, args.positional[0]);
             write_output!(out, output);
             0
         }
@@ -158,25 +164,29 @@ fn run(raw_args: &[&str]) -> i32 {
                 eprintln!("Usage: flavors-tmux terraform --theme <name> <path>");
                 return 2;
             }
-            let output = widgets::terraform::run(args.theme, args.transparent, args.positional[0]);
+            let theme = resolve_theme(&args);
+            let output = widgets::terraform::run(theme, args.positional[0]);
             write_output!(out, output);
             0
         }
 
         "docker" => {
-            let output = widgets::docker::run(args.theme, args.transparent);
+            let theme = resolve_theme(&args);
+            let output = widgets::docker::run(theme);
             write_output!(out, output);
             0
         }
 
         "yadm" => {
-            let output = widgets::yadm::run(args.theme, args.transparent);
+            let theme = resolve_theme(&args);
+            let output = widgets::yadm::run(theme);
             write_output!(out, output);
             0
         }
 
         "gpg-ssh-agent" => {
-            let output = widgets::gpg_ssh_agent::run(args.theme, args.transparent);
+            let theme = resolve_theme(&args);
+            let output = widgets::gpg_ssh_agent::run(theme);
             write_output!(out, output);
             0
         }
@@ -194,14 +204,16 @@ fn run(raw_args: &[&str]) -> i32 {
                 .take(16)
                 .collect();
 
+            let resolved_theme = resolve_theme(&args);
+
             let status_cfg = widgets::status::WidgetConfig {
-                theme_name: args.theme,
-                transparent: args.transparent,
+                theme: resolved_theme,
                 pane_path: args.pane_path.unwrap_or("."),
                 battery_name: args.battery_name,
                 low_threshold: args.low_threshold,
                 time_format: args.time_format,
                 cache_ttl: args.cache_ttl,
+                separator: args.separator_style,
             };
             let output = widgets::status::run(status_cfg, &show_names);
             write_output!(out, output);
