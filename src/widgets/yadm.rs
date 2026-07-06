@@ -2,6 +2,7 @@ use std::process::Command;
 
 use crate::core::util::{parse_porcelain, PorcelainStatus};
 use crate::core::widget::WidgetContext;
+use crate::core::Theme;
 use crate::tmux_renderer;
 
 fn get_yadm_status() -> Option<PorcelainStatus> {
@@ -20,8 +21,8 @@ fn get_yadm_status() -> Option<PorcelainStatus> {
 
 /// Render the YADM dotfiles status widget.
 /// Clean repo shows just `󰃣`; dirty shows `󰃣` + changed `` + untracked ``.
-pub fn run(theme_name: &str, transparent: bool) -> String {
-    let ctx = WidgetContext::new(theme_name, transparent);
+pub fn run(theme: Theme) -> String {
+    let ctx = WidgetContext::from_theme(theme);
     let theme = ctx.theme;
 
     let status = match get_yadm_status() {

@@ -1,7 +1,11 @@
+use std::collections::hash_map::DefaultHasher;
+use std::fs;
+use std::hash::{Hash, Hasher};
 use std::path::Path;
 
 use crate::core::util::{parse_porcelain_v2, run_git_command, trim_branch_name, ParsedStatusV2};
 use crate::core::widget::WidgetContext;
+use crate::core::Theme;
 use crate::tmux_renderer;
 
 enum SyncMode {
@@ -63,10 +67,61 @@ fn get_diff_stats(repo_path: &str) -> (usize, usize) {
     (insertions, deletions)
 }
 
+fn hash_path(path: &str) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    path.hash(&mut hasher);
+    hasher.finish()
+}
+
+fn diff_cache_path(repo_path: &str) -> String {
+    let h = hash_path(repo_path);
+    let user = std::env::var("HOME").unwrap_or_default();
+    let uh = hash_path(&user);
+    format!("/tmp/flavors-tmux-diff-{uh:x}-{h:x}")
+}
+
+fn get_diff_stats_cached(repo_path: &str) -> (usize, usize) {
+    let head = match run_git_command(
+        &["git", "rev-parse", "HEAD"],
+        Some(Path::new(repo_path)),
+    ) {
+        Ok(out) => String::from_utf8_lossy(&out).trim().to_string(),
+        Err(_) => return (0, 0),
+    };
+    let cache_path = diff_cache_path(repo_path);
+
+    // Skip cache files older than 24 hours — they're from repos
+    // the user no longer visits, so recompute + overwrite.
+    let cache_fresh = fs::metadata(&cache_path)
+        .ok()
+        .and_then(|meta| meta.modified().ok())
+        .and_then(|mtime| mtime.elapsed().ok())
+        .map(|age| age.as_secs() < 86400)
+        .unwrap_or(false);
+
+    if cache_fresh {
+        if let Ok(content) = fs::read_to_string(&cache_path) {
+            let mut parts = content.splitn(3, ' ');
+            if let (Some(cached_head), Some(ins_str), Some(del_str)) =
+                (parts.next(), parts.next(), parts.next())
+            {
+                if cached_head == head {
+                    if let (Ok(ins), Ok(del)) = (ins_str.parse(), del_str.parse()) {
+                        return (ins, del);
+                    }
+                }
+            }
+        }
+    }
+    let stats = get_diff_stats(repo_path);
+    let _ = fs::write(&cache_path, format!("{} {} {}", head, stats.0, stats.1));
+    stats
+}
+
 /// Render the git status widget.
 /// Shows sync icon + branch + changed/insertions/deletions/untracked/stash/conflicts/ahead/behind counts.
-pub fn run(theme_name: &str, transparent: bool, repo_path: &str) -> String {
-    let ctx = WidgetContext::new(theme_name, transparent);
+pub fn run(theme: Theme, repo_path: &str) -> String {
+    let ctx = WidgetContext::from_theme(theme);
     let theme = ctx.theme;
 
     let status = get_porcelain_v2(repo_path);
@@ -95,7 +150,7 @@ pub fn run(theme_name: &str, transparent: bool, repo_path: &str) -> String {
     };
 
     let (insertions, deletions) = if changed > 0 {
-        get_diff_stats(repo_path)
+        get_diff_stats_cached(repo_path)
     } else {
         (0, 0)
     };
@@ -197,10 +252,11 @@ pub fn run(theme_name: &str, transparent: bool, repo_path: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::themes;
 
     #[test]
     fn git_status_produces_valid_tmux_output_in_project_repo() {
-        let output = run("hard", false, ".");
+        let output = run(themes::hard::THEME, ".");
         if !output.is_empty() {
             assert!(output.contains("#[fg=") || output.contains("#[bg="));
             assert!(output.contains("▒"));

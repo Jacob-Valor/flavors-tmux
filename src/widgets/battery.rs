@@ -4,7 +4,6 @@ use std::fs;
 use std::process::Command;
 
 use crate::core::{Color, Theme};
-use crate::themes;
 use crate::tmux_renderer;
 
 const DISCHARGING_ICONS: [&str; 10] = ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"];
@@ -126,17 +125,25 @@ fn auto_detect_battery_name() -> Option<&'static str> {
     None
 }
 
+fn format_battery_output(color: Color, percentage: u8, icon: &str, low_threshold: u8) -> String {
+    let bold = if percentage < low_threshold {
+        ",bold"
+    } else {
+        ""
+    };
+    format!(
+        "#[fg={}{}]▒ {} {}% ",
+        tmux_renderer::color_hex_string(color),
+        bold,
+        icon,
+        percentage,
+    )
+}
+
 /// Render the battery widget.
 /// Shows `▒ {icon} {pct}% ` with color-coded threshold.
 /// Silently returns empty if no battery is present.
-pub fn run(
-    theme_name: &str,
-    transparent: bool,
-    battery_name: Option<&str>,
-    low_threshold: u8,
-) -> String {
-    let theme = themes::by_name(theme_name).with_transparent_background(transparent);
-
+pub fn run(theme: Theme, battery_name: Option<&str>, low_threshold: u8) -> String {
     let name: &str = match battery_name {
         Some(name) => name,
         None => match auto_detect_battery_name() {
@@ -159,24 +166,13 @@ pub fn run(
     let icon = battery_icon(&info.status, info.percentage);
     let color = battery_color(theme, info.percentage, low_threshold);
 
-    let bold = if info.percentage < low_threshold {
-        ",bold"
-    } else {
-        ""
-    };
-
-    format!(
-        "#[fg={}{}}}▒ {} {}% ",
-        tmux_renderer::color_hex_string(color),
-        bold,
-        icon,
-        info.percentage,
-    )
+    format_battery_output(color, info.percentage, icon, low_threshold)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::themes;
 
     #[test]
     fn battery_icon_charging() {
@@ -199,5 +195,29 @@ mod tests {
         assert_eq!(theme.danger, battery_color(theme, 10, 20));
         assert_eq!(theme.warning, battery_color(theme, 50, 20));
         assert_eq!(theme.success, battery_color(theme, 100, 20));
+    }
+
+    #[test]
+    fn battery_run_output_has_valid_tmux_style() {
+        let theme = themes::hard::THEME;
+        let output = format_battery_output(theme.warning, 75, DISCHARGING_ICONS[7], 20);
+        assert!(output.contains("#[fg="), "output missing '#[fg=': {output}");
+        let fg_start = output.find("#[fg=").unwrap();
+        let after_style = &output[fg_start..];
+        let close_bracket = after_style.find(']');
+        assert!(
+            close_bracket.is_some(),
+            "style missing closing ']': {output}"
+        );
+        let bracket_pos = close_bracket.unwrap();
+        let after_bracket = &after_style[bracket_pos + 1..];
+        assert!(
+            after_bracket.starts_with('▒'),
+            "expected '▒' separator after ']', got: '{after_bracket}'"
+        );
+        assert!(
+            output.ends_with("% "),
+            "output should end with '%% ': {output}"
+        );
     }
 }

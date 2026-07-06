@@ -1,12 +1,13 @@
 use std::process::Command;
 
 use crate::core::widget::WidgetContext;
+use crate::core::Theme;
 use crate::tmux_renderer;
 
 /// Render the Docker context widget.
 /// Shows ` <context>` — muted for `default`, info for all others.
-pub fn run(theme_name: &str, transparent: bool) -> String {
-    let ctx = WidgetContext::new(theme_name, transparent);
+pub fn run(theme: Theme) -> String {
+    let ctx = WidgetContext::from_theme(theme);
     let theme = ctx.theme;
 
     let context = match Command::new("docker").args(["context", "show"]).output() {

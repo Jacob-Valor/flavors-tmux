@@ -1,12 +1,13 @@
 use std::process::Command;
 
 use crate::core::widget::WidgetContext;
+use crate::core::Theme;
 use crate::tmux_renderer;
 
 /// Render the Terraform workspace widget.
 /// Shows `󱁢 workspace` — muted for `default`, primary for all others.
-pub fn run(theme_name: &str, transparent: bool, cwd: &str) -> String {
-    let ctx = WidgetContext::new(theme_name, transparent);
+pub fn run(theme: Theme, cwd: &str) -> String {
+    let ctx = WidgetContext::from_theme(theme);
     let theme = ctx.theme;
 
     if cwd.is_empty() {

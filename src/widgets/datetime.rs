@@ -1,5 +1,5 @@
 use crate::cli::args::TimeFormat;
-use crate::themes;
+use crate::core::Theme;
 use crate::tmux_renderer;
 
 fn format_24h(hour: u32, minute: u32) -> String {
@@ -32,13 +32,14 @@ fn format_time(time_format: TimeFormat, time: time::Time) -> String {
 }
 
 /// Render the datetime widget with a configurable 12H/24H/hide format.
-pub fn run(theme_name: &str, time_format: TimeFormat, transparent: bool) -> String {
-    let theme = themes::by_name(theme_name).with_transparent_background(transparent);
+pub fn run(theme: Theme, time_format: TimeFormat) -> String {
+    let time_str = format_time(time_format, local_time());
+    if time_str.is_empty() {
+        return String::new();
+    }
 
     let separator = "▒";
     let time_icon = "󰥔";
-
-    let time_str = format_time(time_format, local_time());
 
     format!(
         "#[fg={},bg={}]{} #[fg={}]{} {}",

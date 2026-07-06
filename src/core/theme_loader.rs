@@ -1,16 +1,26 @@
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
+use std::time::SystemTime;
 
 use serde::Deserialize;
 
 use crate::core::{Color, Theme};
 use crate::themes::hard;
 
+/// In-memory cache of custom themes keyed by file path + mtime.
+/// Avoids repeated file I/O when multiple widgets resolve the same
+/// custom theme within a single status refresh.
+static CUSTOM_THEME_CACHE: Mutex<Option<HashMap<PathBuf, (SystemTime, Theme)>>> =
+    Mutex::new(None);
+
 #[derive(Debug)]
 pub enum ThemeLoaderError {
     Read(std::io::Error),
     Json(serde_json::Error),
+    #[allow(dead_code)]
     InvalidThemeFormat,
 }
 
@@ -112,17 +122,31 @@ fn load_from_partial(partial: &PartialTheme) -> Theme {
 }
 
 pub fn load_from_json_str(content: &str) -> Result<Theme, ThemeLoaderError> {
-    let value: serde_json::Value = serde_json::from_str(content)?;
-    if !value.is_object() {
-        return Err(ThemeLoaderError::InvalidThemeFormat);
-    }
-    let partial: PartialTheme = serde_json::from_value(value)?;
+    let partial: PartialTheme = serde_json::from_str(content)?;
     Ok(load_from_partial(&partial))
 }
 
 pub fn load_from_file(path: &Path) -> Result<Theme, ThemeLoaderError> {
+    let mtime = path.metadata()?.modified()?;
+    if let Ok(cache) = CUSTOM_THEME_CACHE.lock() {
+        if let Some(map) = cache.as_ref() {
+            if let Some((cached_mtime, cached_theme)) = map.get(path) {
+                if *cached_mtime == mtime {
+                    return Ok(*cached_theme);
+                }
+            }
+        }
+    }
     let content = fs::read_to_string(path)?;
-    load_from_json_str(&content)
+    let theme = load_from_json_str(&content)?;
+    if let Ok(mut cache) = CUSTOM_THEME_CACHE.lock() {
+        let map = cache.get_or_insert_with(HashMap::new);
+        if map.len() > 64 {
+            map.clear();
+        }
+        map.insert(path.to_path_buf(), (mtime, theme));
+    }
+    Ok(theme)
 }
 
 pub fn custom_theme_path(name: &str) -> Option<PathBuf> {

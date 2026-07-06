@@ -6,7 +6,6 @@ use std::process::Command;
 use std::time::SystemTime;
 
 use crate::core::{Color, Theme};
-use crate::themes;
 use crate::tmux_renderer;
 
 struct CpuMemStats {
@@ -275,9 +274,7 @@ fn get_usage_color(percent: u8, theme: Theme) -> Color {
 
 /// Render the CPU and memory usage widget.
 /// Shows `▒ 󰍛 {cpu}% 󰘚 {mem}%` with color-coded thresholds.
-pub fn run(theme_name: &str, transparent: bool) -> String {
-    let theme = themes::by_name(theme_name).with_transparent_background(transparent);
-
+pub fn run(theme: Theme) -> String {
     let stats = read_stats();
 
     let cpu_color = get_usage_color(stats.cpu_percent, theme);
@@ -298,6 +295,7 @@ pub fn run(theme_name: &str, transparent: bool) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::themes;
 
     #[cfg(target_os = "linux")]
     #[test]

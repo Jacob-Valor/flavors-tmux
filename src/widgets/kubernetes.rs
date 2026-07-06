@@ -39,8 +39,8 @@ fn context_color(theme: Theme, context: &str) -> Color {
 
 /// Render the Kubernetes context widget.
 /// Shows `󱃾 context/namespace` colored by environment (danger=prod, warning=stage/dev, info=other).
-pub fn run(theme_name: &str, transparent: bool) -> String {
-    let ctx = WidgetContext::new(theme_name, transparent);
+pub fn run(theme: Theme) -> String {
+    let ctx = WidgetContext::from_theme(theme);
     let theme = ctx.theme;
 
     let context = match get_kubectl_output(&["config", "current-context"]) {
