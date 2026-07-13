@@ -4,8 +4,6 @@ set -euo pipefail
 CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$CURRENT_DIR/themes.sh"
 
-RESET="#[fg=${THEME[foreground]},bg=${THEME[background]},nobold,noitalics,nounderscore,nodim]"
-
 CPU_PERCENT=0
 MEM_PERCENT=0
 
