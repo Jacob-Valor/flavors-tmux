@@ -2,7 +2,7 @@ use std::process::Command;
 
 use crate::core::widget::WidgetContext;
 use crate::core::{Color, Theme};
-use crate::tmux_renderer;
+use crate::tmux_renderer::ThemeHex;
 
 fn get_kubectl_output(argv: &[&str]) -> Option<String> {
     let output = Command::new("kubectl").args(argv).output().ok()?;
@@ -40,7 +40,12 @@ fn context_color(theme: Theme, context: &str) -> Color {
 /// Render the Kubernetes context widget.
 /// Shows `󱃾 context/namespace` colored by environment (danger=prod, warning=stage/dev, info=other).
 pub fn run(theme: Theme) -> String {
-    let ctx = WidgetContext::from_theme(theme);
+    let theme_hex = ThemeHex::from_theme(theme);
+    run_with_theme_hex(theme, &theme_hex)
+}
+
+pub(crate) fn run_with_theme_hex(theme: Theme, theme_hex: &ThemeHex) -> String {
+    let ctx = WidgetContext::from_theme_hex(theme, theme_hex);
     let theme = ctx.theme;
 
     let context = match get_kubectl_output(&["config", "current-context"]) {
@@ -62,8 +67,8 @@ pub fn run(theme: Theme) -> String {
     format!(
         "{}#[fg={},bg={},bold]󱃾 {}/{}",
         ctx.reset,
-        tmux_renderer::color_hex_string(color),
-        tmux_renderer::color_hex_string(theme.background),
+        theme_hex.color(color),
+        theme_hex.color(theme.surface),
         context,
         namespace,
     )

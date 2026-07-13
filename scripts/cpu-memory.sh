@@ -78,4 +78,4 @@ elif [[ $MEM_PERCENT -ge 50 ]]; then
     MEM_COLOR=${THEME[warning]}
 fi
 
-echo "${RESET}#[fg=${CPU_COLOR},bg=${THEME[background]},bold]▒ 󰍛 ${CPU_PERCENT}% #[fg=${MEM_COLOR},bg=${THEME[background]},bold]󰘚 ${MEM_PERCENT}%"
+echo "#[fg=${CPU_COLOR},bg=${THEME[surface]},bold]󰍛 ${CPU_PERCENT}%#[fg=${MEM_COLOR},bg=${THEME[surface]},bold] 󰘚 ${MEM_PERCENT}%"

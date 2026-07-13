@@ -10,7 +10,7 @@ pub const THEME: Theme = Theme {
     on_primary: Color::hex(0xffffff),
     on_primary_bright: Color::hex(0x000000),
     success: Color::hex(0x66800B),
-    success_bright: Color::hex(0x879A39),
+    success_bright: Color::hex(0x66800B),
     danger: Color::hex(0xAF3029),
     danger_bright: Color::hex(0xD14D41),
     warning: Color::hex(0xAD8301),

@@ -6,7 +6,7 @@ use std::path::Path;
 use crate::core::util::{parse_porcelain_v2, run_git_command, trim_branch_name, ParsedStatusV2};
 use crate::core::widget::WidgetContext;
 use crate::core::Theme;
-use crate::tmux_renderer;
+use crate::tmux_renderer::ThemeHex;
 
 enum SyncMode {
     Clean,
@@ -81,10 +81,7 @@ fn diff_cache_path(repo_path: &str) -> String {
 }
 
 fn get_diff_stats_cached(repo_path: &str) -> (usize, usize) {
-    let head = match run_git_command(
-        &["git", "rev-parse", "HEAD"],
-        Some(Path::new(repo_path)),
-    ) {
+    let head = match run_git_command(&["git", "rev-parse", "HEAD"], Some(Path::new(repo_path))) {
         Ok(out) => String::from_utf8_lossy(&out).trim().to_string(),
         Err(_) => return (0, 0),
     };
@@ -114,14 +111,21 @@ fn get_diff_stats_cached(repo_path: &str) -> (usize, usize) {
         }
     }
     let stats = get_diff_stats(repo_path);
-    let _ = fs::write(&cache_path, format!("{} {} {}", head, stats.0, stats.1));
+    let tmp_path = format!("{cache_path}.tmp");
+    let _ = fs::write(&tmp_path, format!("{} {} {}", head, stats.0, stats.1));
+    let _ = fs::rename(&tmp_path, &cache_path);
     stats
 }
 
 /// Render the git status widget.
 /// Shows sync icon + branch + changed/insertions/deletions/untracked/stash/conflicts/ahead/behind counts.
 pub fn run(theme: Theme, repo_path: &str) -> String {
-    let ctx = WidgetContext::from_theme(theme);
+    let theme_hex = ThemeHex::from_theme(theme);
+    run_with_theme_hex(theme, &theme_hex, repo_path)
+}
+
+pub(crate) fn run_with_theme_hex(theme: Theme, theme_hex: &ThemeHex, repo_path: &str) -> String {
+    let ctx = WidgetContext::from_theme_hex(theme, theme_hex);
     let theme = ctx.theme;
 
     let status = get_porcelain_v2(repo_path);
@@ -156,13 +160,13 @@ pub fn run(theme: Theme, repo_path: &str) -> String {
     };
     let stash_count = status.stashes;
 
-    let bg = tmux_renderer::color_hex_string(theme.background);
-    let warning = tmux_renderer::color_hex_string(theme.warning);
-    let success = tmux_renderer::color_hex_string(theme.success);
-    let danger = tmux_renderer::color_hex_string(theme.danger);
-    let danger_bright = tmux_renderer::color_hex_string(theme.danger_bright);
-    let info_bright = tmux_renderer::color_hex_string(theme.info_bright);
-    let muted = tmux_renderer::color_hex_string(theme.muted);
+    let bg = theme_hex.color(theme.surface);
+    let warning = theme_hex.color(theme.warning);
+    let success = theme_hex.color(theme.success);
+    let danger = theme_hex.color(theme.danger);
+    let danger_bright = theme_hex.color(theme.danger_bright);
+    let info_bright = theme_hex.color(theme.info_bright);
+    let muted = theme_hex.color(theme.muted);
 
     let mut result = String::with_capacity(512);
 

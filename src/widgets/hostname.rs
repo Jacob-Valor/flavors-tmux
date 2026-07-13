@@ -2,12 +2,17 @@ use std::env;
 
 use crate::core::widget::WidgetContext;
 use crate::core::Theme;
-use crate::tmux_renderer;
+use crate::tmux_renderer::ThemeHex;
 
 /// Render the hostname/SSH indicator widget.
 /// Shows `▒ 󰌽 hostname` (muted) locally or `▒ 󰣀 hostname` (warning) over SSH.
 pub fn run(theme: Theme) -> String {
-    let ctx = WidgetContext::from_theme(theme);
+    let theme_hex = ThemeHex::from_theme(theme);
+    run_with_theme_hex(theme, &theme_hex)
+}
+
+pub(crate) fn run_with_theme_hex(theme: Theme, theme_hex: &ThemeHex) -> String {
+    let ctx = WidgetContext::from_theme_hex(theme, theme_hex);
     let theme = ctx.theme;
 
     let is_ssh = env::var_os("SSH_CONNECTION").is_some() || env::var_os("SSH_CLIENT").is_some();
@@ -39,8 +44,8 @@ pub fn run(theme: Theme) -> String {
     format!(
         "{}#[fg={},bg={},bold]▒ {} {}",
         ctx.reset,
-        tmux_renderer::color_hex_string(color),
-        tmux_renderer::color_hex_string(theme.background),
+        theme_hex.color(color),
+        theme_hex.color(theme.surface),
         icon,
         hostname,
     )

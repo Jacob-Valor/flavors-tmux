@@ -26,4 +26,4 @@ else
   DISPLAY="$BASENAME"
 fi
 
-echo "${RESET}#[fg=${THEME[emphasis]},bg=${THEME[background]},bold]󰉋 ${DISPLAY}"
+echo "${RESET}#[fg=${THEME[emphasis]},bg=${THEME[surface]},bold]󰉋 ${DISPLAY}"

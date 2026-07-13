@@ -208,6 +208,7 @@ fn run(raw_args: &[&str]) -> i32 {
 
             let status_cfg = widgets::status::WidgetConfig {
                 theme: resolved_theme,
+                transparent: args.transparent,
                 pane_path: args.pane_path.unwrap_or("."),
                 battery_name: args.battery_name,
                 low_threshold: args.low_threshold,

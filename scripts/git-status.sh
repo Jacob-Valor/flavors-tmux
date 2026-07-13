@@ -85,35 +85,35 @@ STATUS_AHEAD=""
 STATUS_BEHIND=""
 
 if [[ $CHANGED_COUNT -gt 0 ]]; then
-    STATUS_CHANGED=" ${RESET}#[fg=${THEME[warning]},bg=${THEME[background]},bold] ${CHANGED_COUNT}"
+    STATUS_CHANGED=" ${RESET}#[fg=${THEME[warning]},bg=${THEME[surface]},bold] ${CHANGED_COUNT}"
 fi
 
 if [[ $INSERTIONS_COUNT -gt 0 ]]; then
-    STATUS_INSERTIONS=" ${RESET}#[fg=${THEME[success]},bg=${THEME[background]},bold] ${INSERTIONS_COUNT}"
+    STATUS_INSERTIONS=" ${RESET}#[fg=${THEME[success]},bg=${THEME[surface]},bold] ${INSERTIONS_COUNT}"
 fi
 
 if [[ $DELETIONS_COUNT -gt 0 ]]; then
-    STATUS_DELETIONS=" ${RESET}#[fg=${THEME[danger]},bg=${THEME[background]},bold] ${DELETIONS_COUNT}"
+    STATUS_DELETIONS=" ${RESET}#[fg=${THEME[danger]},bg=${THEME[surface]},bold] ${DELETIONS_COUNT}"
 fi
 
 if [[ $UNTRACKED_COUNT -gt 0 ]]; then
-    STATUS_UNTRACKED=" ${RESET}#[fg=${THEME[muted]},bg=${THEME[background]},bold] ${UNTRACKED_COUNT}"
+    STATUS_UNTRACKED=" ${RESET}#[fg=${THEME[muted]},bg=${THEME[surface]},bold] ${UNTRACKED_COUNT}"
 fi
 
 if [[ $STASH_COUNT -gt 0 ]]; then
-    STATUS_STASH=" ${RESET}#[fg=${THEME[info_bright]},bg=${THEME[background]},bold] ${STASH_COUNT}"
+    STATUS_STASH=" ${RESET}#[fg=${THEME[info_bright]},bg=${THEME[surface]},bold] ${STASH_COUNT}"
 fi
 
 if [[ $CONFLICT_COUNT -gt 0 ]]; then
-    STATUS_CONFLICT=" ${RESET}#[fg=${THEME[danger_bright]},bg=${THEME[background]},bold]󰅘 ${CONFLICT_COUNT}"
+    STATUS_CONFLICT=" ${RESET}#[fg=${THEME[danger_bright]},bg=${THEME[surface]},bold]󰅘 ${CONFLICT_COUNT}"
 fi
 
 if [[ $AHEAD_COUNT -gt 0 ]]; then
-    STATUS_AHEAD=" ${RESET}#[fg=${THEME[info_bright]},bg=${THEME[background]},bold]↑${AHEAD_COUNT}"
+    STATUS_AHEAD=" ${RESET}#[fg=${THEME[info_bright]},bg=${THEME[surface]},bold]↑${AHEAD_COUNT}"
 fi
 
 if [[ $BEHIND_COUNT -gt 0 ]]; then
-    STATUS_BEHIND=" ${RESET}#[fg=${THEME[danger]},bg=${THEME[background]},bold]↓${BEHIND_COUNT}"
+    STATUS_BEHIND=" ${RESET}#[fg=${THEME[danger]},bg=${THEME[surface]},bold]↓${BEHIND_COUNT}"
 fi
 
 if [[ $SYNC_MODE -eq 0 ]]; then
@@ -126,16 +126,16 @@ fi
 
 case "$SYNC_MODE" in
 1)
-    REMOTE_STATUS="$RESET#[bg=${THEME[background]},fg=${THEME[danger_bright]},bold]▒ 󱓎"
+    REMOTE_STATUS="$RESET#[bg=${THEME[surface]},fg=${THEME[danger_bright]},bold]▒ 󱓎"
     ;;
 2)
-    REMOTE_STATUS="$RESET#[bg=${THEME[background]},fg=${THEME[danger]},bold]▒ 󰛃"
+    REMOTE_STATUS="$RESET#[bg=${THEME[surface]},fg=${THEME[danger]},bold]▒ 󰛃"
     ;;
 3)
-    REMOTE_STATUS="$RESET#[bg=${THEME[background]},fg=${THEME[info_bright]},bold]▒ 󰛀"
+    REMOTE_STATUS="$RESET#[bg=${THEME[surface]},fg=${THEME[info_bright]},bold]▒ 󰛀"
     ;;
 *)
-    REMOTE_STATUS="$RESET#[bg=${THEME[background]},fg=${THEME[success]},bold]▒ "
+    REMOTE_STATUS="$RESET#[bg=${THEME[surface]},fg=${THEME[success]},bold]▒ "
     ;;
 esac
 

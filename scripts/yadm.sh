@@ -17,7 +17,7 @@ fi
 
 STATUS=$(yadm status --porcelain 2>/dev/null)
 if [ -z "$STATUS" ]; then
-  echo "${RESET}#[fg=${THEME[muted]},bg=${THEME[background]},bold]󰃣"
+  echo "${RESET}#[fg=${THEME[muted]},bg=${THEME[surface]},bold]󰃣"
   exit 0
 fi
 
@@ -26,10 +26,10 @@ UNTRACKED=$(grep -cE '^\?\?' <<< "$STATUS") || true
 
 STATUS_STR=""
 if [ "$CHANGED" -gt 0 ]; then
-  STATUS_STR="${STATUS_STR}#[fg=${THEME[warning]},bg=${THEME[background]},bold] ${CHANGED}"
+    STATUS_STR="${STATUS_STR}#[fg=${THEME[warning]},bg=${THEME[surface]},bold] ${CHANGED}"
 fi
 if [ "$UNTRACKED" -gt 0 ]; then
-  STATUS_STR="${STATUS_STR}#[fg=${THEME[muted]},bg=${THEME[background]},bold] ${UNTRACKED}"
+    STATUS_STR="${STATUS_STR}#[fg=${THEME[muted]},bg=${THEME[surface]},bold] ${UNTRACKED}"
 fi
 
-echo "${RESET}󰃣 ${STATUS_STR}"
+echo "${RESET}#[fg=${THEME[muted]},bg=${THEME[surface]},bold]󰃣 ${STATUS_STR}"

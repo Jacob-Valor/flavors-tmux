@@ -325,24 +325,24 @@ else
 
     case "${separator_style:-space}" in
         pipe) _sep=" │ " ;;
-        chevron) _sep=" 〉" ;;
+        chevron) _sep=" 〉 " ;;
         none) _sep="" ;;
         *) _sep=" " ;;
     esac
 
     right_status_parts=()
-    [[ -n "$cwd_status" ]] && right_status_parts+=("#[fg=${THEME[emphasis]},bg=${THEME[surface_alt]}]$cwd_status")
-    [[ -n "$git_status" ]] && right_status_parts+=("#[fg=${THEME[success]},bg=${THEME[surface_alt]}]$git_status")
-    [[ -n "$wb_git_status" ]] && right_status_parts+=("#[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$wb_git_status")
-    [[ -n "$docker_status" ]] && right_status_parts+=("#[fg=${THEME[info]},bg=${THEME[surface_alt]}]$docker_status")
-    [[ -n "$battery_status" ]] && right_status_parts+=("#[fg=${THEME[danger]},bg=${THEME[surface_alt]}]$battery_status")
-    [[ -n "$hostname_status" ]] && right_status_parts+=("#[fg=${THEME[info]},bg=${THEME[surface_alt]}]$hostname_status")
-    [[ -n "$cpu_memory_status" ]] && right_status_parts+=("#[fg=${THEME[accent_bright]},bg=${THEME[surface_alt]}]$cpu_memory_status")
-    [[ -n "$kubernetes_status" ]] && right_status_parts+=("#[fg=${THEME[info]},bg=${THEME[surface_alt]}]$kubernetes_status")
-    [[ -n "$terraform_status" ]] && right_status_parts+=("#[fg=${THEME[primary]},bg=${THEME[surface_alt]}]$terraform_status")
-    [[ -n "$yadm_status" ]] && right_status_parts+=("#[fg=${THEME[accent]},bg=${THEME[surface_alt]}]$yadm_status")
-    [[ -n "$gpg_ssh_agent_status" ]] && right_status_parts+=("#[fg=${THEME[primary_bright]},bg=${THEME[surface_alt]}]$gpg_ssh_agent_status")
-    [[ -n "$date_and_time" ]] && right_status_parts+=("#[fg=${THEME[warning]},bg=${THEME[surface_alt]}]$date_and_time")
+    [[ -n "$cwd_status" ]] && right_status_parts+=("#[fg=${THEME[emphasis]},bg=${THEME[surface]}]$cwd_status")
+    [[ -n "$git_status" ]] && right_status_parts+=("#[fg=${THEME[success]},bg=${THEME[surface]}]$git_status")
+    [[ -n "$wb_git_status" ]] && right_status_parts+=("#[fg=${THEME[accent]},bg=${THEME[surface]}]$wb_git_status")
+    [[ -n "$docker_status" ]] && right_status_parts+=("#[fg=${THEME[info]},bg=${THEME[surface]}]$docker_status")
+    [[ -n "$battery_status" ]] && right_status_parts+=("#[fg=${THEME[danger]},bg=${THEME[surface]}]$battery_status")
+    [[ -n "$hostname_status" ]] && right_status_parts+=("#[fg=${THEME[info]},bg=${THEME[surface]}]$hostname_status")
+    [[ -n "$cpu_memory_status" ]] && right_status_parts+=("#[fg=${THEME[accent_bright]},bg=${THEME[surface]}]$cpu_memory_status")
+    [[ -n "$kubernetes_status" ]] && right_status_parts+=("#[fg=${THEME[info]},bg=${THEME[surface]}]$kubernetes_status")
+    [[ -n "$terraform_status" ]] && right_status_parts+=("#[fg=${THEME[primary]},bg=${THEME[surface]}]$terraform_status")
+    [[ -n "$yadm_status" ]] && right_status_parts+=("#[fg=${THEME[accent]},bg=${THEME[surface]}]$yadm_status")
+    [[ -n "$gpg_ssh_agent_status" ]] && right_status_parts+=("#[fg=${THEME[primary_bright]},bg=${THEME[surface]}]$gpg_ssh_agent_status")
+    [[ -n "$date_and_time" ]] && right_status_parts+=("#[fg=${THEME[warning]},bg=${THEME[surface]}]$date_and_time")
 
     right_status=""
     prev_is_no_sep=false

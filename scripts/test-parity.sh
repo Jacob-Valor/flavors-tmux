@@ -65,11 +65,17 @@ for style in arabic fsquare hsquare dsquare super sub earabic hide; do
 done
 
 # Test invalid format (both should return non-zero)
-if "$BIN" custom-number "42" "invalid" &>/dev/null; then
-    check "custom-number 42 invalid (rust should fail)" "non-zero" "zero"
+rust_fails=false
+"$BIN" custom-number "42" "invalid" &>/dev/null || rust_fails=true
+bash_fails=false
+bash "${SCRIPT_DIR}/custom-number.sh" "42" "invalid" &>/dev/null || bash_fails=true
+if $rust_fails && $bash_fails; then
+    PASS=$((PASS + 1))
 else
-    bash "${SCRIPT_DIR}/custom-number.sh" "42" "invalid" &>/dev/null || true
-    check "custom-number 42 invalid returns error" "error" "error"
+    FAIL=$((FAIL + 1))
+    echo "  FAIL: custom-number 42 invalid (both should exit non-zero)" >&2
+    echo "    rust: $( $rust_fails && echo 'fail ✓' || echo 'ok ✗ (exit 0)' )" >&2
+    echo "    bash: $( $bash_fails && echo 'fail ✓' || echo 'ok ✗ (exit 0)' )" >&2
 fi
 
 # Test hide returns empty (Bash exits 0 with no output)
@@ -142,7 +148,7 @@ else
         source '${SCRIPT_DIR}/themes.sh' 2>/dev/null
         RESET=\"#[fg=\${THEME[foreground]},bg=\${THEME[background]},nobold,noitalics,nounderscore,nodim]\"
         HOSTNAME=\$(hostname -s 2>/dev/null || hostname 2>/dev/null || echo unknown)
-        echo \"\${RESET}#[fg=\${THEME[muted]},bg=\${THEME[background]},bold]▒ 󰌽 \${HOSTNAME}\"
+        echo \"\${RESET}#[fg=\${THEME[muted]},bg=\${THEME[surface]},bold]▒ 󰌽 \${HOSTNAME}\"
     ")" || true
     check "hostname local" "$rust_host" "$bash_host"
 
@@ -164,7 +170,7 @@ else
         source '${SCRIPT_DIR}/themes.sh' 2>/dev/null
         RESET=\"#[fg=\${THEME[foreground]},bg=\${THEME[background]},nobold,noitalics,nounderscore,nodim]\"
         BASENAME=\$(basename /tmp)
-        echo \"\${RESET}#[fg=\${THEME[emphasis]},bg=\${THEME[background]},bold]󰉋 \${BASENAME}\"
+        echo \"\${RESET}#[fg=\${THEME[emphasis]},bg=\${THEME[surface]},bold]󰉋 \${BASENAME}\"
     ")" || true
     check "cwd /tmp" "$rust_cwd" "$bash_cwd"
 

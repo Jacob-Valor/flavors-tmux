@@ -30,4 +30,4 @@ else
   COLOR="${THEME[primary]}"
 fi
 
-echo "${RESET}#[fg=${COLOR},bg=${THEME[background]},bold]󱁢 ${WORKSPACE}"
+echo "${RESET}#[fg=${COLOR},bg=${THEME[surface]},bold]󱁢 ${WORKSPACE}"

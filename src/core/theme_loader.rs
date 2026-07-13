@@ -13,8 +13,7 @@ use crate::themes::hard;
 /// In-memory cache of custom themes keyed by file path + mtime.
 /// Avoids repeated file I/O when multiple widgets resolve the same
 /// custom theme within a single status refresh.
-static CUSTOM_THEME_CACHE: Mutex<Option<HashMap<PathBuf, (SystemTime, Theme)>>> =
-    Mutex::new(None);
+static CUSTOM_THEME_CACHE: Mutex<Option<HashMap<PathBuf, (SystemTime, Theme)>>> = Mutex::new(None);
 
 #[derive(Debug)]
 pub enum ThemeLoaderError {

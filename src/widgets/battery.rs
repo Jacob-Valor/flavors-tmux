@@ -4,7 +4,7 @@ use std::fs;
 use std::process::Command;
 
 use crate::core::{Color, Theme};
-use crate::tmux_renderer;
+use crate::tmux_renderer::ThemeHex;
 
 const DISCHARGING_ICONS: [&str; 10] = ["󰁺", "󰁻", "󰁼", "󰁽", "󰁾", "󰁿", "󰂀", "󰂁", "󰂂", "󰁹"];
 const CHARGING_ICONS: [&str; 10] = ["󰢜", "󰂆", "󰂇", "󰂈", "󰢝", "󰂉", "󰢞", "󰂊", "󰂋", "󰂅"];
@@ -125,7 +125,13 @@ fn auto_detect_battery_name() -> Option<&'static str> {
     None
 }
 
-fn format_battery_output(color: Color, percentage: u8, icon: &str, low_threshold: u8) -> String {
+fn format_battery_output(
+    theme_hex: &ThemeHex,
+    color: Color,
+    percentage: u8,
+    icon: &str,
+    low_threshold: u8,
+) -> String {
     let bold = if percentage < low_threshold {
         ",bold"
     } else {
@@ -133,7 +139,7 @@ fn format_battery_output(color: Color, percentage: u8, icon: &str, low_threshold
     };
     format!(
         "#[fg={}{}]▒ {} {}% ",
-        tmux_renderer::color_hex_string(color),
+        theme_hex.color(color),
         bold,
         icon,
         percentage,
@@ -144,6 +150,16 @@ fn format_battery_output(color: Color, percentage: u8, icon: &str, low_threshold
 /// Shows `▒ {icon} {pct}% ` with color-coded threshold.
 /// Silently returns empty if no battery is present.
 pub fn run(theme: Theme, battery_name: Option<&str>, low_threshold: u8) -> String {
+    let theme_hex = ThemeHex::from_theme(theme);
+    run_with_theme_hex(theme, &theme_hex, battery_name, low_threshold)
+}
+
+pub(crate) fn run_with_theme_hex(
+    theme: Theme,
+    theme_hex: &ThemeHex,
+    battery_name: Option<&str>,
+    low_threshold: u8,
+) -> String {
     let name: &str = match battery_name {
         Some(name) => name,
         None => match auto_detect_battery_name() {
@@ -166,7 +182,7 @@ pub fn run(theme: Theme, battery_name: Option<&str>, low_threshold: u8) -> Strin
     let icon = battery_icon(&info.status, info.percentage);
     let color = battery_color(theme, info.percentage, low_threshold);
 
-    format_battery_output(color, info.percentage, icon, low_threshold)
+    format_battery_output(theme_hex, color, info.percentage, icon, low_threshold)
 }
 
 #[cfg(test)]
@@ -200,7 +216,8 @@ mod tests {
     #[test]
     fn battery_run_output_has_valid_tmux_style() {
         let theme = themes::hard::THEME;
-        let output = format_battery_output(theme.warning, 75, DISCHARGING_ICONS[7], 20);
+        let theme_hex = ThemeHex::from_theme(theme);
+        let output = format_battery_output(&theme_hex, theme.warning, 75, DISCHARGING_ICONS[7], 20);
         assert!(output.contains("#[fg="), "output missing '#[fg=': {output}");
         let fg_start = output.find("#[fg=").unwrap();
         let after_style = &output[fg_start..];

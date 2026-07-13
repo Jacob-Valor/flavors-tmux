@@ -31,7 +31,7 @@ if [[ -n "${ssh_keys:-}" ]]; then
     else
         color="${THEME[warning]}"
     fi
-    output="${output}${RESET}#[fg=${color},bg=${THEME[background]},bold] ${ssh_keys}"
+    output="${output}${RESET}#[fg=${color},bg=${THEME[surface]},bold] ${ssh_keys}"
 fi
 
 # ---------------------------------------------------------------------------
@@ -42,7 +42,7 @@ if command -v gpg-connect-agent &>/dev/null; then
         if [[ -n "$output" ]]; then
             output="${output} "
         fi
-        output="${output}${RESET}#[fg=${THEME[success]},bg=${THEME[background]},bold]"
+        output="${output}${RESET}#[fg=${THEME[success]},bg=${THEME[surface]},bold]"
     fi
 fi
 

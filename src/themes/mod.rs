@@ -23,4 +23,4 @@ pub mod solarized_dark;
 pub mod solarized_light;
 pub mod tokyonight;
 
-pub use registry::{builtin_by_name, by_name, NAMES, HARD};
+pub use registry::{builtin_by_name, by_name, HARD, NAMES};

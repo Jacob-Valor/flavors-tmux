@@ -1,6 +1,6 @@
 use crate::cli::args::TimeFormat;
 use crate::core::Theme;
-use crate::tmux_renderer;
+use crate::tmux_renderer::ThemeHex;
 use crate::widgets;
 use crate::widgets::status_entries::{color_from_theme, lookup_entry, WidgetColor, WidgetEntry};
 use std::thread;
@@ -9,6 +9,7 @@ use std::thread;
 #[derive(Clone, Copy)]
 pub struct WidgetConfig<'a> {
     pub theme: Theme,
+    pub transparent: bool,
     pub pane_path: &'a str,
     pub battery_name: Option<&'a str>,
     pub low_threshold: u8,
@@ -20,26 +21,36 @@ pub struct WidgetConfig<'a> {
 fn resolve_separator(style: &str) -> &'static str {
     match style {
         "pipe" => " │ ",
-        "chevron" => " 〉",
+        "chevron" => " 〉 ",
         "none" => "",
         _ => " ",
     }
 }
 
-fn render_widget(cfg: WidgetConfig<'_>, widget_name: &str) -> Option<String> {
+fn render_widget(cfg: WidgetConfig<'_>, theme_hex: &ThemeHex, widget_name: &str) -> Option<String> {
     let output = match widget_name {
-        "cwd" => widgets::cwd::run(cfg.theme, cfg.pane_path),
-        "git" => widgets::git_status::run(cfg.theme, cfg.pane_path),
-        "wb-git" => widgets::wb_git_status::run(cfg.theme, cfg.pane_path, cfg.cache_ttl),
-        "cpu" => widgets::cpu_memory::run(cfg.theme),
-        "hostname" => widgets::hostname::run(cfg.theme),
-        "datetime" => widgets::datetime::run(cfg.theme, cfg.time_format),
-        "battery" => widgets::battery::run(cfg.theme, cfg.battery_name, cfg.low_threshold),
-        "kubernetes" => widgets::kubernetes::run(cfg.theme),
-        "terraform" => widgets::terraform::run(cfg.theme, cfg.pane_path),
-        "docker" => widgets::docker::run(cfg.theme),
-        "yadm" => widgets::yadm::run(cfg.theme),
-        "gpg-ssh" => widgets::gpg_ssh_agent::run(cfg.theme),
+        "cwd" => widgets::cwd::run_with_theme_hex(cfg.theme, theme_hex, cfg.pane_path),
+        "git" => widgets::git_status::run_with_theme_hex(cfg.theme, theme_hex, cfg.pane_path),
+        "wb-git" => widgets::wb_git_status::run_with_theme_hex(
+            cfg.theme,
+            theme_hex,
+            cfg.pane_path,
+            cfg.cache_ttl,
+        ),
+        "cpu" => widgets::cpu_memory::run_with_theme_hex(cfg.theme, theme_hex),
+        "hostname" => widgets::hostname::run_with_theme_hex(cfg.theme, theme_hex),
+        "datetime" => widgets::datetime::run_with_theme_hex(cfg.theme, theme_hex, cfg.time_format),
+        "battery" => widgets::battery::run_with_theme_hex(
+            cfg.theme,
+            theme_hex,
+            cfg.battery_name,
+            cfg.low_threshold,
+        ),
+        "kubernetes" => widgets::kubernetes::run_with_theme_hex(cfg.theme, theme_hex),
+        "terraform" => widgets::terraform::run_with_theme_hex(cfg.theme, theme_hex, cfg.pane_path),
+        "docker" => widgets::docker::run_with_theme_hex(cfg.theme, theme_hex),
+        "yadm" => widgets::yadm::run_with_theme_hex(cfg.theme, theme_hex),
+        "gpg-ssh" => widgets::gpg_ssh_agent::run_with_theme_hex(cfg.theme, theme_hex),
         _ => return None,
     };
 
@@ -51,12 +62,15 @@ fn render_widget(cfg: WidgetConfig<'_>, widget_name: &str) -> Option<String> {
 }
 
 /// Assemble the full tmux status-right string from multiple widgets.
-/// Each widget output is wrapped with its assigned color on the surface_alt background.
-pub fn run(
-    cfg: WidgetConfig<'_>,
-    show_names: &[&str],
-) -> String {
+/// Each widget output is wrapped with its assigned color on the segment background.
+pub fn run(cfg: WidgetConfig<'_>, show_names: &[&str]) -> String {
     let theme = cfg.theme;
+    let theme_hex = ThemeHex::from_theme(theme);
+    let segment_bg = if cfg.transparent {
+        theme.surface_alt
+    } else {
+        theme.surface
+    };
 
     struct WidgetOutput {
         text: String,
@@ -74,8 +88,9 @@ pub fn run(
         let handles: Vec<_> = jobs
             .into_iter()
             .map(|(name, entry)| {
+                let theme_hex_ref = &theme_hex;
                 scope.spawn(move || {
-                    render_widget(cfg, name).map(|output| WidgetOutput {
+                    render_widget(cfg, theme_hex_ref, name).map(|output| WidgetOutput {
                         text: output,
                         color: entry.color,
                         no_sep: entry.no_sep,
@@ -104,8 +119,8 @@ pub fn run(
         }
         result.push_str(&format!(
             "#[fg={},bg={}]{}",
-            tmux_renderer::color_hex_string(color_from_theme(theme, item.color)),
-            tmux_renderer::color_hex_string(theme.surface_alt),
+            theme_hex.color(color_from_theme(theme, item.color)),
+            theme_hex.color(segment_bg),
             item.text,
         ));
         prev_no_sep = item.no_sep;
@@ -123,6 +138,7 @@ mod tests {
     fn status_run_produces_empty_output_for_empty_widget_list() {
         let cfg = WidgetConfig {
             theme: themes::HARD,
+            transparent: false,
             pane_path: ".",
             battery_name: None,
             low_threshold: 20,
@@ -138,6 +154,7 @@ mod tests {
     fn status_run_handles_unknown_widget_names_gracefully() {
         let cfg = WidgetConfig {
             theme: themes::HARD,
+            transparent: false,
             pane_path: ".",
             battery_name: None,
             low_threshold: 20,
@@ -147,5 +164,12 @@ mod tests {
         };
         let output = run(cfg, &["nonexistent", "also-fake"]);
         assert!(output.is_empty());
+    }
+
+    #[test]
+    fn resolve_separator_balances_chevron_spacing() {
+        let separator = resolve_separator("chevron");
+        assert_eq!(" 〉 ", separator);
+        assert!(separator.ends_with(' '));
     }
 }

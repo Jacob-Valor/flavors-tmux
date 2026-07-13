@@ -19,7 +19,7 @@ pub const THEME: Theme = Theme {
     accent: Color::hex(0xcba6f7),
     accent_bright: Color::hex(0xf5c2e7),
     emphasis: Color::hex(0xcdd6f4),
-    muted: Color::hex(0x6c7086),
+    muted: Color::hex(0x7a7f95),
     forge_github: Color::hex(0xcdd6f4),
     forge_gitlab: Color::hex(0xfc6d26),
     forge_codeberg: Color::hex(0xfc6d26),
