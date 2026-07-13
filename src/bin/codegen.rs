@@ -3,8 +3,8 @@ use std::fs;
 use std::path::Path;
 
 use flavors_tmux::core::Color;
-use flavors_tmux::themes;
 use flavors_tmux::core::Theme;
+use flavors_tmux::themes;
 
 const FIELD_NAMES: &[&str] = &[
     "background",

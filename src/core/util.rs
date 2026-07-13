@@ -82,7 +82,9 @@ fn parse_signed_count(rest: &str, marker: char) -> usize {
     rest[start + marker.len_utf8()..]
         .bytes()
         .take_while(|b| b.is_ascii_digit())
-        .fold(0usize, |acc, d| acc.wrapping_mul(10).wrapping_add((d - b'0') as usize))
+        .fold(0usize, |acc, d| {
+            acc.wrapping_mul(10).wrapping_add((d - b'0') as usize)
+        })
 }
 
 pub fn parse_porcelain_v2(stdout: &str) -> ParsedStatusV2 {

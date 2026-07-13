@@ -36,4 +36,4 @@ elif [[ "$CONTEXT_LOWER" == *"stage"* ]] || [[ "$CONTEXT_LOWER" == *"staging"* ]
   COLOR="${THEME[warning]}"
 fi
 
-echo "${RESET}#[fg=${COLOR},bg=${THEME[background]},bold]󱃾 ${CONTEXT}/${NAMESPACE}"
+echo "${RESET}#[fg=${COLOR},bg=${THEME[surface]},bold]󱃾 ${CONTEXT}/${NAMESPACE}"

@@ -1,6 +1,6 @@
 use crate::core::{Color, Theme};
 use crate::themes;
-use crate::tmux_renderer;
+use crate::tmux_renderer::ThemeHex;
 
 #[derive(Clone, Debug)]
 pub struct WidgetContext {
@@ -11,12 +11,21 @@ pub struct WidgetContext {
 impl WidgetContext {
     pub fn new(theme_name: &str, transparent: bool) -> Self {
         let theme = themes::by_name(theme_name).with_transparent_background(transparent);
-        let reset = tmux_renderer::reset_string(theme.foreground, theme.background);
-        Self { theme, reset }
+        let theme_hex = ThemeHex::from_theme(theme);
+        Self::from_theme_hex(theme, &theme_hex)
     }
 
     pub fn from_theme(theme: Theme) -> Self {
-        let reset = tmux_renderer::reset_string(theme.foreground, theme.background);
+        let theme_hex = ThemeHex::from_theme(theme);
+        Self::from_theme_hex(theme, &theme_hex)
+    }
+
+    pub fn from_theme_hex(theme: Theme, theme_hex: &ThemeHex) -> Self {
+        let reset = format!(
+            "#[fg={},bg={},nobold,noitalics,nounderscore,nodim]",
+            theme_hex.color(theme.foreground),
+            theme_hex.color(theme.background),
+        );
         Self { theme, reset }
     }
 
@@ -40,12 +49,18 @@ impl WidgetContext {
         }
     }
 
-    pub fn format_segment(&self, color: Color, icon: &str, value: usize) -> String {
+    pub fn format_segment(
+        &self,
+        theme_hex: &ThemeHex,
+        color: Color,
+        icon: &str,
+        value: usize,
+    ) -> String {
         format!(
             " {}#[fg={},bg={},bold]{} {}",
             self.reset,
-            tmux_renderer::color_hex_string(color),
-            tmux_renderer::color_hex_string(self.theme.background),
+            theme_hex.color(color),
+            theme_hex.color(self.theme.background),
             icon,
             value
         )
@@ -78,7 +93,8 @@ mod tests {
     #[test]
     fn widget_context_format_segment() {
         let ctx = WidgetContext::new("hard", false);
-        let segment = ctx.format_segment(ctx.theme.success, "󰍛", 42);
+        let theme_hex = ThemeHex::from_theme(ctx.theme);
+        let segment = ctx.format_segment(&theme_hex, ctx.theme.success, "󰍛", 42);
         assert!(segment.contains("#[fg="));
         assert!(segment.contains("󰍛"));
         assert!(segment.contains("42"));

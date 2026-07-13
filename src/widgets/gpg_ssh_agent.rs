@@ -3,7 +3,7 @@ use std::process::Command;
 
 use crate::core::widget::WidgetContext;
 use crate::core::Theme;
-use crate::tmux_renderer;
+use crate::tmux_renderer::ThemeHex;
 
 /// Check whether the SSH agent is running and count loaded keys.
 /// Returns `None` when the agent socket is absent or the command fails,
@@ -12,6 +12,9 @@ fn check_ssh_agent() -> Option<usize> {
     env::var_os("SSH_AUTH_SOCK")?;
 
     let output = Command::new("ssh-add").arg("-l").output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
     let stdout = String::from_utf8_lossy(&output.stdout);
     let trimmed = stdout.trim();
 
@@ -38,7 +41,12 @@ fn check_gpg_agent() -> bool {
 /// Render the GPG/SSH agent status widget.
 /// Shows ` <count>` and/or `` segments with color-coded status.
 pub fn run(theme: Theme) -> String {
-    let ctx = WidgetContext::from_theme(theme);
+    let theme_hex = ThemeHex::from_theme(theme);
+    run_with_theme_hex(theme, &theme_hex)
+}
+
+pub(crate) fn run_with_theme_hex(theme: Theme, theme_hex: &ThemeHex) -> String {
+    let ctx = WidgetContext::from_theme_hex(theme, theme_hex);
     let theme = ctx.theme;
 
     let ssh_count = check_ssh_agent();
@@ -48,7 +56,7 @@ pub fn run(theme: Theme) -> String {
         return String::new();
     }
 
-    let bg = tmux_renderer::color_hex_string(theme.background);
+    let bg = theme_hex.color(theme.surface);
     let mut result = String::new();
     let mut first = true;
 
@@ -61,7 +69,7 @@ pub fn run(theme: Theme) -> String {
         result.push_str(&format!(
             "{}#[fg={},bg={},bold] {}",
             ctx.reset,
-            tmux_renderer::color_hex_string(color),
+            theme_hex.color(color),
             bg,
             count,
         ));
@@ -75,7 +83,7 @@ pub fn run(theme: Theme) -> String {
         result.push_str(&format!(
             "{}#[fg={},bg={},bold]",
             ctx.reset,
-            tmux_renderer::color_hex_string(theme.success),
+            theme_hex.color(theme.success),
             bg,
         ));
     }

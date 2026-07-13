@@ -5,14 +5,14 @@ use std::hash::Hasher;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 
+use crate::core::cache::{cache_base, read_fresh_cache, write_cache};
 use crate::core::util::run_git_command;
 use crate::core::widget::WidgetContext;
 use crate::core::{Color, Theme};
-use crate::tmux_renderer;
-
-const MAX_CACHE_BYTES: usize = 8192;
+use crate::tmux_renderer::ThemeHex;
 
 fn get_remote_url(repo_path: &str) -> Option<String> {
     let remote_stdout = run_git_command(&["git", "remote"], Some(Path::new(repo_path))).ok()?;
@@ -59,21 +59,7 @@ fn get_head_hash(repo_path: &str) -> Option<String> {
     }
 }
 
-fn cache_base() -> String {
-    if let Some(xdg) = env::var_os("XDG_CACHE_HOME") {
-        let xdg_str = xdg.to_string_lossy().into_owned();
-        if !xdg_str.is_empty() {
-            return xdg_str;
-        }
-    }
-    String::from("/tmp")
-}
-
-fn cache_path(
-    repo_path: &str,
-    remote_url: &str,
-    head_hash: Option<&str>,
-) -> String {
+fn cache_path(repo_path: &str, remote_url: &str, head_hash: Option<&str>) -> String {
     let mut hasher = DefaultHasher::new();
     hasher.write(repo_path.as_bytes());
     hasher.write(b"\x00");
@@ -85,30 +71,6 @@ fn cache_path(
     let key = hasher.finish();
 
     format!("{}/flavors-tmux-wb-{:x}.cache", cache_base(), key)
-}
-
-fn read_fresh_cache(path: &str, ttl_seconds: u64) -> Option<String> {
-    if ttl_seconds == 0 {
-        return None;
-    }
-
-    let metadata = fs::metadata(path).ok()?;
-    let modified = metadata.modified().ok()?;
-    let now = std::time::SystemTime::now();
-    let age = now.duration_since(modified).ok()?;
-    if age.as_secs() > ttl_seconds {
-        return None;
-    }
-
-    let content = fs::read(path).ok()?;
-    if content.len() > MAX_CACHE_BYTES {
-        return None;
-    }
-    Some(String::from_utf8_lossy(&content).into_owned())
-}
-
-fn write_cache(path: &str, output: &str) {
-    let _ = fs::write(path, output);
 }
 
 fn run_gh_command(argv: &[&str], repo_path: &str) -> Result<String, ()> {
@@ -154,7 +116,9 @@ fn is_valid_token(token: &str) -> bool {
 fn parse_codeberg_owner_repo(remote_url: &str) -> Option<String> {
     let start = if let Some(rest) = remote_url.strip_prefix("git@codeberg.org:") {
         rest
-    } else { remote_url.strip_prefix("https://codeberg.org/")? };
+    } else {
+        remote_url.strip_prefix("https://codeberg.org/")?
+    };
 
     let end = if remote_url.ends_with(".git") {
         remote_url.len() - 4
@@ -182,6 +146,7 @@ fn count_lines_matching(text: &str, prefix: &str) -> usize {
 
 fn append_segment(
     result: &mut String,
+    theme_hex: &ThemeHex,
     color: Color,
     bg: &str,
     icon: &str,
@@ -195,7 +160,7 @@ fn append_segment(
     let _ = write!(
         result,
         "#[fg={},bg={},bold]{} {} ",
-        tmux_renderer::color_hex_string(color),
+        theme_hex.color(color),
         bg,
         icon,
         count,
@@ -209,11 +174,9 @@ fn append_segment(
 /// O_TMPFILE inodes on fd close, while a 0700 directory prevents
 /// cross-user access even if cleanup is skipped.
 fn fetch_with_token(url: &str, token: &str, repo_path: &str) -> String {
-    let now_ns = std::time::SystemTime::now()
-        .duration_since(std::time::SystemTime::UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
-    let dir = format!("/tmp/flavors-tmux-curl-{:x}", now_ns);
+    static TMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+    let id = TMP_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let dir = format!("/tmp/flavors-tmux-curl-{id:x}");
 
     // Create a temp directory with 0700 perms — crash-safe on multi-user
     // systems because other users cannot traverse into it.
@@ -231,7 +194,16 @@ fn fetch_with_token(url: &str, token: &str, repo_path: &str) -> String {
     }
 
     let result = Command::new("curl")
-        .args(["-sS", "--fail", "--max-time", "5", "-K", &config_path, "-L", url])
+        .args([
+            "-sS",
+            "--fail",
+            "--max-time",
+            "5",
+            "-K",
+            &config_path,
+            "-L",
+            url,
+        ])
         .current_dir(repo_path)
         .output();
 
@@ -243,11 +215,10 @@ fn fetch_with_token(url: &str, token: &str, repo_path: &str) -> String {
     }
 }
 
-#[allow(unused_assignments)]
-fn render_uncached(theme: Theme, repo_path: &str, provider: &str) -> String {
-    let ctx = WidgetContext::from_theme(theme);
+fn render_uncached(theme: Theme, theme_hex: &ThemeHex, repo_path: &str, provider: &str) -> String {
+    let ctx = WidgetContext::from_theme_hex(theme, theme_hex);
     let theme = ctx.theme;
-    let bg = tmux_renderer::color_hex_string(theme.background);
+    let bg = theme_hex.color(theme.surface);
 
     let branch_raw = match run_git_command(
         &["git", "rev-parse", "--abbrev-ref", "HEAD"],
@@ -262,11 +233,11 @@ fn render_uncached(theme: Theme, repo_path: &str, provider: &str) -> String {
         return String::new();
     }
 
-    let mut pr_count: usize = 0;
-    let mut review_count: usize = 0;
-    let mut issue_count: usize = 0;
-    let mut bug_count: usize = 0;
-    let mut provider_icon = "";
+    let pr_count: usize;
+    let review_count: usize;
+    let issue_count: usize;
+    let bug_count: usize;
+    let provider_icon: &str;
 
     if provider == "github.com" {
         if !command_exists("gh") {
@@ -274,10 +245,48 @@ fn render_uncached(theme: Theme, repo_path: &str, provider: &str) -> String {
         }
         provider_icon = "\u{F408} ";
 
-        let pr_args = &["gh", "pr", "list", "--json", "number", "--limit", "100", "--jq", "length"][..];
-        let review_args = &["gh", "pr", "list", "--reviewer", "@me", "--json", "number", "--limit", "100", "--jq", "length"][..];
-        let issues_args = &["gh", "issue", "list", "--json", "assignees,labels", "--assignee", "@me", "--limit", "100", "--jq", "length"][..];
-        let bugs_args = &["gh", "issue", "list", "--json", "labels,assignees", "--assignee", "@me", "--limit", "100", "--jq", "[.[] | select(any(.labels[]?; .name == \"bug\"))] | length"][..];
+        let pr_args = &[
+            "gh", "pr", "list", "--json", "number", "--limit", "100", "--jq", "length",
+        ][..];
+        let review_args = &[
+            "gh",
+            "pr",
+            "list",
+            "--reviewer",
+            "@me",
+            "--json",
+            "number",
+            "--limit",
+            "100",
+            "--jq",
+            "length",
+        ][..];
+        let issues_args = &[
+            "gh",
+            "issue",
+            "list",
+            "--json",
+            "assignees,labels",
+            "--assignee",
+            "@me",
+            "--limit",
+            "100",
+            "--jq",
+            "length",
+        ][..];
+        let bugs_args = &[
+            "gh",
+            "issue",
+            "list",
+            "--json",
+            "labels,assignees",
+            "--assignee",
+            "@me",
+            "--limit",
+            "100",
+            "--jq",
+            "[.[] | select(any(.labels[]?; .name == \"bug\"))] | length",
+        ][..];
 
         let (pr_result, review_result, issues_result, bugs_result) = thread::scope(|s| {
             let pr_t = s.spawn(|| run_gh_command(pr_args, repo_path));
@@ -314,6 +323,7 @@ fn render_uncached(theme: Theme, repo_path: &str, provider: &str) -> String {
             return String::new();
         }
         provider_icon = "\u{E65C} ";
+        bug_count = 0;
 
         let mr_args: &[&str] = &["glab", "mr", "list"];
         let review_args: &[&str] = &["glab", "mr", "list", "--reviewer=@me"];
@@ -353,6 +363,8 @@ fn render_uncached(theme: Theme, repo_path: &str, provider: &str) -> String {
         };
 
         provider_icon = "\u{F328} ";
+        review_count = 0;
+        bug_count = 0;
 
         let remote_url = match get_remote_url(repo_path) {
             Some(u) => u,
@@ -370,14 +382,17 @@ fn render_uncached(theme: Theme, repo_path: &str, provider: &str) -> String {
             "{}/repos/{}/pulls?state=open&limit=100",
             api_base, owner_repo
         );
-        let pr_json = fetch_with_token(&pr_url, &token, repo_path);
-        pr_count = count_json_array_items(&pr_json);
-
         let issue_url = format!(
             "{}/repos/{}/issues?state=open&limit=100",
             api_base, owner_repo
         );
-        let issue_json = fetch_with_token(&issue_url, &token, repo_path);
+
+        let (pr_json, issue_json) = thread::scope(|s| {
+            let pr_t = s.spawn(|| fetch_with_token(&pr_url, &token, repo_path));
+            let issue_t = s.spawn(|| fetch_with_token(&issue_url, &token, repo_path));
+            (pr_t.join().unwrap_or_default(), issue_t.join().unwrap_or_default())
+        });
+        pr_count = count_json_array_items(&pr_json);
         issue_count = count_json_array_items(&issue_json);
     } else {
         return String::new();
@@ -390,7 +405,7 @@ fn render_uncached(theme: Theme, repo_path: &str, provider: &str) -> String {
     let _ = write!(
         result,
         "#[fg={},bg={},bold]\u{EB3A} {}",
-        tmux_renderer::color_hex_string(theme.muted),
+        theme_hex.color(theme.muted),
         bg,
         ctx.reset,
     );
@@ -406,13 +421,14 @@ fn render_uncached(theme: Theme, repo_path: &str, provider: &str) -> String {
     let _ = write!(
         result,
         "#[fg={}]{} {}",
-        tmux_renderer::color_hex_string(forge_color),
+        theme_hex.color(forge_color),
         provider_icon,
         ctx.reset,
     );
 
     append_segment(
         &mut result,
+        theme_hex,
         theme.success,
         &bg,
         "\u{F407}",
@@ -421,6 +437,7 @@ fn render_uncached(theme: Theme, repo_path: &str, provider: &str) -> String {
     );
     append_segment(
         &mut result,
+        theme_hex,
         theme.warning,
         &bg,
         "\u{F4AF}",
@@ -429,6 +446,7 @@ fn render_uncached(theme: Theme, repo_path: &str, provider: &str) -> String {
     );
     append_segment(
         &mut result,
+        theme_hex,
         theme.success,
         &bg,
         "\u{F41B}",
@@ -437,6 +455,7 @@ fn render_uncached(theme: Theme, repo_path: &str, provider: &str) -> String {
     );
     append_segment(
         &mut result,
+        theme_hex,
         theme.danger,
         &bg,
         "\u{F46F}",
@@ -449,6 +468,16 @@ fn render_uncached(theme: Theme, repo_path: &str, provider: &str) -> String {
 
 /// Render the forge (GitHub/GitLab/Codeberg) widget with caching.
 pub fn run(theme: Theme, repo_path: &str, cache_ttl: u64) -> String {
+    let theme_hex = ThemeHex::from_theme(theme);
+    run_with_theme_hex(theme, &theme_hex, repo_path, cache_ttl)
+}
+
+pub(crate) fn run_with_theme_hex(
+    theme: Theme,
+    theme_hex: &ThemeHex,
+    repo_path: &str,
+    cache_ttl: u64,
+) -> String {
     let remote_url = match get_remote_url(repo_path) {
         Some(u) => u,
         None => return String::new(),
@@ -461,17 +490,13 @@ pub fn run(theme: Theme, repo_path: &str, cache_ttl: u64) -> String {
 
     let head_hash = get_head_hash(repo_path);
 
-    let path = cache_path(
-        repo_path,
-        &remote_url,
-        head_hash.as_deref(),
-    );
+    let path = cache_path(repo_path, &remote_url, head_hash.as_deref());
 
     if let Some(cached) = read_fresh_cache(&path, cache_ttl) {
         return cached;
     }
 
-    let output = render_uncached(theme, repo_path, &provider);
+    let output = render_uncached(theme, theme_hex, repo_path, &provider);
 
     if !output.is_empty() {
         write_cache(&path, &output);

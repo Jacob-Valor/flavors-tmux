@@ -67,6 +67,10 @@ elif [[ $PROVIDER == "codeberg.org" ]]; then
   if [[ -z "$CODEBERG_TOKEN" ]]; then
     exit 0
   fi
+  # Reject tokens with non-printable characters (matches Rust is_valid_token)
+  if [[ ! "$CODEBERG_TOKEN" =~ ^[[:print:]]+$ ]]; then
+    exit 0
+  fi
   if ! command -v curl &>/dev/null || ! command -v jq &>/dev/null; then
     exit 1
   fi
@@ -99,21 +103,21 @@ else
 fi
 
 if [[ $PR_COUNT -gt 0 ]]; then
-  PR_STATUS="#[fg=${THEME[success]},bg=${THEME[background]},bold] ${RESET}${PR_COUNT} "
+  PR_STATUS="#[fg=${THEME[success]},bg=${THEME[surface]},bold] ${RESET}${PR_COUNT} "
 fi
 
 if [[ $REVIEW_COUNT -gt 0 ]]; then
-  REVIEW_STATUS="#[fg=${THEME[warning]},bg=${THEME[background]},bold] ${RESET}${REVIEW_COUNT} "
+  REVIEW_STATUS="#[fg=${THEME[warning]},bg=${THEME[surface]},bold] ${RESET}${REVIEW_COUNT} "
 fi
 
 if [[ $ISSUE_COUNT -gt 0 ]]; then
-  ISSUE_STATUS="#[fg=${THEME[success]},bg=${THEME[background]},bold] ${RESET}${ISSUE_COUNT} "
+  ISSUE_STATUS="#[fg=${THEME[success]},bg=${THEME[surface]},bold] ${RESET}${ISSUE_COUNT} "
 fi
 
 if [[ $BUG_COUNT -gt 0 ]]; then
-  BUG_STATUS="#[fg=${THEME[danger]},bg=${THEME[background]},bold] ${RESET}${BUG_COUNT} "
+  BUG_STATUS="#[fg=${THEME[danger]},bg=${THEME[surface]},bold] ${RESET}${BUG_COUNT} "
 fi
 
-WB_STATUS="#[fg=${THEME[muted]},bg=${THEME[background]},bold] $RESET$PROVIDER_ICON $RESET$PR_STATUS$REVIEW_STATUS$ISSUE_STATUS$BUG_STATUS"
+WB_STATUS="#[fg=${THEME[muted]},bg=${THEME[surface]},bold] $RESET$PROVIDER_ICON $RESET$PR_STATUS$REVIEW_STATUS$ISSUE_STATUS$BUG_STATUS"
 
 echo "$WB_STATUS"

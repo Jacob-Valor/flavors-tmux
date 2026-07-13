@@ -6,7 +6,7 @@ pub const THEME: Theme = Theme {
     surface: Color::hex(0xeee8d5),
     surface_alt: Color::hex(0xfdf6e3),
     primary: Color::hex(0x268bd2),
-    primary_bright: Color::hex(0x2aa198),
+    primary_bright: Color::hex(0x1d8a82),
     on_primary: Color::hex(0x000000),
     on_primary_bright: Color::hex(0x000000),
     success: Color::hex(0x5A6B00),

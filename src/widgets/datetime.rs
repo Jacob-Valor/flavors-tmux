@@ -1,6 +1,6 @@
 use crate::cli::args::TimeFormat;
 use crate::core::Theme;
-use crate::tmux_renderer;
+use crate::tmux_renderer::ThemeHex;
 
 fn format_24h(hour: u32, minute: u32) -> String {
     format!("{hour:02}:{minute:02} ")
@@ -33,6 +33,15 @@ fn format_time(time_format: TimeFormat, time: time::Time) -> String {
 
 /// Render the datetime widget with a configurable 12H/24H/hide format.
 pub fn run(theme: Theme, time_format: TimeFormat) -> String {
+    let theme_hex = ThemeHex::from_theme(theme);
+    run_with_theme_hex(theme, &theme_hex, time_format)
+}
+
+pub(crate) fn run_with_theme_hex(
+    theme: Theme,
+    theme_hex: &ThemeHex,
+    time_format: TimeFormat,
+) -> String {
     let time_str = format_time(time_format, local_time());
     if time_str.is_empty() {
         return String::new();
@@ -43,10 +52,10 @@ pub fn run(theme: Theme, time_format: TimeFormat) -> String {
 
     format!(
         "#[fg={},bg={}]{} #[fg={}]{} {}",
-        tmux_renderer::color_hex_string(theme.accent),
-        tmux_renderer::color_hex_string(theme.surface_alt),
+        theme_hex.color(theme.accent),
+        theme_hex.color(theme.surface),
         separator,
-        tmux_renderer::color_hex_string(theme.emphasis),
+        theme_hex.color(theme.emphasis),
         time_icon,
         time_str,
     )

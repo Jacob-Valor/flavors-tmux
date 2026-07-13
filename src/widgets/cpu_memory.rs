@@ -6,7 +6,7 @@ use std::process::Command;
 use std::time::SystemTime;
 
 use crate::core::{Color, Theme};
-use crate::tmux_renderer;
+use crate::tmux_renderer::ThemeHex;
 
 struct CpuMemStats {
     cpu_percent: u8,
@@ -63,14 +63,14 @@ fn parse_cpu_stat_line(line: &str) -> CpuStat {
 }
 
 #[cfg(target_os = "linux")]
-unsafe extern "C" {
-    fn getuid() -> u32;
-}
-
-#[cfg(target_os = "linux")]
 fn get_cache_path() -> String {
-    let uid = unsafe { getuid() };
-    format!("/tmp/flavors-tmux-cpu-cache-{}", uid)
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    let user = std::env::var("HOME").unwrap_or_default();
+    let mut hasher = DefaultHasher::new();
+    user.hash(&mut hasher);
+    let uid = hasher.finish();
+    format!("/tmp/flavors-tmux-cpu-cache-{uid:x}")
 }
 
 #[cfg(target_os = "linux")]
@@ -273,20 +273,25 @@ fn get_usage_color(percent: u8, theme: Theme) -> Color {
 }
 
 /// Render the CPU and memory usage widget.
-/// Shows `▒ 󰍛 {cpu}% 󰘚 {mem}%` with color-coded thresholds.
+/// Shows `󰍛 {cpu}% 󰘚 {mem}%` with color-coded thresholds.
 pub fn run(theme: Theme) -> String {
+    let theme_hex = ThemeHex::from_theme(theme);
+    run_with_theme_hex(theme, &theme_hex)
+}
+
+pub(crate) fn run_with_theme_hex(theme: Theme, theme_hex: &ThemeHex) -> String {
     let stats = read_stats();
 
     let cpu_color = get_usage_color(stats.cpu_percent, theme);
     let mem_color = get_usage_color(stats.mem_percent, theme);
-    let bg = tmux_renderer::color_hex_string(theme.background);
+    let bg = theme_hex.color(theme.surface);
 
     format!(
-        "#[fg={},bg={},bold]▒ 󰍛 {}% #[fg={},bg={},bold]󰘚 {}%",
-        tmux_renderer::color_hex_string(cpu_color),
+        "#[fg={},bg={},bold]󰍛 {}%#[fg={},bg={},bold] 󰘚 {}%",
+        theme_hex.color(cpu_color),
         bg,
         stats.cpu_percent,
-        tmux_renderer::color_hex_string(mem_color),
+        theme_hex.color(mem_color),
         bg,
         stats.mem_percent,
     )
@@ -329,5 +334,16 @@ mod tests {
         assert_eq!(theme.warning, get_usage_color(79, theme));
         assert_eq!(theme.success, get_usage_color(49, theme));
         assert_eq!(theme.success, get_usage_color(0, theme));
+    }
+
+    #[test]
+    fn run_formats_cpu_memory_without_decorative_block() {
+        let output = run(themes::hard::THEME);
+
+        assert!(!output.contains('▒'));
+        assert!(output.contains("󰍛 "));
+        assert!(output.contains("%#["));
+        assert!(output.contains("] 󰘚 "));
+        assert!(output.ends_with('%'));
     }
 }
