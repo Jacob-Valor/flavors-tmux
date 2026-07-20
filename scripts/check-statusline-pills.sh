@@ -26,10 +26,12 @@ assert_contains() {
     fi
 }
 
+# shellcheck disable=SC2016
 assert_contains \
     "session pill (status-left) must pair bg=primary with fg=on_primary" \
     'fg=${THEME[on_primary]},bg=${THEME[primary]},bold,nodim] #S'
 
+# shellcheck disable=SC2016
 assert_contains \
     "active-window pill (window-status-current-format) must pair bg=primary_bright with fg=on_primary_bright" \
     'fg=${THEME[on_primary_bright]},bg=${THEME[primary_bright]},bold,nodim]'

@@ -18,7 +18,7 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck tmux
 
       - name: ShellCheck linting
-        run: shellcheck -e SC1091 -f gcc flavors.tmux scripts/*.sh
+        run: shellcheck -e SC1091,SC2016 -f gcc flavors.tmux scripts/*.sh
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
