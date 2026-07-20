@@ -35,8 +35,8 @@ for vt in "${VALID_THEMES[@]}"; do
     [[ "$vt" == "$SELECTED_THEME" ]] && theme_valid=true && break
 done
 if [[ $theme_valid == false && ( -z "$CUSTOM_THEME_PATH" || ! -f "$CUSTOM_THEME_PATH" ) ]]; then
-    echo "flavors-tmux: unknown theme '${SELECTED_THEME}', using 'hard'. Available: ${VALID_THEMES[*]}" >&2
-    SELECTED_THEME="hard"
+    echo "flavors-tmux: unknown theme '${SELECTED_THEME}', using 'monokai_nebula'. Available: ${VALID_THEMES[*]}" >&2
+    SELECTED_THEME="monokai_nebula"
 fi
 
 # ---------------------------------------------------------------------------
@@ -79,7 +79,7 @@ forge_cache_ttl="${_opt[forge_cache_ttl]:-300}"
 auto_update="${_opt[auto_update]:-0}"
 status_left_length="${_opt[status_left_length]:-80}"
 status_right_length="${_opt[status_right_length]:-150}"
-separator_style="${_opt[separator_style]:-space}"
+separator_style="${_opt[separator_style]:-pipe}"
 
 # Validate numeric fields and identifiers to prevent injection in #(...) shell commands
 [[ "$battery_low" =~ ^[0-9]+$ ]] || battery_low=20
@@ -249,9 +249,9 @@ tmux set -g status-style "fg=${THEME[foreground]},bg=${THEME[background]}"
 
 tmux set -g status-left "\
 #{?client_prefix,\
-#[fg=${THEME[on_primary]}#,bg=${THEME[warning]}][ 󰠠 PREFIX ],\
-#[fg=${THEME[muted]}#,bg=${THEME[background]}][ 󰠠 ]}\
- #[fg=${THEME[foreground]},bg=${THEME[background]},bold,nodim][ #S ]"
+#[fg=${THEME[on_primary]}#,bg=${THEME[warning]}] 󰠠 PREFIX ,\
+#[fg=${THEME[on_primary]}#,bg=${THEME[primary]}] 󰠠 }\
+#[fg=${THEME[on_primary]},bg=${THEME[primary]},bold,nodim] #S "
 
 window_number="$(custom_number_cmd '#I' "$window_id_style")"
 custom_pane="$(custom_number_cmd '#P' "$pane_id_style")"
@@ -259,9 +259,9 @@ zoom_number="$(custom_number_cmd '#P' "$zoom_id_style")"
 
 tmux set -g window-status-current-format "\
 $RESET\
-#[fg=${THEME[success_bright]},bg=${THEME[surface]}]\
+#[fg=${THEME[on_primary_bright]},bg=${THEME[primary_bright]}] \
 #{?#{==:#{pane_current_command},ssh},󰣀 ,$active_terminal_icon }\
-#[fg=${THEME[accent_bright]},bold,nodim]\
+#[fg=${THEME[on_primary_bright]},bg=${THEME[primary_bright]},bold,nodim]\
 $window_number\
 #W\
 #[nobold]\

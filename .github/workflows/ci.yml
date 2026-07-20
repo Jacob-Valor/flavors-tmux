@@ -38,6 +38,9 @@ jobs:
       - name: Bash/Rust parity tests
         run: bash scripts/test-parity.sh
 
+      - name: Statusline pill contrast guard
+        run: bash scripts/check-statusline-pills.sh
+
       - name: Audit dependencies
         uses: actions-rust-lang/audit@v1
         continue-on-error: true
@@ -66,6 +69,9 @@ jobs:
 
       - name: Bash/Rust parity tests
         run: bash scripts/test-parity.sh
+
+      - name: Statusline pill contrast guard
+        run: bash scripts/check-statusline-pills.sh
 
       - name: Audit dependencies
         uses: actions-rust-lang/audit@v1

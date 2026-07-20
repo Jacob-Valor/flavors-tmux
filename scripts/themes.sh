@@ -9,7 +9,7 @@ set -euo pipefail
 #   2. src/themes/registry.rs        — import + byName() entry + NAMES array
 #   3. Run `cargo run --bin codegen -- .` — generates Bash case block + VALID_THEMES array
 
-SELECTED_THEME="$(tmux show-option -gv @flavors-tmux_theme 2>/dev/null || echo "hard")"
+SELECTED_THEME="$(tmux show-option -gv @flavors-tmux_theme 2>/dev/null || echo "monokai_nebula")"
 TRANSPARENT_THEME="$(tmux show-option -gv @flavors-tmux_transparent 2>/dev/null || echo 0)"
 
 declare -A THEMES=()

@@ -3,6 +3,7 @@ use std::fs;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
 
+use crate::core::cache::{cache_base, read_fresh_cache, write_cache};
 use crate::core::util::{parse_porcelain_v2, run_git_command, trim_branch_name, ParsedStatusV2};
 use crate::core::widget::WidgetContext;
 use crate::core::Theme;
@@ -15,7 +16,7 @@ enum SyncMode {
     Behind,
 }
 
-fn get_porcelain_v2(repo_path: &str) -> ParsedStatusV2 {
+fn get_porcelain_v2_raw(repo_path: &str) -> String {
     let stdout = match run_git_command(
         &[
             "git",
@@ -32,11 +33,35 @@ fn get_porcelain_v2(repo_path: &str) -> ParsedStatusV2 {
             Some(Path::new(repo_path)),
         ) {
             Ok(out) => out,
-            Err(_) => return ParsedStatusV2::default(),
+            Err(_) => return String::new(),
         },
     };
 
-    let stdout_str = String::from_utf8(stdout).unwrap_or_default();
+    String::from_utf8(stdout).unwrap_or_default()
+}
+
+// Same idea as the diff-stat cache below: a cache hit costs zero subprocess
+// spawns. Branch name / ahead-behind / stash count can lag up to this TTL
+// after a checkout, commit, fetch, or stash push — bounded and consistent
+// with the tradeoff already accepted for diff stats.
+const STATUS_CACHE_TTL_SECS: u64 = 2;
+
+fn status_cache_path(repo_path: &str) -> String {
+    let h = hash_path(repo_path);
+    let user = std::env::var("HOME").unwrap_or_default();
+    let uh = hash_path(&user);
+    format!("{}/flavors-tmux-porcelain-{uh:x}-{h:x}", cache_base())
+}
+
+fn get_porcelain_v2(repo_path: &str) -> ParsedStatusV2 {
+    let cache_path = status_cache_path(repo_path);
+
+    if let Some(cached) = read_fresh_cache(&cache_path, STATUS_CACHE_TTL_SECS) {
+        return parse_porcelain_v2(&cached);
+    }
+
+    let stdout_str = get_porcelain_v2_raw(repo_path);
+    write_cache(&cache_path, &stdout_str);
     parse_porcelain_v2(&stdout_str)
 }
 
@@ -80,39 +105,42 @@ fn diff_cache_path(repo_path: &str) -> String {
     format!("/tmp/flavors-tmux-diff-{uh:x}-{h:x}")
 }
 
+// Short enough that edits to tracked files (or a new commit) during an
+// active session show up within one or two statusline redraws, long enough
+// that a cache hit costs zero subprocess spawns instead of one.
+//
+// The cache key is deliberately just the file's mtime age, not HEAD: reading
+// HEAD used to cost its own `git rev-parse` spawn on every single render,
+// even on a cache hit, which defeated half the point of caching. The
+// tradeoff is that a commit landing inside the TTL window can show
+// pre-commit insertion/deletion counts for up to DIFF_CACHE_TTL_SECS —
+// bounded and imperceptible at this TTL, same tradeoff already accepted for
+// working-tree edits.
+const DIFF_CACHE_TTL_SECS: u64 = 3;
+
 fn get_diff_stats_cached(repo_path: &str) -> (usize, usize) {
-    let head = match run_git_command(&["git", "rev-parse", "HEAD"], Some(Path::new(repo_path))) {
-        Ok(out) => String::from_utf8_lossy(&out).trim().to_string(),
-        Err(_) => return (0, 0),
-    };
     let cache_path = diff_cache_path(repo_path);
 
-    // Skip cache files older than 24 hours — they're from repos
-    // the user no longer visits, so recompute + overwrite.
     let cache_fresh = fs::metadata(&cache_path)
         .ok()
         .and_then(|meta| meta.modified().ok())
         .and_then(|mtime| mtime.elapsed().ok())
-        .map(|age| age.as_secs() < 86400)
+        .map(|age| age.as_secs() < DIFF_CACHE_TTL_SECS)
         .unwrap_or(false);
 
     if cache_fresh {
         if let Ok(content) = fs::read_to_string(&cache_path) {
-            let mut parts = content.splitn(3, ' ');
-            if let (Some(cached_head), Some(ins_str), Some(del_str)) =
-                (parts.next(), parts.next(), parts.next())
-            {
-                if cached_head == head {
-                    if let (Ok(ins), Ok(del)) = (ins_str.parse(), del_str.parse()) {
-                        return (ins, del);
-                    }
+            let mut parts = content.splitn(2, ' ');
+            if let (Some(ins_str), Some(del_str)) = (parts.next(), parts.next()) {
+                if let (Ok(ins), Ok(del)) = (ins_str.parse(), del_str.parse()) {
+                    return (ins, del);
                 }
             }
         }
     }
     let stats = get_diff_stats(repo_path);
     let tmp_path = format!("{cache_path}.tmp");
-    let _ = fs::write(&tmp_path, format!("{} {} {}", head, stats.0, stats.1));
+    let _ = fs::write(&tmp_path, format!("{} {}", stats.0, stats.1));
     let _ = fs::rename(&tmp_path, &cache_path);
     stats
 }

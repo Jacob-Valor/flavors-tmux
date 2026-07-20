@@ -43,14 +43,14 @@ impl<'a> Args<'a> {
         Self {
             command: "",
             positional: Vec::new(),
-            theme: "hard",
+            theme: "monokai_nebula",
             time_format: TimeFormat::H24,
             battery_name: None,
             low_threshold: 20,
             cache_ttl: 300,
             transparent: false,
             pane_path: None,
-            separator_style: "space",
+            separator_style: "pipe",
         }
     }
 }
