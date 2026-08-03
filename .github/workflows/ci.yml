@@ -41,6 +41,9 @@ jobs:
       - name: Statusline pill contrast guard
         run: bash scripts/check-statusline-pills.sh
 
+      - name: Perf regression harness
+        run: bash scripts/perf-harness.sh
+
       - name: Audit dependencies
         uses: actions-rust-lang/audit@v1
         continue-on-error: true

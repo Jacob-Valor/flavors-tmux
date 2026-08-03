@@ -22,6 +22,10 @@ fn resolve_separator(style: &str) -> &'static str {
     match style {
         "pipe" => " │ ",
         "chevron" => " 〉 ",
+        "arrow" => " ▸ ",
+        "slash" => " / ",
+        "line" => " ━ ",
+        "block" => " ▏",
         "none" => "",
         _ => " ",
     }
@@ -30,7 +34,18 @@ fn resolve_separator(style: &str) -> &'static str {
 fn render_widget(cfg: WidgetConfig<'_>, theme_hex: &ThemeHex, widget_name: &str) -> Option<String> {
     let output = match widget_name {
         "cwd" => widgets::cwd::run_with_theme_hex(cfg.theme, theme_hex, cfg.pane_path),
-        "git" => widgets::git_status::run_with_theme_hex(cfg.theme, theme_hex, cfg.pane_path),
+        "git" => {
+            // The porcelain is prefetched once per render (see `run`) so the
+            // git widget never spawns its own `git status` — the whole render
+            // shares one spawn for the repo.
+            let status = widgets::git_status::prefetch_porcelain(cfg.pane_path);
+            widgets::git_status::run_with_theme_hex_prefetched(
+                cfg.theme,
+                theme_hex,
+                &status,
+                cfg.pane_path,
+            )
+        }
         "wb-git" => widgets::wb_git_status::run_with_theme_hex(
             cfg.theme,
             theme_hex,
@@ -84,27 +99,49 @@ pub fn run(cfg: WidgetConfig<'_>, show_names: &[&str]) -> String {
         .collect();
     let mut outputs: Vec<WidgetOutput> = Vec::with_capacity(jobs.len());
 
-    thread::scope(|scope| {
-        let handles: Vec<_> = jobs
-            .into_iter()
-            .map(|(name, entry)| {
-                let theme_hex_ref = &theme_hex;
-                scope.spawn(move || {
-                    render_widget(cfg, theme_hex_ref, name).map(|output| WidgetOutput {
-                        text: output,
-                        color: entry.color,
-                        no_sep: entry.no_sep,
+    // Most widgets are cache-read + format (~0.2ms); only the forge and
+    // git widgets spawn subprocesses. Spawning a thread per widget costs
+    // ~10-30µs each and only pays off when several subprocess-backed widgets
+    // run concurrently. Batch the cheap widgets inline, parallelize only the
+    // ones that actually block on external processes.
+    let blocking = ["git", "wb-git"];
+    let (blocking_jobs, inline_jobs): (Vec<_>, Vec<_>) = jobs
+        .into_iter()
+        .partition(|(name, _)| blocking.contains(name));
+
+    for (name, entry) in inline_jobs {
+        if let Some(text) = render_widget(cfg, &theme_hex, name) {
+            outputs.push(WidgetOutput {
+                text,
+                color: entry.color,
+                no_sep: entry.no_sep,
+            });
+        }
+    }
+
+    if !blocking_jobs.is_empty() {
+        thread::scope(|scope| {
+            let handles: Vec<_> = blocking_jobs
+                .into_iter()
+                .map(|(name, entry)| {
+                    let theme_hex_ref = &theme_hex;
+                    scope.spawn(move || {
+                        render_widget(cfg, theme_hex_ref, name).map(|output| WidgetOutput {
+                            text: output,
+                            color: entry.color,
+                            no_sep: entry.no_sep,
+                        })
                     })
                 })
-            })
-            .collect();
+                .collect();
 
-        for handle in handles {
-            if let Ok(Some(output)) = handle.join() {
-                outputs.push(output);
+            for handle in handles {
+                if let Ok(Some(output)) = handle.join() {
+                    outputs.push(output);
+                }
             }
-        }
-    });
+        });
+    }
 
     if outputs.is_empty() {
         return String::new();

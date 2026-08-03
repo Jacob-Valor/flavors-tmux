@@ -77,16 +77,23 @@ show_yadm="${_opt[show_yadm]:-0}"
 show_gpg_ssh_agent="${_opt[show_gpg_ssh_agent]:-0}"
 forge_cache_ttl="${_opt[forge_cache_ttl]:-300}"
 auto_update="${_opt[auto_update]:-0}"
+status_interval="${_opt[status_interval]:-15}"
 status_left_length="${_opt[status_left_length]:-80}"
 status_right_length="${_opt[status_right_length]:-150}"
 separator_style="${_opt[separator_style]:-pipe}"
+window_status_style="${_opt[window_status_style]:-pill}"
+show_session_in_window="${_opt[show_session_in_window]:-0}"
 
 # Validate numeric fields and identifiers to prevent injection in #(...) shell commands
 [[ "$battery_low" =~ ^[0-9]+$ ]] || battery_low=20
 [[ "$forge_cache_ttl" =~ ^[0-9]+$ ]] || forge_cache_ttl=300
+[[ "$status_interval" =~ ^[0-9]+$ ]] || status_interval=15
+[[ "$status_interval" -ge 1 && "$status_interval" -le 3600 ]] || status_interval=15
 [[ "$status_left_length" =~ ^[0-9]+$ ]] || status_left_length=80
 [[ "$status_right_length" =~ ^[0-9]+$ ]] || status_right_length=150
-[[ "$separator_style" =~ ^(space|pipe|chevron|none)$ ]] || separator_style=space
+[[ "$separator_style" =~ ^(space|pipe|chevron|arrow|slash|line|block|none)$ ]] || separator_style=space
+[[ "$window_status_style" =~ ^(pill|border)$ ]] || window_status_style=pill
+[[ "$show_session_in_window" =~ ^[01]$ ]] || show_session_in_window=0
 [[ "$battery_name" =~ ^[A-Za-z0-9_-]+$ ]] || battery_name=""
 
 transparent_arg=""
@@ -235,6 +242,10 @@ fi
 
 tmux set -g status-left-length "$status_left_length"
 tmux set -g status-right-length "$status_right_length"
+# Refresh cadence: how often tmux re-runs the statusline #() commands.
+# Higher = fewer subprocess spawns (and fewer forge cache expiries), lower =
+# more responsive git/branch changes. Default 15s matches tmux's default.
+tmux set -g status-interval "$status_interval"
 
 tmux set -g mode-style "fg=${THEME[background]},bg=${THEME[foreground]},reverse"
 
@@ -249,13 +260,17 @@ tmux set -g status-style "fg=${THEME[foreground]},bg=${THEME[background]}"
 
 tmux set -g status-left "\
 #{?client_prefix,\
-#[fg=${THEME[on_primary]}#,bg=${THEME[warning]}] 󰠠 PREFIX ,\
-#[fg=${THEME[on_primary]}#,bg=${THEME[primary]}] 󰠠 }\
+#[fg=${THEME[on_primary]},bg=${THEME[warning]}] 󰠠 PREFIX ,\
+#[fg=${THEME[on_primary]},bg=${THEME[primary]}] 󰠠 }\
 #[fg=${THEME[on_primary]},bg=${THEME[primary]},bold,nodim] #S "
 
 window_number="$(custom_number_cmd '#I' "$window_id_style")"
 custom_pane="$(custom_number_cmd '#P' "$pane_id_style")"
 zoom_number="$(custom_number_cmd '#P' "$zoom_id_style")"
+window_status_border=""
+window_name_prefix=""
+[[ "$window_status_style" == "border" ]] && window_status_border="#[fg=${THEME[emphasis]}]▏#[fg=${THEME[on_primary_bright]},bg=${THEME[primary_bright]},bold,nodim]"
+[[ "$show_session_in_window" == "1" ]] && window_name_prefix="#S:"
 
 tmux set -g window-status-current-format "\
 $RESET\
@@ -263,7 +278,8 @@ $RESET\
 #{?#{==:#{pane_current_command},ssh},󰣀 ,$active_terminal_icon }\
 #[fg=${THEME[on_primary_bright]},bg=${THEME[primary_bright]},bold,nodim]\
 $window_number\
-#W\
+$window_status_border\
+$window_name_prefix#W\
 #[nobold]\
 #{?window_zoomed_flag, $zoom_number, $custom_pane}\
 #{?window_last_flag, ,}"

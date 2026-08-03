@@ -119,6 +119,18 @@ fn read_linux_stats() -> CpuMemStats {
                     ((total_delta.saturating_sub(idle_delta)) * 100 / total_delta).min(100) as u8;
             }
         }
+    } else {
+        // No previous sample (first render after boot or cache cleared): the
+        // /proc/stat counters are cumulative since boot, so (total-idle)/total
+        // is the CPU-busy fraction averaged over the whole uptime — a plausible
+        // seed instead of 0%.
+        let busy = current.total.saturating_sub(current.idle);
+        if let Some(pct) = busy
+            .checked_mul(100)
+            .and_then(|b| b.checked_div(current.total))
+        {
+            cpu_percent = pct.min(100) as u8;
+        }
     }
 
     // Write to temp file then rename for atomic update
@@ -272,8 +284,25 @@ fn get_usage_color(percent: u8, theme: Theme) -> Color {
     }
 }
 
-/// Render the CPU and memory usage widget.
-/// Shows `󰍛 {cpu}% 󰘚 {mem}%` with color-coded thresholds.
+fn progress_bar(percent: u8, width: u8) -> String {
+    let bounded_percent = percent.min(100);
+    let filled = if bounded_percent == 0 {
+        0
+    } else {
+        (u16::from(bounded_percent) * u16::from(width)).div_ceil(100)
+    };
+
+    let mut bar = String::with_capacity(usize::from(width) * '█'.len_utf8());
+    for idx in 0..u16::from(width) {
+        if idx < filled {
+            bar.push('█');
+        } else {
+            bar.push('░');
+        }
+    }
+    bar
+}
+
 pub fn run(theme: Theme) -> String {
     let theme_hex = ThemeHex::from_theme(theme);
     run_with_theme_hex(theme, &theme_hex)
@@ -284,15 +313,19 @@ pub(crate) fn run_with_theme_hex(theme: Theme, theme_hex: &ThemeHex) -> String {
 
     let cpu_color = get_usage_color(stats.cpu_percent, theme);
     let mem_color = get_usage_color(stats.mem_percent, theme);
+    let cpu_bar = progress_bar(stats.cpu_percent, 8);
+    let mem_bar = progress_bar(stats.mem_percent, 8);
     let bg = theme_hex.color(theme.surface);
 
     format!(
-        "#[fg={},bg={},bold]󰍛 {}%#[fg={},bg={},bold] 󰘚 {}%",
+        "#[fg={},bg={},bold]󰍛 {} {}%#[fg={},bg={},bold] 󰘚 {} {}%",
         theme_hex.color(cpu_color),
         bg,
+        cpu_bar,
         stats.cpu_percent,
         theme_hex.color(mem_color),
         bg,
+        mem_bar,
         stats.mem_percent,
     )
 }
@@ -337,13 +370,20 @@ mod tests {
     }
 
     #[test]
-    fn run_formats_cpu_memory_without_decorative_block() {
+    fn run_formats_cpu_memory_with_progress_bars() {
         let output = run(themes::hard::THEME);
 
-        assert!(!output.contains('▒'));
         assert!(output.contains("󰍛 "));
+        assert!(output.contains('█') || output.contains('░'));
         assert!(output.contains("%#["));
         assert!(output.contains("] 󰘚 "));
         assert!(output.ends_with('%'));
+    }
+
+    #[test]
+    fn progress_bar_renders_filled_and_empty_segments() {
+        assert_eq!("░░░░░░░░", progress_bar(0, 8));
+        assert_eq!("████░░░░", progress_bar(42, 8));
+        assert_eq!("████████", progress_bar(100, 8));
     }
 }

@@ -24,6 +24,7 @@ Commands:
   battery --theme <name> [opts]       Render battery widget
   git-status --theme <name> <path>    Render git status widget
   wb-git-status --theme <name> <path> Render GitHub/GitLab status widget
+  wb-git-refresh <path>              Recompute forge cache in background
   hostname --theme <name>             Render hostname/SSH indicator widget
   cpu-memory --theme <name>           Render CPU and memory usage widget
   kubernetes --theme <name>           Render Kubernetes context widget
@@ -42,7 +43,7 @@ Options:
   --low-threshold <n>                 Low battery threshold (battery, default: 20)
   -c, --cache-ttl <seconds>           Forge widget cache TTL (default: 300)
   --transparent                       Use default terminal background
-  --separator <style>                  Separator between widgets (space, pipe, chevron, none)
+  --separator <style>                  Separator between widgets (space, pipe, chevron, arrow, slash, line, block, none)
 
 Styles for custom-number:
   arabic, fsquare, hsquare, dsquare, super, sub, earabic, hide
@@ -124,6 +125,17 @@ fn run(raw_args: &[&str]) -> i32 {
             let theme = resolve_theme(&args);
             let output = widgets::wb_git_status::run(theme, args.positional[0], args.cache_ttl);
             write_output!(out, output);
+            0
+        }
+
+        // Detached background refresh for the forge widget (stale-while-
+        // revalidate). Spawned by the statusline when the cache is stale;
+        // recomputes the raw forge data and writes the cache, then exits.
+        "wb-git-refresh" => {
+            if args.positional.is_empty() {
+                return 0;
+            }
+            widgets::wb_git_status::refresh_cache(args.positional[0]);
             0
         }
 

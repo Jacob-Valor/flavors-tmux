@@ -8,45 +8,62 @@ set -euo pipefail
 
 SHOW_GIT=$(tmux show-option -gv @flavors-tmux_show_git 2>/dev/null || echo 1)
 if [ "$SHOW_GIT" == "0" ]; then
-  exit 0
+	exit 0
 fi
 
 CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd)"
 source "$CURRENT_DIR/themes.sh"
 
 if [[ -z "$1" ]]; then
-    exit 0
+	exit 0
 fi
 cd "$1" || exit 1
 RESET="#[fg=${THEME[foreground]},bg=${THEME[background]},nobold,noitalics,nounderscore,nodim]"
 
+# ---------------------------------------------------------------------------
+# Output cache (mtime TTL, same tradeoff as the Rust binary): a fresh cache
+# hit skips every git/grep/sed/awk call — the whole render is one file read.
+# The final themed output is cached, so staleness is bounded by the TTL.
+# ---------------------------------------------------------------------------
+GIT_CACHE_TTL=2
+GIT_CACHE_KEY=$(printf '%s' "$1" | cksum | awk '{print $1}')
+GIT_CACHE_PATH="/tmp/flavors-tmux-bash-git-${GIT_CACHE_KEY}"
+
+if [ -f "$GIT_CACHE_PATH" ]; then
+	CACHE_AGE=$(($(date +%s) - $(stat -c %Y "$GIT_CACHE_PATH" 2>/dev/null || echo 0)))
+	if [ "$CACHE_AGE" -ge 0 ] && [ "$CACHE_AGE" -lt "$GIT_CACHE_TTL" ]; then
+		cat "$GIT_CACHE_PATH"
+		exit 0
+	fi
+fi
+
 # Single git invocation replaces: rev-parse, status --porcelain, rev-list --count,
 # and diff --name-only --diff-filter=U.
 V2_OUTPUT=$(git status --porcelain=v2 --branch --show-stash 2>/dev/null || git status --porcelain=v2 --branch 2>/dev/null) || {
-    exit 0  # Not a git repo
+	exit 0 # Not a git repo
 }
 
 # --- Parse porcelain v2 headers ---
 BRANCH=$(echo "$V2_OUTPUT" | grep "^# branch.head " | cut -d' ' -f3-) || true
 if [[ "$BRANCH" == "(detached)" ]]; then
-    exit 0
+	exit 0
 fi
 if [[ -z "$BRANCH" ]]; then
-    exit 0
+	exit 0
 fi
 
 if [[ ${#BRANCH} -gt 25 ]]; then
-    BRANCH="${BRANCH:0:25}..."
+	BRANCH="${BRANCH:0:25}..."
 fi
 
 AHEAD_COUNT=0
 BEHIND_COUNT=0
 AB_LINE=$(echo "$V2_OUTPUT" | grep "^# branch.ab ") || true
 if [[ -n "$AB_LINE" ]]; then
-    AHEAD_COUNT=$(echo "$AB_LINE" | sed -n 's/.*+\([0-9]*\).*/\1/p')
-    BEHIND_COUNT=$(echo "$AB_LINE" | sed -n 's/.*-\([0-9]*\).*/\1/p')
-    AHEAD_COUNT=${AHEAD_COUNT:-0}
-    BEHIND_COUNT=${BEHIND_COUNT:-0}
+	AHEAD_COUNT=$(echo "$AB_LINE" | sed -n 's/.*+\([0-9]*\).*/\1/p')
+	BEHIND_COUNT=$(echo "$AB_LINE" | sed -n 's/.*-\([0-9]*\).*/\1/p')
+	AHEAD_COUNT=${AHEAD_COUNT:-0}
+	BEHIND_COUNT=${BEHIND_COUNT:-0}
 fi
 
 # --- Count file entries ---
@@ -63,11 +80,11 @@ DELETIONS_COUNT=0
 SYNC_MODE=0
 
 if [[ $CHANGED_COUNT -gt 0 ]]; then
-    read -r CHANGED INSERTIONS DELETIONS < <(git diff --numstat HEAD 2>/dev/null | awk 'NF==3 {changed+=1; ins+=$1; del+=$2} END {printf("%d %d %d", changed, ins, del)}') || true
-    DIFF_COUNTS=("$CHANGED" "$INSERTIONS" "$DELETIONS")
-    INSERTIONS_COUNT=${DIFF_COUNTS[1]:-0}
-    DELETIONS_COUNT=${DIFF_COUNTS[2]:-0}
-    SYNC_MODE=1
+	read -r CHANGED INSERTIONS DELETIONS < <(git diff --numstat HEAD 2>/dev/null | awk 'NF==3 {changed+=1; ins+=$1; del+=$2} END {printf("%d %d %d", changed, ins, del)}') || true
+	DIFF_COUNTS=("$CHANGED" "$INSERTIONS" "$DELETIONS")
+	INSERTIONS_COUNT=${DIFF_COUNTS[1]:-0}
+	DELETIONS_COUNT=${DIFF_COUNTS[2]:-0}
+	SYNC_MODE=1
 fi
 
 # --- Stash count ---
@@ -85,58 +102,61 @@ STATUS_AHEAD=""
 STATUS_BEHIND=""
 
 if [[ $CHANGED_COUNT -gt 0 ]]; then
-    STATUS_CHANGED=" ${RESET}#[fg=${THEME[warning]},bg=${THEME[surface]},bold] ${CHANGED_COUNT}"
+	STATUS_CHANGED=" ${RESET}#[fg=${THEME[warning]},bg=${THEME[surface]},bold] ${CHANGED_COUNT}"
 fi
 
 if [[ $INSERTIONS_COUNT -gt 0 ]]; then
-    STATUS_INSERTIONS=" ${RESET}#[fg=${THEME[success]},bg=${THEME[surface]},bold] ${INSERTIONS_COUNT}"
+	STATUS_INSERTIONS=" ${RESET}#[fg=${THEME[success]},bg=${THEME[surface]},bold] ${INSERTIONS_COUNT}"
 fi
 
 if [[ $DELETIONS_COUNT -gt 0 ]]; then
-    STATUS_DELETIONS=" ${RESET}#[fg=${THEME[danger]},bg=${THEME[surface]},bold] ${DELETIONS_COUNT}"
+	STATUS_DELETIONS=" ${RESET}#[fg=${THEME[danger]},bg=${THEME[surface]},bold] ${DELETIONS_COUNT}"
 fi
 
 if [[ $UNTRACKED_COUNT -gt 0 ]]; then
-    STATUS_UNTRACKED=" ${RESET}#[fg=${THEME[muted]},bg=${THEME[surface]},bold] ${UNTRACKED_COUNT}"
+	STATUS_UNTRACKED=" ${RESET}#[fg=${THEME[muted]},bg=${THEME[surface]},bold] ${UNTRACKED_COUNT}"
 fi
 
 if [[ $STASH_COUNT -gt 0 ]]; then
-    STATUS_STASH=" ${RESET}#[fg=${THEME[info_bright]},bg=${THEME[surface]},bold] ${STASH_COUNT}"
+	STATUS_STASH=" ${RESET}#[fg=${THEME[info_bright]},bg=${THEME[surface]},bold] ${STASH_COUNT}"
 fi
 
 if [[ $CONFLICT_COUNT -gt 0 ]]; then
-    STATUS_CONFLICT=" ${RESET}#[fg=${THEME[danger_bright]},bg=${THEME[surface]},bold]󰅘 ${CONFLICT_COUNT}"
+	STATUS_CONFLICT=" ${RESET}#[fg=${THEME[danger_bright]},bg=${THEME[surface]},bold]󰅘 ${CONFLICT_COUNT}"
 fi
 
 if [[ $AHEAD_COUNT -gt 0 ]]; then
-    STATUS_AHEAD=" ${RESET}#[fg=${THEME[info_bright]},bg=${THEME[surface]},bold]↑${AHEAD_COUNT}"
+	STATUS_AHEAD=" ${RESET}#[fg=${THEME[info_bright]},bg=${THEME[surface]},bold]↑${AHEAD_COUNT}"
 fi
 
 if [[ $BEHIND_COUNT -gt 0 ]]; then
-    STATUS_BEHIND=" ${RESET}#[fg=${THEME[danger]},bg=${THEME[surface]},bold]↓${BEHIND_COUNT}"
+	STATUS_BEHIND=" ${RESET}#[fg=${THEME[danger]},bg=${THEME[surface]},bold]↓${BEHIND_COUNT}"
 fi
 
 if [[ $SYNC_MODE -eq 0 ]]; then
-    if [[ $AHEAD_COUNT -gt 0 ]]; then
-        SYNC_MODE=2
-    elif [[ $BEHIND_COUNT -gt 0 ]]; then
-        SYNC_MODE=3
-    fi
+	if [[ $AHEAD_COUNT -gt 0 ]]; then
+		SYNC_MODE=2
+	elif [[ $BEHIND_COUNT -gt 0 ]]; then
+		SYNC_MODE=3
+	fi
 fi
 
 case "$SYNC_MODE" in
 1)
-    REMOTE_STATUS="$RESET#[bg=${THEME[surface]},fg=${THEME[danger_bright]},bold]▒ 󱓎"
-    ;;
+	REMOTE_STATUS="$RESET#[bg=${THEME[surface]},fg=${THEME[danger_bright]},bold]▒ 󱓎"
+	;;
 2)
-    REMOTE_STATUS="$RESET#[bg=${THEME[surface]},fg=${THEME[danger]},bold]▒ 󰛃"
-    ;;
+	REMOTE_STATUS="$RESET#[bg=${THEME[surface]},fg=${THEME[danger]},bold]▒ 󰛃"
+	;;
 3)
-    REMOTE_STATUS="$RESET#[bg=${THEME[surface]},fg=${THEME[info_bright]},bold]▒ 󰛀"
-    ;;
+	REMOTE_STATUS="$RESET#[bg=${THEME[surface]},fg=${THEME[info_bright]},bold]▒ 󰛀"
+	;;
 *)
-    REMOTE_STATUS="$RESET#[bg=${THEME[surface]},fg=${THEME[success]},bold]▒ "
-    ;;
+	REMOTE_STATUS="$RESET#[bg=${THEME[surface]},fg=${THEME[success]},bold]▒ "
+	;;
 esac
 
-echo "$REMOTE_STATUS $RESET$BRANCH$STATUS_CHANGED$STATUS_INSERTIONS$STATUS_DELETIONS$STATUS_UNTRACKED$STATUS_STASH$STATUS_CONFLICT$STATUS_AHEAD$STATUS_BEHIND "
+echo "$REMOTE_STATUS $RESET$BRANCH$STATUS_CHANGED$STATUS_INSERTIONS$STATUS_DELETIONS$STATUS_UNTRACKED$STATUS_STASH$STATUS_CONFLICT$STATUS_AHEAD$STATUS_BEHIND " >"$GIT_CACHE_PATH.tmp"
+mv "$GIT_CACHE_PATH.tmp" "$GIT_CACHE_PATH" 2>/dev/null || true
+cat "$GIT_CACHE_PATH"
+exit 0

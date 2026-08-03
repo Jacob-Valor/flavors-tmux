@@ -1,6 +1,6 @@
 use crate::core::Color;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub struct Theme {
     pub background: Color,
     pub foreground: Color,

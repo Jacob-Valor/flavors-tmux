@@ -20,6 +20,7 @@ ehthumbs.db
 # Agent runtime state
 .agents/
 skills-lock.json
+.pi/
 
 # omo
 .omo/

@@ -370,7 +370,7 @@ load_theme() {
             THEMES[monokai_nebula_accent]="#ae81ff"
             THEMES[monokai_nebula_accent_bright]="#c2a1ff"
             THEMES[monokai_nebula_emphasis]="#f8f8f2"
-            THEMES[monokai_nebula_muted]="#75715e"
+            THEMES[monokai_nebula_muted]="#8c8877"
             THEMES[monokai_nebula_forge_github]="#f8f8f2"
             THEMES[monokai_nebula_forge_gitlab]="#fc6d26"
             THEMES[monokai_nebula_forge_codeberg]="#fc6d26"

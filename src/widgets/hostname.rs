@@ -26,7 +26,7 @@ pub(crate) fn run_with_theme_hex(theme: Theme, theme_hex: &ThemeHex) -> String {
                 .ok()
                 .and_then(|o| {
                     if o.status.success() {
-                        Some(String::from_utf8_lossy(&o.stdout).trim().to_owned())
+                        Some(String::from_utf8(o.stdout).unwrap_or_default().trim().to_owned())
                     } else {
                         None
                     }

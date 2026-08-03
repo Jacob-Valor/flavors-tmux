@@ -18,7 +18,7 @@ fn get_kubectl_output(argv: &[&str]) -> Option<String> {
     if !output.status.success() {
         return None;
     }
-    let trimmed = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+    let trimmed = String::from_utf8(output.stdout).unwrap_or_default().trim().to_owned();
     if trimmed.is_empty() {
         None
     } else {

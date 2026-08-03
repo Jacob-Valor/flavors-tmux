@@ -39,7 +39,7 @@ fn git_repo_root(cwd: &Path) -> String {
         .output()
     {
         Ok(output) if output.status.success() => {
-            String::from_utf8_lossy(&output.stdout).trim().to_owned()
+            String::from_utf8(output.stdout).unwrap_or_default().trim().to_owned()
         }
         _ => String::new(),
     }

@@ -66,7 +66,7 @@ fn read_darwin_battery(name: &str) -> Option<BatteryInfo> {
         return None;
     }
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stdout = String::from_utf8(output.stdout).unwrap_or_default();
 
     for line in stdout.lines() {
         if !line.contains(name) {

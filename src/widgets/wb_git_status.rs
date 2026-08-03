@@ -8,33 +8,107 @@ use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 
-use crate::core::cache::{cache_base, read_fresh_cache, write_cache};
+use crate::core::cache::{cache_base, read_cache_any_age, read_fresh_cache, write_cache};
 use crate::core::util::run_git_command;
 use crate::core::widget::WidgetContext;
 use crate::core::{Color, Theme};
 use crate::tmux_renderer::ThemeHex;
 
-fn get_remote_url(repo_path: &str) -> Option<String> {
-    let remote_stdout = run_git_command(&["git", "remote"], Some(Path::new(repo_path))).ok()?;
-    let stdout = String::from_utf8_lossy(&remote_stdout);
-    let trimmed = stdout.trim();
-    if trimmed.is_empty() {
-        return None;
-    }
-    let first_remote = trimmed.lines().next()?;
-    if first_remote.is_empty() {
-        return None;
-    }
+/// Raw forge data — theme-independent, so the background refresh subcommand
+/// can recompute it without knowing the theme, and any theme can render it.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct ForgeData {
+    pub provider: ForgeProvider,
+    pub pr_count: usize,
+    pub review_count: usize,
+    pub issue_count: usize,
+    pub bug_count: usize,
+}
 
-    let config_key = format!("remote.{}.url", first_remote);
-    let url_stdout =
-        run_git_command(&["git", "config", &config_key], Some(Path::new(repo_path))).ok()?;
-    let url = String::from_utf8_lossy(&url_stdout).trim().to_owned();
-    if url.is_empty() {
-        None
-    } else {
-        Some(url)
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum ForgeProvider {
+    #[default]
+    None,
+    Github,
+    Gitlab,
+    Codeberg,
+}
+
+impl ForgeProvider {
+    fn icon(self) -> &'static str {
+        match self {
+            Self::Github => "\u{F408} ",
+            Self::Gitlab => "\u{E65C} ",
+            Self::Codeberg => "\u{F328} ",
+            Self::None => "",
+        }
     }
+}
+
+/// Serialize raw forge data to the cache file. Line format:
+/// `provider pr review issue bug` — no theme dependency.
+fn serialize(data: &ForgeData) -> String {
+    let provider = match data.provider {
+        ForgeProvider::Github => "github",
+        ForgeProvider::Gitlab => "gitlab",
+        ForgeProvider::Codeberg => "codeberg",
+        ForgeProvider::None => "none",
+    };
+    format!(
+        "{provider} {} {} {} {}",
+        data.pr_count, data.review_count, data.issue_count, data.bug_count
+    )
+}
+
+fn deserialize(content: &str) -> Option<ForgeData> {
+    let mut parts = content.split_whitespace();
+    let provider = match parts.next()? {
+        "github" => ForgeProvider::Github,
+        "gitlab" => ForgeProvider::Gitlab,
+        "codeberg" => ForgeProvider::Codeberg,
+        _ => return None,
+    };
+    Some(ForgeData {
+        provider,
+        pr_count: parts.next()?.parse().ok()?,
+        review_count: parts.next()?.parse().ok()?,
+        issue_count: parts.next()?.parse().ok()?,
+        bug_count: parts.next()?.parse().ok()?,
+    })
+}
+
+/// Cache key derived from the repo path only — the cached payload is raw
+/// (theme-independent) forge data, so no theme hash is needed in the key.
+/// A fresh cache hit is a single file read with zero subprocess spawns.
+fn cache_path(repo_path: &str) -> String {
+    let mut hasher = DefaultHasher::new();
+    hasher.write(repo_path.as_bytes());
+    let key = hasher.finish();
+
+    format!("{}/flavors-tmux-wb-{:x}.cache", cache_base(), key)
+}
+
+/// Spawn a fully-detached background process (new session, no stdio) that
+/// recomputes the forge cache for `repo_path` and writes it. The statusline
+/// returns immediately; the refresh finishes whenever the network round-trips
+/// finish. If the child fails to spawn (rare), the next render retries.
+fn spawn_background_refresh(repo_path: &str) {
+    use std::os::unix::process::CommandExt;
+    let exe = match env::current_exe() {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    let mut cmd = Command::new(exe);
+    cmd.arg("wb-git-refresh")
+        .arg(repo_path)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
+    // New process group so the child isn't killed when tmux reaps the status
+    // process, and isn't tied to our stdout pipe. Combined with null stdio,
+    // this fully detaches the refresh from the statusline lifecycle.
+    cmd.process_group(0);
+    let _ = cmd.spawn();
 }
 
 fn provider_from_url(url: &str) -> Option<String> {
@@ -49,28 +123,22 @@ fn provider_from_url(url: &str) -> Option<String> {
     None
 }
 
-fn get_head_hash(repo_path: &str) -> Option<String> {
-    let stdout = run_git_command(&["git", "rev-parse", "HEAD"], Some(Path::new(repo_path))).ok()?;
-    let trimmed = String::from_utf8_lossy(&stdout).trim().to_owned();
-    if trimmed.is_empty() {
+/// Get the first remote's URL with a single subprocess spawn.
+fn get_remote_url(repo_path: &str) -> Option<String> {
+    let stdout = run_git_command(
+        &["git", "remote", "get-url", "origin"],
+        Some(Path::new(repo_path)),
+    )
+    .ok()?;
+    let remote_url = String::from_utf8(stdout)
+        .unwrap_or_default()
+        .trim()
+        .to_owned();
+    if remote_url.is_empty() {
         None
     } else {
-        Some(trimmed)
+        Some(remote_url)
     }
-}
-
-fn cache_path(repo_path: &str, remote_url: &str, head_hash: Option<&str>) -> String {
-    let mut hasher = DefaultHasher::new();
-    hasher.write(repo_path.as_bytes());
-    hasher.write(b"\x00");
-    hasher.write(remote_url.as_bytes());
-    hasher.write(b"\x00");
-    if let Some(h) = head_hash {
-        hasher.write(h.as_bytes());
-    }
-    let key = hasher.finish();
-
-    format!("{}/flavors-tmux-wb-{:x}.cache", cache_base(), key)
 }
 
 fn run_gh_command(argv: &[&str], repo_path: &str) -> Result<String, ()> {
@@ -82,7 +150,8 @@ fn run_gh_command(argv: &[&str], repo_path: &str) -> Result<String, ()> {
     if !output.status.success() {
         return Err(());
     }
-    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+    // from_utf8 moves the Vec into the String without re-allocating when valid.
+    Ok(String::from_utf8(output.stdout).unwrap_or_default())
 }
 
 fn command_exists(name: &str) -> bool {
@@ -210,40 +279,52 @@ fn fetch_with_token(url: &str, token: &str, repo_path: &str) -> String {
     let _ = fs::remove_dir_all(&dir);
 
     match result {
-        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout).into_owned(),
+        // from_utf8 moves the Vec into the String without re-allocating when valid.
+        Ok(o) if o.status.success() => String::from_utf8(o.stdout).unwrap_or_default(),
         _ => String::new(),
     }
 }
 
-fn render_uncached(theme: Theme, theme_hex: &ThemeHex, repo_path: &str, provider: &str) -> String {
-    let ctx = WidgetContext::from_theme_hex(theme, theme_hex);
-    let theme = ctx.theme;
-    let bg = theme_hex.color(theme.surface);
+/// Fetch raw forge data (PR/review/issue/bug counts + provider) for `repo_path`.
+/// Theme-independent — used both by the render path and the background
+/// `wb-git-refresh` subcommand.
+fn compute_data(repo_path: &str) -> ForgeData {
+    let remote_url = match get_remote_url(repo_path) {
+        Some(u) => u,
+        None => return ForgeData::default(),
+    };
+    let provider = match provider_from_url(&remote_url) {
+        Some(p) => p,
+        None => return ForgeData::default(),
+    };
 
     let branch_raw = match run_git_command(
         &["git", "rev-parse", "--abbrev-ref", "HEAD"],
         Some(Path::new(repo_path)),
     ) {
         Ok(out) => out,
-        Err(_) => return String::new(),
+        Err(_) => return ForgeData::default(),
     };
-    let branch_str = String::from_utf8_lossy(&branch_raw);
-    let branch = branch_str.trim();
+    let branch = String::from_utf8(branch_raw).unwrap_or_default();
+    let branch = branch.trim();
     if branch.is_empty() {
-        return String::new();
+        return ForgeData::default();
     }
 
-    let pr_count: usize;
-    let review_count: usize;
-    let issue_count: usize;
-    let bug_count: usize;
-    let provider_icon: &str;
+    let mut data = ForgeData {
+        provider: match provider.as_str() {
+            "github.com" => ForgeProvider::Github,
+            "gitlab.com" => ForgeProvider::Gitlab,
+            "codeberg.org" => ForgeProvider::Codeberg,
+            _ => return ForgeData::default(),
+        },
+        ..ForgeData::default()
+    };
 
-    if provider == "github.com" {
+    if data.provider == ForgeProvider::Github {
         if !command_exists("gh") {
-            return String::new();
+            return ForgeData::default();
         }
-        provider_icon = "\u{F408} ";
 
         let pr_args = &[
             "gh", "pr", "list", "--json", "number", "--limit", "100", "--jq", "length",
@@ -301,11 +382,11 @@ fn render_uncached(theme: Theme, theme_hex: &ThemeHex, repo_path: &str, provider
             )
         });
 
-        pr_count = pr_result
+        data.pr_count = pr_result
             .ok()
             .and_then(|s| s.trim().parse::<usize>().ok())
             .unwrap_or(0);
-        review_count = review_result
+        data.review_count = review_result
             .ok()
             .and_then(|s| s.trim().parse::<usize>().ok())
             .unwrap_or(0);
@@ -313,17 +394,15 @@ fn render_uncached(theme: Theme, theme_hex: &ThemeHex, repo_path: &str, provider
             .ok()
             .and_then(|s| s.trim().parse::<usize>().ok())
             .unwrap_or(0);
-        bug_count = bugs_result
+        data.bug_count = bugs_result
             .ok()
             .and_then(|s| s.trim().parse::<usize>().ok())
             .unwrap_or(0);
-        issue_count = total_issues.saturating_sub(bug_count);
-    } else if provider == "gitlab.com" {
+        data.issue_count = total_issues.saturating_sub(data.bug_count);
+    } else if data.provider == ForgeProvider::Gitlab {
         if !command_exists("glab") {
-            return String::new();
+            return ForgeData::default();
         }
-        provider_icon = "\u{E65C} ";
-        bug_count = 0;
 
         let mr_args: &[&str] = &["glab", "mr", "list"];
         let review_args: &[&str] = &["glab", "mr", "list", "--reviewer=@me"];
@@ -340,40 +419,31 @@ fn render_uncached(theme: Theme, theme_hex: &ThemeHex, repo_path: &str, provider
             )
         });
 
-        pr_count = mr_result
+        data.pr_count = mr_result
             .ok()
             .map(|s| count_lines_matching(&s, "!"))
             .unwrap_or(0);
-        review_count = review_result
+        data.review_count = review_result
             .ok()
             .map(|s| count_lines_matching(&s, "!"))
             .unwrap_or(0);
-        issue_count = issue_result
+        data.issue_count = issue_result
             .ok()
             .map(|s| count_lines_matching(&s, "#"))
             .unwrap_or(0);
-    } else if provider == "codeberg.org" {
+    } else if data.provider == ForgeProvider::Codeberg {
         if !command_exists("curl") {
-            return String::new();
+            return ForgeData::default();
         }
 
         let token = match get_codeberg_token() {
             Some(t) if is_valid_token(&t) => t,
-            _ => return String::new(),
-        };
-
-        provider_icon = "\u{F328} ";
-        review_count = 0;
-        bug_count = 0;
-
-        let remote_url = match get_remote_url(repo_path) {
-            Some(u) => u,
-            None => return String::new(),
+            _ => return ForgeData::default(),
         };
 
         let owner_repo = match parse_codeberg_owner_repo(&remote_url) {
             Some(or) => or,
-            None => return String::new(),
+            None => return ForgeData::default(),
         };
 
         let api_base = "https://codeberg.org/api/v1";
@@ -390,80 +460,16 @@ fn render_uncached(theme: Theme, theme_hex: &ThemeHex, repo_path: &str, provider
         let (pr_json, issue_json) = thread::scope(|s| {
             let pr_t = s.spawn(|| fetch_with_token(&pr_url, &token, repo_path));
             let issue_t = s.spawn(|| fetch_with_token(&issue_url, &token, repo_path));
-            (pr_t.join().unwrap_or_default(), issue_t.join().unwrap_or_default())
+            (
+                pr_t.join().unwrap_or_default(),
+                issue_t.join().unwrap_or_default(),
+            )
         });
-        pr_count = count_json_array_items(&pr_json);
-        issue_count = count_json_array_items(&issue_json);
-    } else {
-        return String::new();
+        data.pr_count = count_json_array_items(&pr_json);
+        data.issue_count = count_json_array_items(&issue_json);
     }
 
-    let mut result = String::with_capacity(512);
-
-    // Forge header: muted  icon
-    use std::fmt::Write;
-    let _ = write!(
-        result,
-        "#[fg={},bg={},bold]\u{EB3A} {}",
-        theme_hex.color(theme.muted),
-        bg,
-        ctx.reset,
-    );
-
-    // Provider icon with forge color
-    let forge_color = if provider == "github.com" {
-        theme.forge_github
-    } else if provider == "codeberg.org" {
-        theme.forge_codeberg
-    } else {
-        theme.forge_gitlab
-    };
-    let _ = write!(
-        result,
-        "#[fg={}]{} {}",
-        theme_hex.color(forge_color),
-        provider_icon,
-        ctx.reset,
-    );
-
-    append_segment(
-        &mut result,
-        theme_hex,
-        theme.success,
-        &bg,
-        "\u{F407}",
-        pr_count,
-        &ctx.reset,
-    );
-    append_segment(
-        &mut result,
-        theme_hex,
-        theme.warning,
-        &bg,
-        "\u{F4AF}",
-        review_count,
-        &ctx.reset,
-    );
-    append_segment(
-        &mut result,
-        theme_hex,
-        theme.success,
-        &bg,
-        "\u{F41B}",
-        issue_count,
-        &ctx.reset,
-    );
-    append_segment(
-        &mut result,
-        theme_hex,
-        theme.danger,
-        &bg,
-        "\u{F46F}",
-        bug_count,
-        &ctx.reset,
-    );
-
-    result
+    data
 }
 
 /// Render the forge (GitHub/GitLab/Codeberg) widget with caching.
@@ -478,31 +484,115 @@ pub(crate) fn run_with_theme_hex(
     repo_path: &str,
     cache_ttl: u64,
 ) -> String {
-    let remote_url = match get_remote_url(repo_path) {
-        Some(u) => u,
-        None => return String::new(),
-    };
+    // Hot path first: a fresh cache hit costs a single file read and zero
+    // subprocess spawns (no `git remote` query needed for the key).
+    let path = cache_path(repo_path);
 
-    let provider = match provider_from_url(&remote_url) {
-        Some(p) => p,
-        None => return String::new(),
-    };
-
-    let head_hash = get_head_hash(repo_path);
-
-    let path = cache_path(repo_path, &remote_url, head_hash.as_deref());
-
-    if let Some(cached) = read_fresh_cache(&path, cache_ttl) {
-        return cached;
+    // Stale-while-revalidate: if a cache exists but is older than the TTL,
+    // render the stale content immediately and kick off a detached background
+    // refresh. The statusline never blocks on gh/glab/curl.
+    if let Some((content, _age)) = read_cache_any_age(&path) {
+        if let Some(data) = deserialize(&content) {
+            // Only revalidate if the entry is actually stale — `read_fresh_cache`
+            // returning None could also mean the file is missing.
+            if read_fresh_cache(&path, cache_ttl).is_none() {
+                spawn_background_refresh(repo_path);
+            }
+            return render_data(theme, theme_hex, &data);
+        }
     }
 
-    let output = render_uncached(theme, theme_hex, repo_path, &provider);
-
-    if !output.is_empty() {
-        write_cache(&path, &output);
+    let data = compute_data(repo_path);
+    if data.provider != ForgeProvider::None {
+        write_cache(&path, &serialize(&data));
+        return render_data(theme, theme_hex, &data);
     }
 
-    output
+    String::new()
+}
+
+/// Recompute the forge cache for `repo_path` in the background and write it.
+/// Called by the detached `wb-git-refresh` subcommand — no rendering, no
+/// stdout. Returns true when a cache entry was written (or refreshed).
+pub fn refresh_cache(repo_path: &str) -> bool {
+    let data = compute_data(repo_path);
+    if data.provider == ForgeProvider::None {
+        return false;
+    }
+    write_cache(&cache_path(repo_path), &serialize(&data));
+    true
+}
+
+/// Render raw forge data with theme colors.
+fn render_data(theme: Theme, theme_hex: &ThemeHex, data: &ForgeData) -> String {
+    let ctx = WidgetContext::from_theme_hex(theme, theme_hex);
+    let theme = ctx.theme;
+    let bg = theme_hex.color(theme.surface);
+
+    let mut result = String::with_capacity(512);
+
+    // Forge header: muted  icon
+    use std::fmt::Write;
+    let _ = write!(
+        result,
+        "#[fg={},bg={},bold]\u{EB3A} {}",
+        theme_hex.color(theme.muted),
+        bg,
+        ctx.reset,
+    );
+
+    // Provider icon with forge color
+    let forge_color = match data.provider {
+        ForgeProvider::Github => theme.forge_github,
+        ForgeProvider::Codeberg => theme.forge_codeberg,
+        _ => theme.forge_gitlab,
+    };
+    let _ = write!(
+        result,
+        "#[fg={}]{} {}",
+        theme_hex.color(forge_color),
+        data.provider.icon(),
+        ctx.reset,
+    );
+
+    append_segment(
+        &mut result,
+        theme_hex,
+        theme.success,
+        &bg,
+        "\u{F407}",
+        data.pr_count,
+        &ctx.reset,
+    );
+    append_segment(
+        &mut result,
+        theme_hex,
+        theme.warning,
+        &bg,
+        "\u{F4AF}",
+        data.review_count,
+        &ctx.reset,
+    );
+    append_segment(
+        &mut result,
+        theme_hex,
+        theme.success,
+        &bg,
+        "\u{F41B}",
+        data.issue_count,
+        &ctx.reset,
+    );
+    append_segment(
+        &mut result,
+        theme_hex,
+        theme.danger,
+        &bg,
+        "\u{F46F}",
+        data.bug_count,
+        &ctx.reset,
+    );
+
+    result
 }
 
 #[cfg(test)]

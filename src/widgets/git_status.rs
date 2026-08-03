@@ -1,13 +1,26 @@
 use std::collections::hash_map::DefaultHasher;
+use std::fmt::Write;
 use std::fs;
 use std::hash::{Hash, Hasher};
 use std::path::Path;
+use std::sync::OnceLock;
 
 use crate::core::cache::{cache_base, read_fresh_cache, write_cache};
 use crate::core::util::{parse_porcelain_v2, run_git_command, trim_branch_name, ParsedStatusV2};
 use crate::core::widget::WidgetContext;
 use crate::core::Theme;
 use crate::tmux_renderer::ThemeHex;
+
+/// Cached HOME so we don't syscall std::env::var("HOME") on every render.
+fn home_hash() -> u64 {
+    static HOME_HASH: OnceLock<u64> = OnceLock::new();
+    *HOME_HASH.get_or_init(|| {
+        let home = std::env::var("HOME").unwrap_or_default();
+        let mut hasher = DefaultHasher::new();
+        home.hash(&mut hasher);
+        hasher.finish()
+    })
+}
 
 enum SyncMode {
     Clean,
@@ -20,6 +33,7 @@ fn get_porcelain_v2_raw(repo_path: &str) -> String {
     let stdout = match run_git_command(
         &[
             "git",
+            "--no-optional-locks",
             "status",
             "--porcelain=v2",
             "--branch",
@@ -29,7 +43,13 @@ fn get_porcelain_v2_raw(repo_path: &str) -> String {
     ) {
         Ok(out) => out,
         Err(_) => match run_git_command(
-            &["git", "status", "--porcelain=v2", "--branch"],
+            &[
+                "git",
+                "--no-optional-locks",
+                "status",
+                "--porcelain=v2",
+                "--branch",
+            ],
             Some(Path::new(repo_path)),
         ) {
             Ok(out) => out,
@@ -48,33 +68,54 @@ const STATUS_CACHE_TTL_SECS: u64 = 2;
 
 fn status_cache_path(repo_path: &str) -> String {
     let h = hash_path(repo_path);
-    let user = std::env::var("HOME").unwrap_or_default();
-    let uh = hash_path(&user);
+    let uh = home_hash();
     format!("{}/flavors-tmux-porcelain-{uh:x}-{h:x}", cache_base())
+}
+
+/// Cache the parsed porcelain for a repo for the lifetime of one `status`
+/// process. tmux may invoke the same widget twice per refresh (e.g. the
+/// same repo path from two panes); without this each call re-spawns git.
+/// The TTL check still applies on the disk cache, so staleness is bounded.
+use std::cell::RefCell;
+
+thread_local! {
+    static PORCELAIN_CACHE: RefCell<Option<(String, ParsedStatusV2)>> = const { RefCell::new(None) };
 }
 
 fn get_porcelain_v2(repo_path: &str) -> ParsedStatusV2 {
     let cache_path = status_cache_path(repo_path);
 
-    if let Some(cached) = read_fresh_cache(&cache_path, STATUS_CACHE_TTL_SECS) {
-        return parse_porcelain_v2(&cached);
-    }
+    // In-process hit: same repo, already fetched this process lifetime.
+    PORCELAIN_CACHE.with(|c| {
+        let mut cache = c.borrow_mut();
+        if let Some((path, parsed)) = cache.as_ref() {
+            if path == repo_path {
+                return parsed.clone();
+            }
+        }
 
-    let stdout_str = get_porcelain_v2_raw(repo_path);
-    write_cache(&cache_path, &stdout_str);
-    parse_porcelain_v2(&stdout_str)
+        let parsed = if let Some(cached) = read_fresh_cache(&cache_path, STATUS_CACHE_TTL_SECS) {
+            parse_porcelain_v2(&cached)
+        } else {
+            let stdout_str = get_porcelain_v2_raw(repo_path);
+            write_cache(&cache_path, &stdout_str);
+            parse_porcelain_v2(&stdout_str)
+        };
+        *cache = Some((repo_path.to_owned(), parsed.clone()));
+        parsed
+    })
 }
 
 fn get_diff_stats(repo_path: &str) -> (usize, usize) {
     let stdout = match run_git_command(
-        &["git", "diff", "--numstat", "HEAD"],
+        &["git", "--no-optional-locks", "diff", "--numstat", "HEAD"],
         Some(Path::new(repo_path)),
     ) {
         Ok(out) => out,
         Err(_) => return (0, 0),
     };
 
-    let text = String::from_utf8_lossy(&stdout);
+    let text = String::from_utf8(stdout).unwrap_or_default();
     let mut insertions = 0usize;
     let mut deletions = 0usize;
 
@@ -100,9 +141,8 @@ fn hash_path(path: &str) -> u64 {
 
 fn diff_cache_path(repo_path: &str) -> String {
     let h = hash_path(repo_path);
-    let user = std::env::var("HOME").unwrap_or_default();
-    let uh = hash_path(&user);
-    format!("/tmp/flavors-tmux-diff-{uh:x}-{h:x}")
+    let uh = home_hash();
+    format!("{}/flavors-tmux-diff-{uh:x}-{h:x}", cache_base())
 }
 
 // Short enough that edits to tracked files (or a new commit) during an
@@ -145,18 +185,33 @@ fn get_diff_stats_cached(repo_path: &str) -> (usize, usize) {
     stats
 }
 
+/// Fetch + parse the porcelain status for `repo_path`, using the in-process
+/// and on-disk caches. The `status` renderer calls this once per repo path
+/// and shares the result with `run_with_theme_hex_prefetched`, so one
+/// `git status` spawn serves the whole render instead of one per widget.
+pub(crate) fn prefetch_porcelain(repo_path: &str) -> ParsedStatusV2 {
+    get_porcelain_v2(repo_path)
+}
+
 /// Render the git status widget.
 /// Shows sync icon + branch + changed/insertions/deletions/untracked/stash/conflicts/ahead/behind counts.
 pub fn run(theme: Theme, repo_path: &str) -> String {
     let theme_hex = ThemeHex::from_theme(theme);
-    run_with_theme_hex(theme, &theme_hex, repo_path)
+    let status = get_porcelain_v2(repo_path);
+    run_with_theme_hex_prefetched(theme, &theme_hex, &status, repo_path)
 }
 
-pub(crate) fn run_with_theme_hex(theme: Theme, theme_hex: &ThemeHex, repo_path: &str) -> String {
+/// Like `run_with_theme_hex`, but accepts a pre-parsed porcelain status so the
+/// `status` renderer can share one `git status` spawn across widgets that run
+/// in the same process for the same repo.
+pub(crate) fn run_with_theme_hex_prefetched(
+    theme: Theme,
+    theme_hex: &ThemeHex,
+    status: &ParsedStatusV2,
+    repo_path: &str,
+) -> String {
     let ctx = WidgetContext::from_theme_hex(theme, theme_hex);
     let theme = ctx.theme;
-
-    let status = get_porcelain_v2(repo_path);
 
     let branch_raw = match status.branch.as_deref() {
         Some(b) if !b.is_empty() && b != "HEAD" => b,
@@ -200,81 +255,91 @@ pub(crate) fn run_with_theme_hex(theme: Theme, theme_hex: &ThemeHex, repo_path: 
 
     match sync_mode {
         SyncMode::Dirty => {
-            result.push_str(&format!(
+            let _ = write!(
+                result,
                 "{}#[bg={},fg={},bold]▒ 󱓎",
                 ctx.reset, bg, danger_bright
-            ));
+            );
         }
         SyncMode::Ahead => {
-            result.push_str(&format!("{}#[bg={},fg={},bold]▒ 󰛃", ctx.reset, bg, danger));
+            let _ = write!(result, "{}#[bg={},fg={},bold]▒ 󰛃", ctx.reset, bg, danger);
         }
         SyncMode::Behind => {
-            result.push_str(&format!(
+            let _ = write!(
+                result,
                 "{}#[bg={},fg={},bold]▒ 󰛀",
                 ctx.reset, bg, info_bright
-            ));
+            );
         }
         SyncMode::Clean => {
-            result.push_str(&format!("{}#[bg={},fg={},bold]▒ ", ctx.reset, bg, success));
+            let _ = write!(result, "{}#[bg={},fg={},bold]▒ ", ctx.reset, bg, success);
         }
     }
 
-    result.push_str(&format!(" {}{}", ctx.reset, display_branch));
+    let _ = write!(result, " {}{}", ctx.reset, display_branch);
 
     if changed > 0 {
-        result.push_str(&format!(
+        let _ = write!(
+            result,
             " {}#[fg={},bg={},bold] {}",
             ctx.reset, warning, bg, changed
-        ));
+        );
     }
 
     if insertions > 0 {
-        result.push_str(&format!(
+        let _ = write!(
+            result,
             " {}#[fg={},bg={},bold] {}",
             ctx.reset, success, bg, insertions
-        ));
+        );
     }
 
     if deletions > 0 {
-        result.push_str(&format!(
+        let _ = write!(
+            result,
             " {}#[fg={},bg={},bold] {}",
             ctx.reset, danger, bg, deletions
-        ));
+        );
     }
 
     if untracked > 0 {
-        result.push_str(&format!(
+        let _ = write!(
+            result,
             " {}#[fg={},bg={},bold] {}",
             ctx.reset, muted, bg, untracked
-        ));
+        );
     }
 
     if stash_count > 0 {
-        result.push_str(&format!(
+        let _ = write!(
+            result,
             " {}#[fg={},bg={},bold] {}",
             ctx.reset, info_bright, bg, stash_count
-        ));
+        );
     }
 
     if conflict_count > 0 {
-        result.push_str(&format!(
+        let _ = write!(
+            result,
             " {}#[fg={},bg={},bold]󰅘 {}",
             ctx.reset, danger_bright, bg, conflict_count
-        ));
+        );
     }
 
     if ahead > 0 {
-        result.push_str(&format!(
+        let _ = write!(
+            result,
             " {}#[fg={},bg={},bold]↑{}",
             ctx.reset, info_bright, bg, ahead
-        ));
+        );
     }
 
     if behind > 0 {
-        result.push_str(&format!(
+        let _ = write!(
+            result,
             " {}#[fg={},bg={},bold]↓{}",
             ctx.reset, danger, bg, behind
-        ));
+        );
     }
 
     result.push(' ');

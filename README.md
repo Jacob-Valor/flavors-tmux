@@ -267,7 +267,7 @@ export FLAVORS_TMUX_CODEBERG_TOKEN="your-token-here"
 
 The plugin also checks `CODEBERG_TOKEN` as a fallback. Tmux option storage (`@flavors-tmux_codeberg_token`) is intentionally **not supported** — tmux global options are world-readable by any process with access to the tmux socket.
 
-Generate a token at: https://codeberg.org/user/settings/applications
+Generate a token at: <https://codeberg.org/user/settings/applications>
 
 ### Hostname / SSH
 
@@ -372,7 +372,7 @@ Shows whether the SSH and/or GPG agent is running, disabled by default.
 set -g @flavors-tmux_show_gpg_ssh_agent 1
 ```
 
-- ` <count>` — SSH agent running, with loaded key count (green if keys are loaded, yellow if none)
+- `<count>` — SSH agent running, with loaded key count (green if keys are loaded, yellow if none)
 - `` — GPG agent running
 
 Only rendered when at least one of the two agents is detected; hidden entirely otherwise. Requires `ssh-add` and/or `gpg-connect-agent` to be installed.
@@ -390,6 +390,18 @@ set -g @flavors-tmux_separator_style "pipe"
 ```
 
 Options: `space` (blank, previous default), `pipe` (`│`, new default), `chevron` (`〉`), `none`.
+
+### Status refresh interval
+
+How often tmux re-runs the statusline `#()` commands. Higher values mean fewer
+widget subprocess spawns (and fewer forge cache expiries); lower values make
+git/branch changes appear faster.
+
+```tmux
+set -g @flavors-tmux_status_interval 30
+```
+
+- `@flavors-tmux_status_interval` — seconds between status refreshes (default: `15`, tmux's default; valid range 1–3600)
 
 ### Auto-update
 

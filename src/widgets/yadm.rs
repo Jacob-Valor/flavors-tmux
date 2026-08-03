@@ -15,7 +15,7 @@ fn get_yadm_status() -> Option<PorcelainStatus> {
         return None;
     }
 
-    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stdout = String::from_utf8(output.stdout).unwrap_or_default();
     Some(parse_porcelain(&stdout))
 }
 
