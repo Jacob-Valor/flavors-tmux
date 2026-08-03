@@ -37,9 +37,9 @@ pub enum ForgeProvider {
 impl ForgeProvider {
     fn icon(self) -> &'static str {
         match self {
-            Self::Github => "\u{F408} ",
-            Self::Gitlab => "\u{E65C} ",
-            Self::Codeberg => "\u{F328} ",
+            Self::Github => "\u{F408}",
+            Self::Gitlab => "\u{E65C}",
+            Self::Codeberg => "\u{F328}",
             Self::None => "",
         }
     }
@@ -554,7 +554,6 @@ fn render_data(theme: Theme, theme_hex: &ThemeHex, data: &ForgeData) -> String {
         data.provider.icon(),
         ctx.reset,
     );
-
     append_segment(
         &mut result,
         theme_hex,

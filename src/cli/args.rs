@@ -50,7 +50,7 @@ impl<'a> Args<'a> {
             cache_ttl: 300,
             transparent: false,
             pane_path: None,
-            separator_style: "pipe",
+            separator_style: "space",
         }
     }
 }

@@ -80,7 +80,7 @@ auto_update="${_opt[auto_update]:-0}"
 status_interval="${_opt[status_interval]:-15}"
 status_left_length="${_opt[status_left_length]:-80}"
 status_right_length="${_opt[status_right_length]:-150}"
-separator_style="${_opt[separator_style]:-pipe}"
+separator_style="${_opt[separator_style]:-space}"
 window_status_style="${_opt[window_status_style]:-pill}"
 show_session_in_window="${_opt[show_session_in_window]:-0}"
 
@@ -342,6 +342,10 @@ else
     case "${separator_style:-space}" in
         pipe) _sep=" │ " ;;
         chevron) _sep=" 〉 " ;;
+        arrow) _sep=" ▸ " ;;
+        slash) _sep=" / " ;;
+        line) _sep=" ━ " ;;
+        block) _sep="▏" ;;
         none) _sep="" ;;
         *) _sep=" " ;;
     esac

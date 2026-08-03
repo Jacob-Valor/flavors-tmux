@@ -20,12 +20,12 @@ pub struct WidgetConfig<'a> {
 
 fn resolve_separator(style: &str) -> &'static str {
     match style {
-        "pipe" => " │ ",
-        "chevron" => " 〉 ",
-        "arrow" => " ▸ ",
-        "slash" => " / ",
-        "line" => " ━ ",
-        "block" => " ▏",
+        "pipe" => "│",
+        "chevron" => "〉",
+        "arrow" => "▸",
+        "slash" => "/",
+        "line" => "━",
+        "block" => "▏",
         "none" => "",
         _ => " ",
     }
@@ -112,7 +112,7 @@ pub fn run(cfg: WidgetConfig<'_>, show_names: &[&str]) -> String {
     for (name, entry) in inline_jobs {
         if let Some(text) = render_widget(cfg, &theme_hex, name) {
             outputs.push(WidgetOutput {
-                text,
+                text: text.trim_end().to_owned(),
                 color: entry.color,
                 no_sep: entry.no_sep,
             });
@@ -137,7 +137,11 @@ pub fn run(cfg: WidgetConfig<'_>, show_names: &[&str]) -> String {
 
             for handle in handles {
                 if let Ok(Some(output)) = handle.join() {
-                    outputs.push(output);
+                    outputs.push(WidgetOutput {
+                        text: output.text.trim_end().to_owned(),
+                        color: output.color,
+                        no_sep: output.no_sep,
+                    });
                 }
             }
         });
@@ -147,13 +151,22 @@ pub fn run(cfg: WidgetConfig<'_>, show_names: &[&str]) -> String {
         return String::new();
     }
 
+    let sep = resolve_separator(cfg.separator);
     let mut result = String::with_capacity(1024);
     let mut prev_no_sep = false;
 
     for (i, item) in outputs.iter().enumerate() {
+        // Spacing around separators: one space each side for most styles, but
+        // the block/line styles sit tight against the widget text.
+        let padded = matches!(cfg.separator, "pipe" | "chevron" | "arrow" | "slash");
+        let (pad_l, pad_r) = if padded { (" ", " ") } else { ("", "") };
+
         if i > 0 && !prev_no_sep && !item.no_sep {
-            result.push_str(resolve_separator(cfg.separator));
+            result.push_str(pad_l);
+            result.push_str(sep);
+            result.push_str(pad_r);
         }
+
         result.push_str(&format!(
             "#[fg={},bg={}]{}",
             theme_hex.color(color_from_theme(theme, item.color)),
@@ -204,9 +217,15 @@ mod tests {
     }
 
     #[test]
-    fn resolve_separator_balances_chevron_spacing() {
-        let separator = resolve_separator("chevron");
-        assert_eq!(" 〉 ", separator);
-        assert!(separator.ends_with(' '));
+    fn resolve_separator_returns_bare_glyphs() {
+        // Separator glyphs are bare; spacing is applied in the assembly loop
+        // so block/line styles can sit tight against widget text.
+        assert_eq!("〉", resolve_separator("chevron"));
+        assert_eq!("│", resolve_separator("pipe"));
+        assert_eq!("▸", resolve_separator("arrow"));
+        assert_eq!("/", resolve_separator("slash"));
+        assert_eq!("━", resolve_separator("line"));
+        assert_eq!("▏", resolve_separator("block"));
+        assert_eq!("", resolve_separator("none"));
     }
 }
