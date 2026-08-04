@@ -259,8 +259,9 @@ tmux set -g pane-border-status off
 tmux set -g status-style "fg=${THEME[foreground]},bg=${THEME[background]}"
 
 tmux set -g status-left "\
-#{?client_prefix,\
-#[fg=${THEME[on_primary]},bg=${THEME[warning]}] 󰠠 PREFIX ,\
+$RESET\
+ #{?client_prefix,\
+#[fg=${THEME[on_primary]},bg=${THEME[warning]},bold] 󰠠 PREFIX ,\
 #[fg=${THEME[on_primary]},bg=${THEME[primary]}] 󰠠 }\
 #[fg=${THEME[on_primary]},bg=${THEME[primary]},bold,nodim] #S "
 
