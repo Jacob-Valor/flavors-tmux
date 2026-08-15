@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
-# Regression guard for the status-left prefix banner, session icon, and the
-# active-window pill in flavors.tmux.
+# Regression guard for the status-left session pill, prefix indicator, and
+# the active-window pill in flavors.tmux.
 #
-# The prefix banner must pair its warning background with the theme-designed
-# on_primary contrast color. The session renders as a plain primary icon on
-# the bar background (no fill), so it can never collide with the
-# active-window pill. The active-window pill must pair primary_bright with
-# its designed on_primary_bright — rather than an unrelated field like
+# The session pill must pair its primary background with the theme-designed
+# on_primary contrast color. The prefix indicator swaps the icon inside the
+# pill (󰠠 while the prefix is active, 󰤂 otherwise), gruvbox-style — no
+# separate banner. The active-window pill must pair primary_bright with its
+# designed on_primary_bright — rather than an unrelated field like
 # `surface`, whose contrast against the surrounding bar background is not
 # guaranteed by the theme system and is near-invisible in several themes
 # (e.g. monokai_nebula, solarized_light). See git history on this file for
@@ -31,13 +31,13 @@ assert_contains() {
 
 # shellcheck disable=SC2016
 assert_contains \
-    "prefix banner (status-left) must pair bg=warning with fg=on_primary" \
-    'fg=${THEME[on_primary]},bg=${THEME[warning]},bold] 󰠠 #{prefix}'
+    "session pill (status-left) must pair bg=primary with fg=on_primary" \
+    'fg=${THEME[on_primary]},bg=${THEME[primary]},bold]'
 
 # shellcheck disable=SC2016
 assert_contains \
-    "session icon (status-left) uses primary as foreground on the bar background" \
-    '#[fg=${THEME[primary]}] 󰠠 }'
+    "prefix indicator swaps icon inside the session pill" \
+    '#{?client_prefix,󰠠 ,󰤂 }'
 
 # shellcheck disable=SC2016
 assert_contains \

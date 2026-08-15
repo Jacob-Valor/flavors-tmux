@@ -237,16 +237,15 @@ tmux set -g status-style "fg=${THEME[foreground]},bg=${THEME[background]}"
 
 tmux set -g status-left "\
 $RESET\
-#{?client_prefix,\
-#[fg=${THEME[on_primary]},bg=${THEME[warning]},bold] 󰠠 #{prefix} ,\
-#[fg=${THEME[primary]}] 󰠠 }\
-#[fg=${THEME[foreground]},bold,nodim] #S "
+#[fg=${THEME[on_primary]},bg=${THEME[primary]},bold] \
+#{?client_prefix,󰠠 ,󰤂 }\
+#[bold,nodim]#S "
 
 # Force an immediate status-line repaint when the prefix key is pressed so
-# the warning-colored #{?client_prefix,...} banner actually appears. tmux
-# sets client_prefix only while the key is held; with a normal tap and a
-# 15s status-interval the redraw is easily missed. send-prefix re-enters
-# the prefix table, so existing prefix bindings keep working.
+# the icon swap (󰠠 while prefix active) actually appears. tmux sets
+# client_prefix only while the key is held; with a normal tap and a 15s
+# status-interval the redraw is easily missed. send-prefix re-enters the
+# prefix table, so existing prefix bindings keep working.
 _prefix_key="$(tmux show-option -gv prefix 2>/dev/null || echo C-b)"
 if [[ -n "$_prefix_key" && "$_prefix_key" != "None" ]]; then
     tmux bind -n "$_prefix_key" send-prefix \; refresh-client -S
