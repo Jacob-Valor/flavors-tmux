@@ -174,7 +174,6 @@ set -g @flavors-tmux_active_terminal_icon ""
 
 ```tmux
 set -g @flavors-tmux_window_id_style "hsquare"
-set -g @flavors-tmux_pane_id_style "super"
 set -g @flavors-tmux_zoom_id_style "dsquare"
 ```
 
@@ -188,6 +187,11 @@ Available styles:
 - `super` — superscript numbers
 - `sub` — subscript numbers
 - `hide` — hide the number
+
+`@flavors-tmux_window_id_style` styles the window number; `@flavors-tmux_zoom_id_style`
+styles the pane number shown when a window is zoomed. Pane numbers are hidden
+outside zoomed windows (the former `@flavors-tmux_pane_id_style` option is
+removed).
 
 ## Widgets
 

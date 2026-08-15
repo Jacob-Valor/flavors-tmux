@@ -49,7 +49,6 @@ while IFS=' ' read -r _key _val; do
 done < <(tmux show-options -g 2>/dev/null | grep '^@flavors-tmux_' || true)
 
 window_id_style="${_opt[window_id_style]:-hsquare}"
-pane_id_style="${_opt[pane_id_style]:-hsquare}"
 zoom_id_style="${_opt[zoom_id_style]:-dsquare}"
 terminal_icon="${_opt[terminal_icon]:-}"
 active_terminal_icon="${_opt[active_terminal_icon]:-}"
@@ -244,7 +243,6 @@ $RESET\
 #[fg=${THEME[foreground]},bold,nodim] #S "
 
 window_number="$(custom_number_cmd '#I' "$window_id_style")"
-custom_pane="$(custom_number_cmd '#P' "$pane_id_style")"
 zoom_number="$(custom_number_cmd '#P' "$zoom_id_style")"
 window_status_border=""
 window_name_prefix=""
