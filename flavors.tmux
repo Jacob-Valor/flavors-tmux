@@ -349,6 +349,17 @@ else
             fi
         fi
         right_status="${right_status}${part}"
+        if [[ $((i + 1)) -lt ${#right_status_parts[@]} ]]; then
+            # Padding: no space before a no_sep successor (attaches tightly).
+            next_part="${right_status_parts[$((i + 1))]}"
+            next_no_sep=false
+            if [[ "$next_part" == *" wb-git-status "* ]] || [[ "$next_part" == *"wb-git-status.sh"* ]]; then
+                next_no_sep=true
+            fi
+            if [[ "$next_no_sep" == false ]]; then
+                right_status="${right_status} "
+            fi
+        fi
         prev_is_no_sep="$is_no_sep"
     done
     tmux set -g status-right "$right_status"

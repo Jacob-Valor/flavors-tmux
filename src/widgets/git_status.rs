@@ -253,92 +253,104 @@ pub(crate) fn run_with_theme_hex_prefetched(
 
     let mut result = String::with_capacity(512);
 
+    // Continuous surface block: one leading reset, then every sub-segment
+    // (sync icon, branch, counts) paints on the same `surface` background.
+    // No internal resets — those painted 1-cell `background` gaps between
+    // sub-segments inside the block.
+    result.push_str(ctx.reset.as_str());
+
     match sync_mode {
         SyncMode::Dirty => {
             let _ = write!(
                 result,
-                "{}#[bg={},fg={},bold]▒ 󱓎",
-                ctx.reset, bg, danger_bright
+                "#[bg={},fg={},bold]▒ 󱓎",
+                bg, danger_bright
             );
         }
         SyncMode::Ahead => {
-            let _ = write!(result, "{}#[bg={},fg={},bold]▒ 󰛃", ctx.reset, bg, danger);
+            let _ = write!(result, "#[bg={},fg={},bold]▒ 󰛃", bg, danger);
         }
         SyncMode::Behind => {
             let _ = write!(
                 result,
-                "{}#[bg={},fg={},bold]▒ 󰛀",
-                ctx.reset, bg, info_bright
+                "#[bg={},fg={},bold]▒ 󰛀",
+                bg, info_bright
             );
         }
         SyncMode::Clean => {
-            let _ = write!(result, "{}#[bg={},fg={},bold]▒ ", ctx.reset, bg, success);
+            let _ = write!(result, "#[bg={},fg={},bold]▒ ", bg, success);
         }
     }
 
-    let _ = write!(result, " {}{}", ctx.reset, display_branch);
+    let _ = write!(
+        result,
+        " #[fg={},bg={},bold]{}",
+        theme_hex.color(theme.foreground),
+        bg,
+        display_branch
+    );
 
     if changed > 0 {
         let _ = write!(
             result,
-            " {}#[fg={},bg={},bold] {}",
-            ctx.reset, warning, bg, changed
+            " #[fg={},bg={},bold] {}",
+            warning, bg, changed
         );
     }
 
     if insertions > 0 {
         let _ = write!(
             result,
-            " {}#[fg={},bg={},bold] {}",
-            ctx.reset, success, bg, insertions
+            " #[fg={},bg={},bold] {}",
+            success, bg, insertions
         );
     }
 
     if deletions > 0 {
         let _ = write!(
             result,
-            " {}#[fg={},bg={},bold] {}",
-            ctx.reset, danger, bg, deletions
+            " #[fg={},bg={},bold] {}",
+            danger, bg, deletions
         );
     }
 
     if untracked > 0 {
         let _ = write!(
             result,
-            " {}#[fg={},bg={},bold] {}",
-            ctx.reset, muted, bg, untracked
+            " #[fg={},bg={},bold] {}",
+            muted, bg, untracked
         );
     }
 
     if stash_count > 0 {
         let _ = write!(
             result,
-            " {}#[fg={},bg={},bold] {}",
-            ctx.reset, info_bright, bg, stash_count
+            " #[fg={},bg={},bold] {}",
+            info_bright, bg, stash_count
         );
     }
 
     if conflict_count > 0 {
         let _ = write!(
             result,
-            " {}#[fg={},bg={},bold]󰅘 {}",
-            ctx.reset, danger_bright, bg, conflict_count
+            " #[fg={},bg={},bold]󰅘 {}",
+            danger_bright, bg, conflict_count
         );
     }
 
     if ahead > 0 {
         let _ = write!(
             result,
-            " {}#[fg={},bg={},bold]↑{}",
-            ctx.reset, info_bright, bg, ahead
+            " #[fg={},bg={},bold]↑{}",
+            info_bright, bg, ahead
         );
     }
 
     if behind > 0 {
         let _ = write!(
             result,
-            " {}#[fg={},bg={},bold]↓{}",
-            ctx.reset, danger, bg, behind
+            " #[fg={},bg={},bold]↓{}",
+            danger, bg, behind
         );
     }
 
@@ -356,6 +368,7 @@ mod tests {
         let output = run(themes::hard::THEME, ".");
         if !output.is_empty() {
             assert!(output.contains("#[fg=") || output.contains("#[bg="));
+            // The '▒' separator glyph precedes the sync icon.
             assert!(output.contains("▒"));
             assert!(output.ends_with(' '));
         }

@@ -10,7 +10,6 @@ use std::thread;
 
 use crate::core::cache::{cache_base, read_cache_any_age, read_fresh_cache, write_cache};
 use crate::core::util::run_git_command;
-use crate::core::widget::WidgetContext;
 use crate::core::{Color, Theme};
 use crate::tmux_renderer::ThemeHex;
 
@@ -37,7 +36,9 @@ pub enum ForgeProvider {
 impl ForgeProvider {
     fn icon(self) -> &'static str {
         match self {
-            Self::Github => "\u{F408}",
+            // FontAwesome octocat (U+F09B) — lighter, visually balanced
+            // against the gitlab codicon (U+E65C) and codeberg mark.
+            Self::Github => "\u{F09B}",
             Self::Gitlab => "\u{E65C}",
             Self::Codeberg => "\u{F328}",
             Self::None => "",
@@ -220,7 +221,6 @@ fn append_segment(
     bg: &str,
     icon: &str,
     count: usize,
-    _reset: &str,
 ) {
     if count == 0 {
         return;
@@ -525,20 +525,21 @@ pub fn refresh_cache(repo_path: &str) -> bool {
 
 /// Render raw forge data with theme colors.
 fn render_data(theme: Theme, theme_hex: &ThemeHex, data: &ForgeData) -> String {
-    let ctx = WidgetContext::from_theme_hex(theme, theme_hex);
-    let theme = ctx.theme;
     let bg = theme_hex.color(theme.surface);
 
     let mut result = String::with_capacity(512);
 
-    // Forge header: muted  icon
+    // Continuous surface block: muted forge header icon, provider icon, and
+    // counts all paint on the same `surface` background. The previous version
+    // interspersed `ctx.reset` (background) between sub-segments, leaving
+    // 1-cell dark gaps inside the block and putting the provider icon on the
+    // wrong background.
     use std::fmt::Write;
     let _ = write!(
         result,
-        "#[fg={},bg={},bold]\u{EB3A} {}",
+        "#[fg={},bg={},bold]\u{EB3A} ",
         theme_hex.color(theme.muted),
         bg,
-        ctx.reset,
     );
 
     // Provider icon with forge color
@@ -549,10 +550,10 @@ fn render_data(theme: Theme, theme_hex: &ThemeHex, data: &ForgeData) -> String {
     };
     let _ = write!(
         result,
-        "#[fg={}]{} {}",
+        "#[fg={},bg={},bold]{} ",
         theme_hex.color(forge_color),
+        bg,
         data.provider.icon(),
-        ctx.reset,
     );
     append_segment(
         &mut result,
@@ -561,7 +562,6 @@ fn render_data(theme: Theme, theme_hex: &ThemeHex, data: &ForgeData) -> String {
         &bg,
         "\u{F407}",
         data.pr_count,
-        &ctx.reset,
     );
     append_segment(
         &mut result,
@@ -570,7 +570,6 @@ fn render_data(theme: Theme, theme_hex: &ThemeHex, data: &ForgeData) -> String {
         &bg,
         "\u{F4AF}",
         data.review_count,
-        &ctx.reset,
     );
     append_segment(
         &mut result,
@@ -579,7 +578,6 @@ fn render_data(theme: Theme, theme_hex: &ThemeHex, data: &ForgeData) -> String {
         &bg,
         "\u{F41B}",
         data.issue_count,
-        &ctx.reset,
     );
     append_segment(
         &mut result,
@@ -588,7 +586,6 @@ fn render_data(theme: Theme, theme_hex: &ThemeHex, data: &ForgeData) -> String {
         &bg,
         "\u{F46F}",
         data.bug_count,
-        &ctx.reset,
     );
 
     result

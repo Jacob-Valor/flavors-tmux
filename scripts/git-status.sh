@@ -102,35 +102,35 @@ STATUS_AHEAD=""
 STATUS_BEHIND=""
 
 if [[ $CHANGED_COUNT -gt 0 ]]; then
-	STATUS_CHANGED=" ${RESET}#[fg=${THEME[warning]},bg=${THEME[surface]},bold] ${CHANGED_COUNT}"
+	STATUS_CHANGED=" #[fg=${THEME[warning]},bg=${THEME[surface]},bold] ${CHANGED_COUNT}"
 fi
 
 if [[ $INSERTIONS_COUNT -gt 0 ]]; then
-	STATUS_INSERTIONS=" ${RESET}#[fg=${THEME[success]},bg=${THEME[surface]},bold] ${INSERTIONS_COUNT}"
+	STATUS_INSERTIONS=" #[fg=${THEME[success]},bg=${THEME[surface]},bold] ${INSERTIONS_COUNT}"
 fi
 
 if [[ $DELETIONS_COUNT -gt 0 ]]; then
-	STATUS_DELETIONS=" ${RESET}#[fg=${THEME[danger]},bg=${THEME[surface]},bold] ${DELETIONS_COUNT}"
+	STATUS_DELETIONS=" #[fg=${THEME[danger]},bg=${THEME[surface]},bold] ${DELETIONS_COUNT}"
 fi
 
 if [[ $UNTRACKED_COUNT -gt 0 ]]; then
-	STATUS_UNTRACKED=" ${RESET}#[fg=${THEME[muted]},bg=${THEME[surface]},bold] ${UNTRACKED_COUNT}"
+	STATUS_UNTRACKED=" #[fg=${THEME[muted]},bg=${THEME[surface]},bold] ${UNTRACKED_COUNT}"
 fi
 
 if [[ $STASH_COUNT -gt 0 ]]; then
-	STATUS_STASH=" ${RESET}#[fg=${THEME[info_bright]},bg=${THEME[surface]},bold] ${STASH_COUNT}"
+	STATUS_STASH=" #[fg=${THEME[info_bright]},bg=${THEME[surface]},bold] ${STASH_COUNT}"
 fi
 
 if [[ $CONFLICT_COUNT -gt 0 ]]; then
-	STATUS_CONFLICT=" ${RESET}#[fg=${THEME[danger_bright]},bg=${THEME[surface]},bold]󰅘 ${CONFLICT_COUNT}"
+	STATUS_CONFLICT=" #[fg=${THEME[danger_bright]},bg=${THEME[surface]},bold]󰅘 ${CONFLICT_COUNT}"
 fi
 
 if [[ $AHEAD_COUNT -gt 0 ]]; then
-	STATUS_AHEAD=" ${RESET}#[fg=${THEME[info_bright]},bg=${THEME[surface]},bold]↑${AHEAD_COUNT}"
+	STATUS_AHEAD=" #[fg=${THEME[info_bright]},bg=${THEME[surface]},bold]↑${AHEAD_COUNT}"
 fi
 
 if [[ $BEHIND_COUNT -gt 0 ]]; then
-	STATUS_BEHIND=" ${RESET}#[fg=${THEME[danger]},bg=${THEME[surface]},bold]↓${BEHIND_COUNT}"
+	STATUS_BEHIND=" #[fg=${THEME[danger]},bg=${THEME[surface]},bold]↓${BEHIND_COUNT}"
 fi
 
 if [[ $SYNC_MODE -eq 0 ]]; then
@@ -156,7 +156,7 @@ case "$SYNC_MODE" in
 	;;
 esac
 
-echo "$REMOTE_STATUS $RESET$BRANCH$STATUS_CHANGED$STATUS_INSERTIONS$STATUS_DELETIONS$STATUS_UNTRACKED$STATUS_STASH$STATUS_CONFLICT$STATUS_AHEAD$STATUS_BEHIND " >"$GIT_CACHE_PATH.tmp"
+echo "$REMOTE_STATUS #[fg=${THEME[foreground]},bg=${THEME[surface]},bold]$BRANCH$STATUS_CHANGED$STATUS_INSERTIONS$STATUS_DELETIONS$STATUS_UNTRACKED$STATUS_STASH$STATUS_CONFLICT$STATUS_AHEAD$STATUS_BEHIND " >"$GIT_CACHE_PATH.tmp"
 mv "$GIT_CACHE_PATH.tmp" "$GIT_CACHE_PATH" 2>/dev/null || true
 cat "$GIT_CACHE_PATH"
 exit 0

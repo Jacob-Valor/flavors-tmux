@@ -93,7 +93,9 @@ pub fn run(cfg: WidgetConfig<'_>, show_names: &[&str]) -> String {
         .iter()
         .filter_map(|&name| lookup_entry(name).map(|entry| (name, entry)))
         .collect();
-    let mut outputs: Vec<WidgetOutput> = Vec::with_capacity(jobs.len());
+    // Position-indexed so parallel results land in their requested slot —
+    // otherwise blocking widgets (git/forge) would always render last.
+    let mut outputs: Vec<Option<WidgetOutput>> = (0..jobs.len()).map(|_| None).collect();
 
     // Most widgets are cache-read + format (~0.2ms); only the forge and
     // git widgets spawn subprocesses. Spawning a thread per widget costs
@@ -101,13 +103,15 @@ pub fn run(cfg: WidgetConfig<'_>, show_names: &[&str]) -> String {
     // run concurrently. Batch the cheap widgets inline, parallelize only the
     // ones that actually block on external processes.
     let blocking = ["git", "wb-git"];
-    let (blocking_jobs, inline_jobs): (Vec<_>, Vec<_>) = jobs
-        .into_iter()
-        .partition(|(name, _)| blocking.contains(name));
+    let mut blocking_slots: Vec<usize> = Vec::new();
 
-    for (name, entry) in inline_jobs {
+    for (i, (name, entry)) in jobs.iter().enumerate() {
+        if blocking.contains(name) {
+            blocking_slots.push(i);
+            continue;
+        }
         if let Some(text) = render_widget(cfg, &theme_hex, name) {
-            outputs.push(WidgetOutput {
+            outputs[i] = Some(WidgetOutput {
                 text: text.trim_end().to_owned(),
                 color: entry.color,
                 no_sep: entry.no_sep,
@@ -115,60 +119,77 @@ pub fn run(cfg: WidgetConfig<'_>, show_names: &[&str]) -> String {
         }
     }
 
-    if !blocking_jobs.is_empty() {
+    if !blocking_slots.is_empty() {
         thread::scope(|scope| {
-            let handles: Vec<_> = blocking_jobs
-                .into_iter()
-                .map(|(name, entry)| {
+            let handles: Vec<_> = blocking_slots
+                .iter()
+                .map(|&slot| {
+                    let (name, entry) = jobs[slot];
                     let theme_hex_ref = &theme_hex;
                     scope.spawn(move || {
-                        render_widget(cfg, theme_hex_ref, name).map(|output| WidgetOutput {
-                            text: output,
-                            color: entry.color,
-                            no_sep: entry.no_sep,
-                        })
+                        let out = render_widget(cfg, theme_hex_ref, name).map(|text| {
+                            WidgetOutput {
+                                text: text.trim_end().to_owned(),
+                                color: entry.color,
+                                no_sep: entry.no_sep,
+                            }
+                        });
+                        (slot, out)
                     })
                 })
                 .collect();
 
             for handle in handles {
-                if let Ok(Some(output)) = handle.join() {
-                    outputs.push(WidgetOutput {
-                        text: output.text.trim_end().to_owned(),
-                        color: output.color,
-                        no_sep: output.no_sep,
-                    });
+                if let Ok((slot, Some(output))) = handle.join() {
+                    outputs[slot] = Some(output);
                 }
             }
         });
     }
 
+    // Drop empty slots, preserving the requested relative order.
+    let outputs: Vec<WidgetOutput> = outputs.into_iter().flatten().collect();
     if outputs.is_empty() {
         return String::new();
     }
 
     let sep = resolve_separator(cfg.separator);
+    // "space" and "none" separators emit no glyph — the per-segment padding
+    // provides the inter-segment gap. Glyph separators (pipe/chevron/arrow/
+    // slash/line/block) sit between the padded segments, one space each side
+    // from the padding.
+    let sep_glyph = if matches!(cfg.separator, "space" | "none") {
+        ""
+    } else {
+        sep
+    };
     let mut result = String::with_capacity(1024);
     let mut prev_no_sep = false;
 
     for (i, item) in outputs.iter().enumerate() {
-        // Spacing around separators: one space each side for most styles, but
-        // the block/line styles sit tight against the widget text.
-        let padded = matches!(cfg.separator, "pipe" | "chevron" | "arrow" | "slash");
-        let (pad_l, pad_r) = if padded { (" ", " ") } else { ("", "") };
+        let is_last = i + 1 == outputs.len();
+        // no_sep widgets (forge) attach to the previous segment — no
+        // glyph and no gap before them.
+        let next_no_sep = outputs.get(i + 1).map(|n| n.no_sep).unwrap_or(false);
 
         if i > 0 && !prev_no_sep && !item.no_sep {
-            result.push_str(pad_l);
-            result.push_str(sep);
-            result.push_str(pad_r);
+            result.push_str(sep_glyph);
         }
 
+        // Each widget is its own segment on the segment background. One
+        // trailing space pads the segment so widgets read as distinct blocks
+        // instead of a run-on blob; the last segment omits it so the bar's
+        // right edge stays clean (a padded space would paint a segment-bg
+        // cell at the window edge).
         result.push_str(&format!(
             "#[fg={},bg={}]{}",
             theme_hex.color(color_from_theme(theme, item.color)),
             theme_hex.color(segment_bg),
             item.text,
         ));
+        if !is_last && !next_no_sep {
+            result.push(' ');
+        }
         prev_no_sep = item.no_sep;
     }
 
@@ -223,5 +244,73 @@ mod tests {
         assert_eq!("━", resolve_separator("line"));
         assert_eq!("▏", resolve_separator("block"));
         assert_eq!("", resolve_separator("none"));
+    }
+
+    #[test]
+    fn segments_are_padded_and_separated() {
+        // cpu (no_sep=false) and datetime (no_sep=false): the default
+        // space separator emits no glyph; the per-segment padding provides
+        // the gap, and the last segment has no trailing space.
+        let cfg = WidgetConfig {
+            theme: themes::HARD,
+            transparent: false,
+            pane_path: ".",
+            battery_name: None,
+            low_threshold: 20,
+            time_format: TimeFormat::H24,
+            cache_ttl: 300,
+            separator: "space",
+        };
+        let output = run(cfg, &["cpu", "datetime"]);
+        // cpu and datetime both render. Assert the structural
+        // properties: each segment is wrapped in fg/bg, exactly one space
+        // separates them, and the output does not end with a space.
+        assert!(output.contains("#[fg="));
+        assert!(output.contains("bg="));
+        assert!(!output.ends_with(' '));
+        // The cpu segment's padding space sits before the datetime
+        // segment's fg wrapper — the cpu text (the mem `%` value) is
+        // followed by " " then a fresh "#[fg=".
+        assert!(
+            output.contains(" #[fg="),
+            "segment padding space must precede the next segment wrapper: {output}"
+        );
+        // datetime (the last segment) has no trailing padding space — the
+        // output must not end with a space.
+        assert!(!output.ends_with(' '));
+    }
+
+    #[test]
+    fn no_sep_widget_attaches_to_previous_segment() {
+        // git (no_sep=false) followed by wb-git (no_sep=true): the forge
+        // widget attaches to the git segment with no gap between them.
+        let cfg = WidgetConfig {
+            theme: themes::HARD,
+            transparent: false,
+            pane_path: ".",
+            battery_name: None,
+            low_threshold: 20,
+            time_format: TimeFormat::H24,
+            cache_ttl: 300,
+            separator: "space",
+        };
+        let output = run(cfg, &["git", "wb-git"]);
+        // In this repo both render; the forge header (muted  icon) must sit
+        // directly after the git text without an intervening space.
+        if output.contains("󱓎") && output.contains("") {
+            let git_end = output.find("󱓎").unwrap();
+            let forge_start = output.find("").unwrap();
+            assert!(
+                forge_start > git_end,
+                "forge should come after git sync icon"
+            );
+            // The segment between the git icon and the forge icon must not
+            // contain a lone padding space right before the forge icon.
+            let between = &output[git_end..forge_start];
+            assert!(
+                !between.ends_with(' '),
+                "forge must attach tightly to git: '{between}'"
+            );
+        }
     }
 }
