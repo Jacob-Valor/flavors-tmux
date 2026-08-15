@@ -242,6 +242,16 @@ $RESET\
 #[fg=${THEME[primary]}] 󰠠 }\
 #[fg=${THEME[foreground]},bold,nodim] #S "
 
+# Force an immediate status-line repaint when the prefix key is pressed so
+# the warning-colored #{?client_prefix,...} banner actually appears. tmux
+# sets client_prefix only while the key is held; with a normal tap and a
+# 15s status-interval the redraw is easily missed. send-prefix re-enters
+# the prefix table, so existing prefix bindings keep working.
+_prefix_key="$(tmux show-option -gv prefix 2>/dev/null || echo C-b)"
+if [[ -n "$_prefix_key" && "$_prefix_key" != "None" ]]; then
+    tmux bind -n "$_prefix_key" send-prefix \; refresh-client -S
+fi
+
 window_number="$(custom_number_cmd '#I' "$window_id_style")"
 zoom_number="$(custom_number_cmd '#P' "$zoom_id_style")"
 window_status_border=""
