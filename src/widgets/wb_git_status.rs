@@ -36,9 +36,7 @@ pub enum ForgeProvider {
 impl ForgeProvider {
     fn icon(self) -> &'static str {
         match self {
-            // FontAwesome octocat (U+F09B) — lighter, visually balanced
-            // against the gitlab codicon (U+E65C) and codeberg mark.
-            Self::Github => "\u{F09B}",
+            Self::Github => "\u{F408}",
             Self::Gitlab => "\u{E65C}",
             Self::Codeberg => "\u{F328}",
             Self::None => "",

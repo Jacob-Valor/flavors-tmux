@@ -37,7 +37,7 @@ const WIDGET_ENTRIES: &[(&str, WidgetEntry)] = &[
         "wb-git",
         WidgetEntry {
             color: WidgetColor::Accent,
-            no_sep: true,
+            no_sep: false,
         },
     ),
     (
@@ -106,7 +106,7 @@ mod tests {
         let cases = [
             ("cwd", WidgetColor::Emphasis, false),
             ("git", WidgetColor::Success, false),
-            ("wb-git", WidgetColor::Accent, true),
+            ("wb-git", WidgetColor::Accent, false),
             ("battery", WidgetColor::Danger, false),
             ("cpu", WidgetColor::AccentBright, false),
             ("kubernetes", WidgetColor::Info, false),

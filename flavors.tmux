@@ -335,35 +335,18 @@ else
     [[ -n "$date_and_time" ]] && right_status_parts+=("#[fg=${THEME[warning]},bg=${THEME[surface]}]$date_and_time")
 
     # Assemble segments matching the Rust `status` renderer: separator glyph
-    # between segments (no_sep widgets like forge attach to the previous
-    # segment), and one trailing space of padding inside each non-final
-    # segment so widgets read as distinct blocks.
+    # between segments and one trailing space of padding inside each
+    # non-final segment so widgets read as distinct blocks.
     right_status=""
-    prev_is_no_sep=false
     for ((i = 0; i < ${#right_status_parts[@]}; i++)); do
-        part="${right_status_parts[$i]}"
-        is_no_sep=false
-        if [[ "$part" == *" wb-git-status "* ]] || [[ "$part" == *"wb-git-status.sh"* ]]; then
-            is_no_sep=true
-        fi
         if [[ -n "$right_status" ]]; then
-            if [[ "$is_no_sep" == false && "$prev_is_no_sep" == false ]]; then
-                right_status="${right_status}${_sep}"
-            fi
+            right_status="${right_status}${_sep}"
         fi
-        right_status="${right_status}${part}"
+        right_status="${right_status}${right_status_parts[$i]}"
         if [[ $((i + 1)) -lt ${#right_status_parts[@]} ]]; then
-            # Padding: no space before a no_sep successor (attaches tightly).
-            next_part="${right_status_parts[$((i + 1))]}"
-            next_no_sep=false
-            if [[ "$next_part" == *" wb-git-status "* ]] || [[ "$next_part" == *"wb-git-status.sh"* ]]; then
-                next_no_sep=true
-            fi
-            if [[ "$next_no_sep" == false ]]; then
-                right_status="${right_status} "
-            fi
+            # Padding: one space separates this segment from the next.
+            right_status="${right_status} "
         fi
-        prev_is_no_sep="$is_no_sep"
     done
     tmux set -g status-right "$right_status"
 fi

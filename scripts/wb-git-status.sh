@@ -45,7 +45,7 @@ if [[ $PROVIDER == "github.com" ]]; then
   if ! command -v gh &>/dev/null || ! command -v jq &>/dev/null; then
     exit 1
   fi
-  PROVIDER_ICON="$RESET#[fg=${THEME[forge_github]},bg=${THEME[surface]},bold] "
+  PROVIDER_ICON="$RESET#[fg=${THEME[forge_github]},bg=${THEME[surface]},bold] "
   PR_COUNT=$(gh pr list --json number --limit 100 --jq 'length' 2>/dev/null || echo 0)
   REVIEW_COUNT=$(gh pr list --reviewer @me --json number --limit 100 --jq 'length' 2>/dev/null || echo 0)
   RES=$(gh issue list --json "assignees,labels" --assignee @me --limit 100 2>/dev/null || echo '[]')

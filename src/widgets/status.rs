@@ -281,9 +281,10 @@ mod tests {
     }
 
     #[test]
-    fn no_sep_widget_attaches_to_previous_segment() {
-        // git (no_sep=false) followed by wb-git (no_sep=true): the forge
-        // widget attaches to the git segment with no gap between them.
+    fn all_widgets_are_separate_segments() {
+        // git and wb-git are both normal (no_sep=false) segments — the forge
+        // widget renders with a space gap after the git segment, like every
+        // other widget.
         let cfg = WidgetConfig {
             theme: themes::HARD,
             transparent: false,
@@ -295,8 +296,8 @@ mod tests {
             separator: "space",
         };
         let output = run(cfg, &["git", "wb-git"]);
-        // In this repo both render; the forge header (muted  icon) must sit
-        // directly after the git text without an intervening space.
+        // In this repo both render; the forge header (muted icon) must sit
+        // in its own segment after the git text.
         if output.contains("󱓎") && output.contains("") {
             let git_end = output.find("󱓎").unwrap();
             let forge_start = output.find("").unwrap();
@@ -304,12 +305,12 @@ mod tests {
                 forge_start > git_end,
                 "forge should come after git sync icon"
             );
-            // The segment between the git icon and the forge icon must not
-            // contain a lone padding space right before the forge icon.
-            let between = &output[git_end..forge_start];
+            // The git segment's padding space sits before the forge segment's
+            // outer wrapper (fg=accent,bg=surface), separating the two.
+            let git_text_end = output.find("#[fg=#d3869b,bg=#282828]").unwrap();
             assert!(
-                !between.ends_with(' '),
-                "forge must attach tightly to git: '{between}'"
+                output[..git_text_end].ends_with(' '),
+                "git segment must end with a padding space: '{output}'"
             );
         }
     }
