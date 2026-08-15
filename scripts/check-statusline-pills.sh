@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
-# Regression guard for the status-left session pill and the active-window
-# pill in flavors.tmux.
+# Regression guard for the status-left prefix banner, session icon, and the
+# active-window pill in flavors.tmux.
 #
-# Both must pair a segment background with its theme-designed "on_*" contrast
-# color (primary/on_primary, or primary_bright/on_primary_bright) rather than
-# an unrelated field like `surface`, whose contrast against the surrounding
-# bar background is not guaranteed by the theme system and is near-invisible
-# in several themes (e.g. monokai_nebula, solarized_light). See git history
-# on this file for the incident that prompted this check.
+# The prefix banner must pair its warning background with the theme-designed
+# on_primary contrast color. The session renders as a plain primary icon on
+# the bar background (no fill), so it can never collide with the
+# active-window pill. The active-window pill must pair primary_bright with
+# its designed on_primary_bright — rather than an unrelated field like
+# `surface`, whose contrast against the surrounding bar background is not
+# guaranteed by the theme system and is near-invisible in several themes
+# (e.g. monokai_nebula, solarized_light). See git history on this file for
+# the incident that prompted this check.
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
@@ -28,8 +31,13 @@ assert_contains() {
 
 # shellcheck disable=SC2016
 assert_contains \
-    "session pill (status-left) must pair bg=primary with fg=on_primary" \
-    'fg=${THEME[on_primary]},bg=${THEME[primary]},bold,nodim] #S'
+    "prefix banner (status-left) must pair bg=warning with fg=on_primary" \
+    'fg=${THEME[on_primary]},bg=${THEME[warning]},bold] 󰠠 #{prefix}'
+
+# shellcheck disable=SC2016
+assert_contains \
+    "session icon (status-left) uses primary as foreground on the bar background" \
+    '#[fg=${THEME[primary]}] 󰠠 }'
 
 # shellcheck disable=SC2016
 assert_contains \

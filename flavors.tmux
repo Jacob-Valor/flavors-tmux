@@ -232,10 +232,10 @@ tmux set -g status-style "fg=${THEME[foreground]},bg=${THEME[background]}"
 
 tmux set -g status-left "\
 $RESET\
- #{?client_prefix,\
-#[fg=${THEME[on_primary]},bg=${THEME[warning]},bold] 󰠠 PREFIX ,\
-#[fg=${THEME[on_primary]},bg=${THEME[primary]}] 󰠠 }\
-#[fg=${THEME[on_primary]},bg=${THEME[primary]},bold,nodim] #S "
+#{?client_prefix,\
+#[fg=${THEME[on_primary]},bg=${THEME[warning]},bold] 󰠠 #{prefix} ,\
+#[fg=${THEME[primary]}] 󰠠 }\
+#[fg=${THEME[foreground]},bold,nodim] #S "
 
 window_number="$(custom_number_cmd '#I' "$window_id_style")"
 custom_pane="$(custom_number_cmd '#P' "$pane_id_style")"
@@ -254,18 +254,17 @@ $window_number\
 $window_status_border\
 $window_name_prefix#W\
 #[nobold]\
-#{?window_zoomed_flag, $zoom_number, $custom_pane}\
+#{?window_zoomed_flag,  $zoom_number,}\
 #{?window_last_flag, ,}"
 
 tmux set -g window-status-format "\
 $RESET\
-#[fg=${THEME[foreground]}]\
+#[fg=${THEME[foreground]},bg=${THEME[surface]}] \
 #{?#{==:#{pane_current_command},ssh},󰣀 ,$terminal_icon }\
-${RESET}\
 $window_number\
 #W\
-#[nobold,dim]\
-#{?window_zoomed_flag, $zoom_number, $custom_pane}\
+#[fg=${THEME[muted]}]\
+#{?window_zoomed_flag,  $zoom_number,}\
 #[fg=${THEME[warning]}]\
 #{?window_last_flag, ,}"
 

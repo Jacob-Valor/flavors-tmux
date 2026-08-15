@@ -334,17 +334,21 @@ Only rendered when at least one of the two agents is detected; hidden entirely o
 
 ### Appearance
 
-The session name renders on a filled `primary`-colored pill, and the active
-window renders on a `primary_bright` pill, so the two stay visually distinct
-while both keep guaranteed contrast against the bar in every theme. Widgets
-on the right side are divided by a separator (default changed from blank
-spacing to `pipe`):
+The session name renders as bold foreground text with a `primary`-colored
+icon on the bar background — no fill, so it never collides with the
+active-window pill. The active window renders on a filled `primary_bright`
+pill, and inactive windows sit on `surface` blocks that match the right-side
+segments, keeping the whole status line visually consistent. When the prefix
+key is pressed, a `warning`-colored banner shows the actual prefix key
+(e.g. `󰠠 C-b`). Widgets on the right side render as distinct segments on the
+status-bar surface, separated by a configurable glyph (default: single-space
+gap):
 
 ```tmux
 set -g @flavors-tmux_separator_style "pipe"
 ```
 
-Options: `space` (blank, previous default), `pipe` (`│`, new default), `chevron` (`〉`), `none`.
+Options: `space` (blank gap, default), `pipe` (`│`), `chevron` (`〉`), `arrow` (`▸`), `slash` (`/`), `line` (`━`), `block` (`▏`), `none`.
 
 ### Status refresh interval
 
