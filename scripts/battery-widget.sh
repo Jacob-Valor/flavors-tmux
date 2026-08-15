@@ -13,8 +13,8 @@ if [[ "${SHOW_BATTERY_WIDGET}" != 1 ]]; then
 fi
 
 OS_NAME="$(uname -s)"
-BATTERY_NAME=$(tmux show-option -gv @flavors-tmux_battery_name 2>/dev/null)
-BATTERY_LOW=$(tmux show-option -gv @flavors-tmux_battery_low_threshold 2>/dev/null)
+BATTERY_NAME=$(tmux show-option -gv @flavors-tmux_battery_name 2>/dev/null || true)
+BATTERY_LOW=$(tmux show-option -gv @flavors-tmux_battery_low_threshold 2>/dev/null || true)
 DEFAULT_BATTERY_LOW=20
 BATTERY_LOW="${BATTERY_LOW:-$DEFAULT_BATTERY_LOW}"
 if [[ ! "$BATTERY_LOW" =~ ^[0-9]+$ ]]; then

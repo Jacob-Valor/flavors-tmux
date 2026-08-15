@@ -100,12 +100,18 @@ transparent_arg=""
 # ---------------------------------------------------------------------------
 
 # Emit a tmux #() shell command only if the named show_* flag is "1".
+# Always returns 0 — the caller wraps this in `$(...)` command substitution
+# and `set -e` would abort the whole script if this returned non-zero when a
+# widget flag is off (previously the Bash fallback status-right was never
+# set whenever any optional widget was disabled).
 # Usage: if_enabled show_git "#($BINARY_PATH git-status ...)"
 if_enabled() {
     local flag_var="$1"
     local cmd="$2"
-    [[ "${!flag_var}" == "1" ]] || return
-    echo "$cmd"
+    if [[ "${!flag_var}" == "1" ]]; then
+        echo "$cmd"
+    fi
+    return 0
 }
 
 custom_number_format() {
