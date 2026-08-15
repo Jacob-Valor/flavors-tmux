@@ -8,7 +8,6 @@ pub(crate) enum WidgetColor {
     Info,
     Danger,
     AccentBright,
-    Primary,
     PrimaryBright,
     Warning,
 }
@@ -42,23 +41,9 @@ const WIDGET_ENTRIES: &[(&str, WidgetEntry)] = &[
         },
     ),
     (
-        "docker",
-        WidgetEntry {
-            color: WidgetColor::Info,
-            no_sep: true,
-        },
-    ),
-    (
         "battery",
         WidgetEntry {
             color: WidgetColor::Danger,
-            no_sep: false,
-        },
-    ),
-    (
-        "hostname",
-        WidgetEntry {
-            color: WidgetColor::Info,
             no_sep: false,
         },
     ),
@@ -73,20 +58,6 @@ const WIDGET_ENTRIES: &[(&str, WidgetEntry)] = &[
         "kubernetes",
         WidgetEntry {
             color: WidgetColor::Info,
-            no_sep: false,
-        },
-    ),
-    (
-        "terraform",
-        WidgetEntry {
-            color: WidgetColor::Primary,
-            no_sep: false,
-        },
-    ),
-    (
-        "yadm",
-        WidgetEntry {
-            color: WidgetColor::Accent,
             no_sep: false,
         },
     ),
@@ -120,7 +91,6 @@ pub(crate) fn color_from_theme(theme: Theme, wc: WidgetColor) -> Color {
         WidgetColor::Info => theme.info,
         WidgetColor::Danger => theme.danger,
         WidgetColor::AccentBright => theme.accent_bright,
-        WidgetColor::Primary => theme.primary,
         WidgetColor::PrimaryBright => theme.primary_bright,
         WidgetColor::Warning => theme.warning,
     }
@@ -137,13 +107,9 @@ mod tests {
             ("cwd", WidgetColor::Emphasis, false),
             ("git", WidgetColor::Success, false),
             ("wb-git", WidgetColor::Accent, true),
-            ("docker", WidgetColor::Info, true),
             ("battery", WidgetColor::Danger, false),
-            ("hostname", WidgetColor::Info, false),
             ("cpu", WidgetColor::AccentBright, false),
             ("kubernetes", WidgetColor::Info, false),
-            ("terraform", WidgetColor::Primary, false),
-            ("yadm", WidgetColor::Accent, false),
             ("gpg-ssh", WidgetColor::PrimaryBright, false),
             ("datetime", WidgetColor::Warning, false),
         ];
@@ -172,7 +138,6 @@ mod tests {
             theme.accent_bright,
             color_from_theme(theme, WidgetColor::AccentBright)
         );
-        assert_eq!(theme.primary, color_from_theme(theme, WidgetColor::Primary));
         assert_eq!(
             theme.primary_bright,
             color_from_theme(theme, WidgetColor::PrimaryBright)

@@ -37,11 +37,11 @@ Semantic colors used as text foregrounds and their backgrounds (update when addi
 | success | battery 100%, git synced, wb PR/issue, CPU <50%, mem <50% | `background` |
 | danger  | battery low, git need-push, wb bug, CPU ≥80%, mem ≥80%    | `background` |
 | danger_bright | git conflict count `󰅘`       | `background` |
-| warning | battery mid, git changed, window last, hostname SSH, CPU 50-79%, mem 50-79% | `background` |
+| warning | battery mid, git changed, CPU 50-79%, mem 50-79% | `background` |
 | info_bright | git need-pull, stash count ``, ahead `↑` | `background` |
-| accent  | datetime separator (decorative only) | `surface_alt` / `background` |
-| muted   | git untracked count ``, forge header , hostname local, docker context default | `background` |
-| info     | kubernetes context (non-prod/non-staging), docker context (non-default) | `background` |
+| accent  | datetime separator (decorative only), wb-git header | `surface_alt` / `background` |
+| muted   | git untracked count ``, wb-git header icon | `background` |
+| info     | kubernetes context (non-prod/non-staging) | `background` |
 | emphasis | datetime time text               | `surface_alt` / `background` |
 | forge_* | forge provider icon               | `background` |
 | foreground | RESET, status text, window text | `background` |

@@ -53,7 +53,6 @@ fn render_widget(cfg: WidgetConfig<'_>, theme_hex: &ThemeHex, widget_name: &str)
             cfg.cache_ttl,
         ),
         "cpu" => widgets::cpu_memory::run_with_theme_hex(cfg.theme, theme_hex),
-        "hostname" => widgets::hostname::run_with_theme_hex(cfg.theme, theme_hex),
         "datetime" => widgets::datetime::run_with_theme_hex(cfg.theme, theme_hex, cfg.time_format),
         "battery" => widgets::battery::run_with_theme_hex(
             cfg.theme,
@@ -62,9 +61,6 @@ fn render_widget(cfg: WidgetConfig<'_>, theme_hex: &ThemeHex, widget_name: &str)
             cfg.low_threshold,
         ),
         "kubernetes" => widgets::kubernetes::run_with_theme_hex(cfg.theme, theme_hex),
-        "terraform" => widgets::terraform::run_with_theme_hex(cfg.theme, theme_hex, cfg.pane_path),
-        "docker" => widgets::docker::run_with_theme_hex(cfg.theme, theme_hex),
-        "yadm" => widgets::yadm::run_with_theme_hex(cfg.theme, theme_hex),
         "gpg-ssh" => widgets::gpg_ssh_agent::run_with_theme_hex(cfg.theme, theme_hex),
         _ => return None,
     };

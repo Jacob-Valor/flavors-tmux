@@ -10,7 +10,7 @@
 #   bash scripts/test-parity.sh
 #
 # Without tmux: only custom-number parity is tested.
-# Within tmux:   theme colors, hostname, and other widgets are also tested.
+# Within tmux:   theme colors, and other widgets are also tested.
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
@@ -131,30 +131,6 @@ else
     rust_list="$("$BIN" theme-list 2>/dev/null | sort)" || true
     bash_list="$(for t in "${themes[@]}"; do echo "$t"; done | sort)"
     check "theme-list identical" "$rust_list" "$bash_list"
-
-    # -----------------------------------------------------------------------
-    # Hostname widget parity
-    # -----------------------------------------------------------------------
-    echo ""
-    echo "--- hostname ---"
-    # Unset SSH vars to test local hostname path
-    saved_ssh="${SSH_CONNECTION:-}"
-    saved_client="${SSH_CLIENT:-}"
-    unset SSH_CONNECTION SSH_CLIENT
-
-    rust_host="$("$BIN" hostname --theme hard 2>/dev/null)" || true
-    bash_host="$(bash -c "
-        tmux set-option -g @flavors-tmux_theme hard
-        source '${SCRIPT_DIR}/themes.sh' 2>/dev/null
-        RESET=\"#[fg=\${THEME[foreground]},bg=\${THEME[background]},nobold,noitalics,nounderscore,nodim]\"
-        HOSTNAME=\$(hostname -s 2>/dev/null || hostname 2>/dev/null || echo unknown)
-        echo \"\${RESET}#[fg=\${THEME[muted]},bg=\${THEME[surface]},bold]▒ 󰌽 \${HOSTNAME}\"
-    ")" || true
-    check "hostname local" "$rust_host" "$bash_host"
-
-    # Restore SSH vars
-    export SSH_CONNECTION="$saved_ssh"
-    export SSH_CLIENT="$saved_client"
 
     # -----------------------------------------------------------------------
     # CWD widget parity (requires tmux)

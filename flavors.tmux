@@ -67,13 +67,9 @@ show_wbg="${_opt[show_wbg]:-1}"
 battery_name="${_opt[battery_name]:-}"
 battery_low="${_opt[battery_low_threshold]:-20}"
 show_battery_widget="${_opt[show_battery_widget]:-0}"
-show_hostname="${_opt[show_hostname]:-0}"
 show_cpu_memory="${_opt[show_cpu_memory]:-0}"
 show_kubernetes="${_opt[show_kubernetes]:-0}"
 show_cwd="${_opt[show_cwd]:-0}"
-show_terraform="${_opt[show_terraform]:-0}"
-show_docker="${_opt[show_docker]:-0}"
-show_yadm="${_opt[show_yadm]:-0}"
 show_gpg_ssh_agent="${_opt[show_gpg_ssh_agent]:-0}"
 forge_cache_ttl="${_opt[forge_cache_ttl]:-300}"
 auto_update="${_opt[auto_update]:-0}"
@@ -180,9 +176,6 @@ if [[ -x "$BINARY_PATH" ]]; then
     wb_git_status_cmd() {
         if_enabled show_wbg "#($BINARY_PATH wb-git-status --theme $SELECTED_THEME $transparent_arg --cache-ttl ${forge_cache_ttl:-300} #{q:pane_current_path})"
     }
-    hostname_cmd() {
-        if_enabled show_hostname "#($BINARY_PATH hostname --theme $SELECTED_THEME $transparent_arg)"
-    }
     cpu_memory_cmd() {
         if_enabled show_cpu_memory "#($BINARY_PATH cpu-memory --theme $SELECTED_THEME $transparent_arg)"
     }
@@ -191,15 +184,6 @@ if [[ -x "$BINARY_PATH" ]]; then
     }
     cwd_cmd() {
         if_enabled show_cwd "#($BINARY_PATH cwd --theme $SELECTED_THEME $transparent_arg #{q:pane_current_path})"
-    }
-    terraform_cmd() {
-        if_enabled show_terraform "#($BINARY_PATH terraform --theme $SELECTED_THEME $transparent_arg #{q:pane_current_path})"
-    }
-    docker_cmd() {
-        if_enabled show_docker "#($BINARY_PATH docker --theme $SELECTED_THEME $transparent_arg)"
-    }
-    yadm_cmd() {
-        if_enabled show_yadm "#($BINARY_PATH yadm --theme $SELECTED_THEME $transparent_arg)"
     }
     gpg_ssh_agent_cmd() {
         if_enabled show_gpg_ssh_agent "#($BINARY_PATH gpg-ssh-agent --theme $SELECTED_THEME $transparent_arg)"
@@ -214,9 +198,6 @@ else
     wb_git_status_cmd() {
         if_enabled show_wbg "#($SCRIPTS_PATH/wb-git-status.sh #{q:pane_current_path})"
     }
-    hostname_cmd() {
-        if_enabled show_hostname "#($SCRIPTS_PATH/hostname.sh)"
-    }
     cpu_memory_cmd() {
         if_enabled show_cpu_memory "#($SCRIPTS_PATH/cpu-memory.sh)"
     }
@@ -225,15 +206,6 @@ else
     }
     cwd_cmd() {
         if_enabled show_cwd "#($SCRIPTS_PATH/cwd.sh #{q:pane_current_path})"
-    }
-    terraform_cmd() {
-        if_enabled show_terraform "#($SCRIPTS_PATH/terraform.sh #{q:pane_current_path})"
-    }
-    docker_cmd() {
-        if_enabled show_docker "#($SCRIPTS_PATH/docker.sh)"
-    }
-    yadm_cmd() {
-        if_enabled show_yadm "#($SCRIPTS_PATH/yadm.sh)"
     }
     gpg_ssh_agent_cmd() {
         if_enabled show_gpg_ssh_agent "#($SCRIPTS_PATH/gpg-ssh-agent.sh)"
@@ -302,13 +274,9 @@ ACTIVE_WIDGETS=""
 [[ "$show_cwd" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}cwd,"
 [[ "$show_git" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}git,"
 [[ "$show_wbg" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}wb-git,"
-[[ "$show_docker" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}docker,"
-[[ "$show_battery_widget" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}battery,"
-[[ "$show_hostname" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}hostname,"
 [[ "$show_cpu_memory" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}cpu,"
+[[ "$show_battery_widget" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}battery,"
 [[ "$show_kubernetes" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}kubernetes,"
-[[ "$show_terraform" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}terraform,"
-[[ "$show_yadm" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}yadm,"
 [[ "$show_gpg_ssh_agent" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}gpg-ssh,"
 [[ "$show_time" == "1" ]] && ACTIVE_WIDGETS="${ACTIVE_WIDGETS}datetime,"
 ACTIVE_WIDGETS="${ACTIVE_WIDGETS%,}"
@@ -331,46 +299,48 @@ else
     wb_git_status="$(wb_git_status_cmd)"
     date_and_time="$(datetime_cmd)"
     battery_status="$(battery_cmd)"
-    hostname_status="$(hostname_cmd)"
     cpu_memory_status="$(cpu_memory_cmd)"
     kubernetes_status="$(kubernetes_cmd)"
     cwd_status="$(cwd_cmd)"
-    terraform_status="$(terraform_cmd)"
-    docker_status="$(docker_cmd)"
-    yadm_status="$(yadm_cmd)"
     gpg_ssh_agent_status="$(gpg_ssh_agent_cmd)"
 
     case "${separator_style:-space}" in
-        pipe) _sep=" │ " ;;
-        chevron) _sep=" 〉 " ;;
-        arrow) _sep=" ▸ " ;;
-        slash) _sep=" / " ;;
-        line) _sep=" ━ " ;;
+        pipe) _sep="│" ;;
+        chevron) _sep="〉" ;;
+        arrow) _sep="▸" ;;
+        slash) _sep="/" ;;
+        line) _sep="━" ;;
         block) _sep="▏" ;;
-        none) _sep="" ;;
-        *) _sep=" " ;;
+        *) _sep="" ;;
     esac
+    # "space"/"none"/default emit no glyph — the per-segment padding gap
+    # provides the inter-segment spacing, matching the Rust `status` renderer.
+    if [[ "${separator_style:-space}" == "pipe" || "${separator_style:-space}" == "chevron" || "${separator_style:-space}" == "arrow" || "${separator_style:-space}" == "slash" || "${separator_style:-space}" == "line" || "${separator_style:-space}" == "block" ]]; then
+        :
+    else
+        _sep=""
+    fi
 
     right_status_parts=()
     [[ -n "$cwd_status" ]] && right_status_parts+=("#[fg=${THEME[emphasis]},bg=${THEME[surface]}]$cwd_status")
     [[ -n "$git_status" ]] && right_status_parts+=("#[fg=${THEME[success]},bg=${THEME[surface]}]$git_status")
     [[ -n "$wb_git_status" ]] && right_status_parts+=("#[fg=${THEME[accent]},bg=${THEME[surface]}]$wb_git_status")
-    [[ -n "$docker_status" ]] && right_status_parts+=("#[fg=${THEME[info]},bg=${THEME[surface]}]$docker_status")
-    [[ -n "$battery_status" ]] && right_status_parts+=("#[fg=${THEME[danger]},bg=${THEME[surface]}]$battery_status")
-    [[ -n "$hostname_status" ]] && right_status_parts+=("#[fg=${THEME[info]},bg=${THEME[surface]}]$hostname_status")
     [[ -n "$cpu_memory_status" ]] && right_status_parts+=("#[fg=${THEME[accent_bright]},bg=${THEME[surface]}]$cpu_memory_status")
+    [[ -n "$battery_status" ]] && right_status_parts+=("#[fg=${THEME[danger]},bg=${THEME[surface]}]$battery_status")
     [[ -n "$kubernetes_status" ]] && right_status_parts+=("#[fg=${THEME[info]},bg=${THEME[surface]}]$kubernetes_status")
-    [[ -n "$terraform_status" ]] && right_status_parts+=("#[fg=${THEME[primary]},bg=${THEME[surface]}]$terraform_status")
-    [[ -n "$yadm_status" ]] && right_status_parts+=("#[fg=${THEME[accent]},bg=${THEME[surface]}]$yadm_status")
     [[ -n "$gpg_ssh_agent_status" ]] && right_status_parts+=("#[fg=${THEME[primary_bright]},bg=${THEME[surface]}]$gpg_ssh_agent_status")
     [[ -n "$date_and_time" ]] && right_status_parts+=("#[fg=${THEME[warning]},bg=${THEME[surface]}]$date_and_time")
 
+    # Assemble segments matching the Rust `status` renderer: separator glyph
+    # between segments (no_sep widgets like forge attach to the previous
+    # segment), and one trailing space of padding inside each non-final
+    # segment so widgets read as distinct blocks.
     right_status=""
     prev_is_no_sep=false
-    for part in "${right_status_parts[@]}"; do
+    for ((i = 0; i < ${#right_status_parts[@]}; i++)); do
+        part="${right_status_parts[$i]}"
         is_no_sep=false
-        if [[ "$part" == *" docker "* ]] || [[ "$part" == *"docker.sh"* ]] || \
-           [[ "$part" == *" wb-git-status "* ]] || [[ "$part" == *"wb-git-status.sh"* ]]; then
+        if [[ "$part" == *" wb-git-status "* ]] || [[ "$part" == *"wb-git-status.sh"* ]]; then
             is_no_sep=true
         fi
         if [[ -n "$right_status" ]]; then

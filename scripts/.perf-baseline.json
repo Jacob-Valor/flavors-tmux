@@ -1,7 +1,7 @@
 {
   "warm_4widget_ms": 2.40,
   "warm_wbgit_ms": 2.14,
-  "warm_12widget_ms": 2.02,
+  "warm_maxwidget_ms": 2.02,
   "cold_4widget_ms": 1.08,
   "recorded": "2026-08-03T18:32:30Z"
 }

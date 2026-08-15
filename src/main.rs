@@ -25,13 +25,9 @@ Commands:
   git-status --theme <name> <path>    Render git status widget
   wb-git-status --theme <name> <path> Render GitHub/GitLab status widget
   wb-git-refresh <path>              Recompute forge cache in background
-  hostname --theme <name>             Render hostname/SSH indicator widget
   cpu-memory --theme <name>           Render CPU and memory usage widget
   kubernetes --theme <name>           Render Kubernetes context widget
   cwd --theme <name> <path>           Render current working directory widget
-  terraform --theme <name> <path>     Render Terraform workspace widget
-  docker --theme <name>               Render Docker context widget
-  yadm --theme <name>                 Render YADM dotfiles status widget
   gpg-ssh-agent --theme <name>       Render GPG/SSH agent status widget
   theme <name> <key>                  Look up a theme color
   theme-list                          List available themes
@@ -139,13 +135,6 @@ fn run(raw_args: &[&str]) -> i32 {
             0
         }
 
-        "hostname" => {
-            let theme = resolve_theme(&args);
-            let output = widgets::hostname::run(theme);
-            write_output!(out, output);
-            0
-        }
-
         "cpu-memory" => {
             let theme = resolve_theme(&args);
             let output = widgets::cpu_memory::run(theme);
@@ -167,31 +156,6 @@ fn run(raw_args: &[&str]) -> i32 {
             }
             let theme = resolve_theme(&args);
             let output = widgets::cwd::run(theme, args.positional[0]);
-            write_output!(out, output);
-            0
-        }
-
-        "terraform" => {
-            if args.positional.is_empty() {
-                eprintln!("Usage: flavors-tmux terraform --theme <name> <path>");
-                return 2;
-            }
-            let theme = resolve_theme(&args);
-            let output = widgets::terraform::run(theme, args.positional[0]);
-            write_output!(out, output);
-            0
-        }
-
-        "docker" => {
-            let theme = resolve_theme(&args);
-            let output = widgets::docker::run(theme);
-            write_output!(out, output);
-            0
-        }
-
-        "yadm" => {
-            let theme = resolve_theme(&args);
-            let output = widgets::yadm::run(theme);
             write_output!(out, output);
             0
         }

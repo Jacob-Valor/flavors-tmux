@@ -4,7 +4,7 @@
 
 **Flavors Tmux** is a clean, multi-palette tmux theme with Nerd Font icons,
 semantic colors, and optional status widgets for Git, GitHub/GitLab, battery,
-Docker, Kubernetes, and more.
+CPU/memory, Kubernetes, and more.
 
 It started from a Gruvbox-inspired style and now includes several familiar
 flavors: Gruvbox Hard, Medium, Soft, Light, Tokyo Night, Catppuccin, Dracula,
@@ -19,14 +19,10 @@ Rose Pine, Rose Pine Dawn, Everforest, and Kanagawa.
 - **Forge widget** — Optional GitHub, GitLab, and Codeberg pull requests, reviews, issues, and bugs
 - **Time** — Configurable 12-hour, 24-hour, or hidden
 - **Battery** — Optional widget with charging/discharging icons
-- **Hostname / SSH** — Optional local and SSH session indicator
 - **CPU & memory** — Optional widget with color-coded thresholds
 - **Kubernetes** — Optional context and namespace widget with environment color-coding
 - **Current working directory** — Optional widget with Git repo-relative paths
-- **Terraform workspace** — Optional widget
-- **Docker context** — Optional widget
 - **GPG/SSH agent** — Optional status widget
-- **YADM dotfiles** — Optional status widget
 - **Number styles** — Custom window, pane, and zoom number styles (arabic, superscript, etc.)
 - **Terminal icons** — Custom terminal and active-terminal icons
 - **Transparent bar** — Optional transparent status bar background
@@ -269,17 +265,6 @@ The plugin also checks `CODEBERG_TOKEN` as a fallback. Tmux option storage (`@fl
 
 Generate a token at: <https://codeberg.org/user/settings/applications>
 
-### Hostname / SSH
-
-The hostname widget is disabled by default. It shows your system hostname, changing color and icon when connected via SSH.
-
-```tmux
-set -g @flavors-tmux_show_hostname 1
-```
-
-- Local session: `󰌽 hostname` in muted color
-- SSH session: `󰣀 hostname` in warning color
-
 ### CPU and Memory
 
 The CPU and memory widget is disabled by default. It shows live CPU and memory usage percentages with color-coded thresholds.
@@ -333,36 +318,6 @@ set -g @flavors-tmux_show_kubernetes 1
 ```
 
 Requires `kubectl` to be installed and configured.
-
-### Terraform Workspace
-
-Shows the active Terraform workspace for the current directory.
-
-```tmux
-set -g @flavors-tmux_show_terraform 1
-```
-
-Requires `terraform` to be installed. The `default` workspace is shown in muted color; all others use the primary color.
-
-### Docker Context
-
-Shows the active Docker context.
-
-```tmux
-set -g @flavors-tmux_show_docker 1
-```
-
-Requires `docker` to be installed. The `default` context is shown in muted color; all others use the info color.
-
-### YADM Dotfiles
-
-Shows YADM dotfiles status when inside a YADM-managed repository.
-
-```tmux
-set -g @flavors-tmux_show_yadm 1
-```
-
-Requires `yadm` to be installed. Shows changed and untracked counts similar to the Git widget.
 
 ### GPG/SSH Agent
 

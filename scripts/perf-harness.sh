@@ -54,17 +54,17 @@ run_bench() {
 }
 
 # Warm up caches for the widget set
-./"$BIN" status --theme hard --pane-path . cwd,git,wb-git,hostname,datetime >/dev/null 2>&1 || true
+./"$BIN" status --theme hard --pane-path . cwd,git,wb-git,datetime >/dev/null 2>&1 || true
 
-WARM_4WIDGET=$(run_bench "4-widget warm" "./$BIN status --theme hard --pane-path . cwd,git,hostname,datetime" "$N_WARM")
+WARM_4WIDGET=$(run_bench "4-widget warm" "./$BIN status --theme hard --pane-path . cwd,git,datetime,battery" "$N_WARM")
 WARM_WBGIT=$(run_bench "wb-git warm" "./$BIN status --theme hard --pane-path . wb-git" "$N_WARM")
-WARM_12WIDGET=$(run_bench "12-widget warm" "./$BIN status --theme hard --pane-path . cwd,git,wb-git,cpu,hostname,datetime,battery,kubernetes,terraform,docker,yadm,gpg-ssh" "$N_WARM")
-COLD_4WIDGET=$(run_bench "4-widget cold" "./$BIN status --theme hard --pane-path . cwd,git,hostname,datetime" "$N_COLD")
+WARM_MAX=$(run_bench "8-widget warm" "./$BIN status --theme hard --pane-path . cwd,git,wb-git,cpu,datetime,battery,kubernetes,gpg-ssh" "$N_WARM")
+COLD_4WIDGET=$(run_bench "4-widget cold" "./$BIN status --theme hard --pane-path . cwd,git,datetime,battery" "$N_COLD")
 
 echo "=== Perf harness (mean per render) ==="
 echo "  warm  4-widget : ${WARM_4WIDGET} ms"
 echo "  warm  wb-git   : ${WARM_WBGIT} ms"
-echo "  warm  12-widget: ${WARM_12WIDGET} ms"
+echo "  warm  8-widget : ${WARM_MAX} ms"
 echo "  cold  4-widget : ${COLD_4WIDGET} ms (informational)"
 
 if [[ "${1:-}" == "--update" ]]; then
@@ -72,7 +72,7 @@ if [[ "${1:-}" == "--update" ]]; then
 {
   "warm_4widget_ms": ${WARM_4WIDGET},
   "warm_wbgit_ms": ${WARM_WBGIT},
-  "warm_12widget_ms": ${WARM_12WIDGET},
+  "warm_maxwidget_ms": ${WARM_MAX},
   "cold_4widget_ms": ${COLD_4WIDGET},
   "recorded": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
@@ -92,7 +92,7 @@ fi
 # shellcheck disable=SC1091
 BASE_4=$(python3 -c "import json;print(json.load(open('${BASELINE_FILE}'))['warm_4widget_ms'])")
 BASE_WB=$(python3 -c "import json;print(json.load(open('${BASELINE_FILE}'))['warm_wbgit_ms'])")
-BASE_12=$(python3 -c "import json;print(json.load(open('${BASELINE_FILE}'))['warm_12widget_ms'])")
+BASE_MAX=$(python3 -c "import json;print(json.load(open('${BASELINE_FILE}'))['warm_maxwidget_ms'])")
 
 fail=0
 check_regression() {
@@ -111,7 +111,7 @@ echo ""
 echo "=== Baseline comparison (warm, tolerance +${WARM_TOLERANCE}) ==="
 check_regression "4-widget" "$WARM_4WIDGET" "$BASE_4"
 check_regression "wb-git" "$WARM_WBGIT" "$BASE_WB"
-check_regression "12-widget" "$WARM_12WIDGET" "$BASE_12"
+check_regression "max-widget" "$WARM_MAX" "$BASE_MAX"
 
 if [[ $fail -ne 0 ]]; then
 	echo ""
