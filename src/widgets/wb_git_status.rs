@@ -217,6 +217,7 @@ fn append_segment(
     theme_hex: &ThemeHex,
     color: Color,
     bg: &str,
+    reset: &str,
     icon: &str,
     count: usize,
 ) {
@@ -226,10 +227,11 @@ fn append_segment(
     use std::fmt::Write;
     let _ = write!(
         result,
-        "#[fg={},bg={},bold]{} {} ",
+        "#[fg={},bg={},bold]{} {}{} ",
         theme_hex.color(color),
         bg,
         icon,
+        reset,
         count,
     );
 }
@@ -523,34 +525,31 @@ pub fn refresh_cache(repo_path: &str) -> bool {
 
 /// Render raw forge data with theme colors.
 fn render_data(theme: Theme, theme_hex: &ThemeHex, data: &ForgeData) -> String {
-    let bg = theme_hex.color(theme.surface);
-
-    let mut result = String::with_capacity(512);
-
-    // Continuous surface block: muted forge header icon, provider icon, and
-    // counts all paint on the same `surface` background. The previous version
-    // interspersed `ctx.reset` (background) between sub-segments, leaving
-    // 1-cell dark gaps inside the block and putting the provider icon on the
-    // wrong background.
-    use std::fmt::Write;
-    let _ = write!(
-        result,
-        "#[fg={},bg={},bold]\u{EB3A} ",
-        theme_hex.color(theme.muted),
+    let bg = theme_hex.color(theme.background);
+    let reset = format!(
+        "#[fg={},bg={},nobold,noitalics,nounderscore,nodim]",
+        theme_hex.color(theme.foreground),
         bg,
     );
 
-    // Provider icon with forge color
-    let forge_color = match data.provider {
-        ForgeProvider::Github => theme.forge_github,
-        ForgeProvider::Codeberg => theme.forge_codeberg,
-        _ => theme.forge_gitlab,
-    };
+    let mut result = String::with_capacity(512);
+
+    // Gruvbox-style forge widget: muted header icon, provider icon in the
+    // plain foreground color (no fill), and colored count icons on the bar
+    // background with the count text reset to the default foreground.
+    use std::fmt::Write;
     let _ = write!(
         result,
-        "#[fg={},bg={},bold]{} ",
-        theme_hex.color(forge_color),
-        bg,
+        "#[fg={},bold]\u{EB3A} ",
+        theme_hex.color(theme.muted),
+    );
+
+    // Provider icon in plain foreground (gruvbox renders it with
+    // fg=foreground, no background, no bold).
+    let _ = write!(
+        result,
+        "#[fg={}]{} ",
+        theme_hex.color(theme.foreground),
         data.provider.icon(),
     );
     append_segment(
@@ -558,6 +557,7 @@ fn render_data(theme: Theme, theme_hex: &ThemeHex, data: &ForgeData) -> String {
         theme_hex,
         theme.success,
         &bg,
+        &reset,
         "\u{F407}",
         data.pr_count,
     );
@@ -566,6 +566,7 @@ fn render_data(theme: Theme, theme_hex: &ThemeHex, data: &ForgeData) -> String {
         theme_hex,
         theme.warning,
         &bg,
+        &reset,
         "\u{F4AF}",
         data.review_count,
     );
@@ -574,6 +575,7 @@ fn render_data(theme: Theme, theme_hex: &ThemeHex, data: &ForgeData) -> String {
         theme_hex,
         theme.success,
         &bg,
+        &reset,
         "\u{F41B}",
         data.issue_count,
     );
@@ -582,6 +584,7 @@ fn render_data(theme: Theme, theme_hex: &ThemeHex, data: &ForgeData) -> String {
         theme_hex,
         theme.danger,
         &bg,
+        &reset,
         "\u{F46F}",
         data.bug_count,
     );

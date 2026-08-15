@@ -45,7 +45,7 @@ if [[ $PROVIDER == "github.com" ]]; then
   if ! command -v gh &>/dev/null || ! command -v jq &>/dev/null; then
     exit 1
   fi
-  PROVIDER_ICON="$RESET#[fg=${THEME[forge_github]},bg=${THEME[surface]},bold] "
+  PROVIDER_ICON="#[fg=${THEME[foreground]}] "
   PR_COUNT=$(gh pr list --json number --limit 100 --jq 'length' 2>/dev/null || echo 0)
   REVIEW_COUNT=$(gh pr list --reviewer @me --json number --limit 100 --jq 'length' 2>/dev/null || echo 0)
   RES=$(gh issue list --json "assignees,labels" --assignee @me --limit 100 2>/dev/null || echo '[]')
@@ -56,7 +56,7 @@ elif [[ $PROVIDER == "gitlab.com" ]]; then
   if ! command -v glab &>/dev/null; then
     exit 1
   fi
-  PROVIDER_ICON="$RESET#[fg=${THEME[forge_gitlab]},bg=${THEME[surface]},bold] "
+  PROVIDER_ICON="#[fg=${THEME[foreground]}] "
   PR_COUNT=$(glab mr list 2>/dev/null | grep -cE "^\!" || true)
   REVIEW_COUNT=$(glab mr list --reviewer=@me 2>/dev/null | grep -cE "^\!" || true)
   ISSUE_COUNT=$(glab issue list 2>/dev/null | grep -cE "^\#" || true)
@@ -83,7 +83,7 @@ elif [[ $PROVIDER == "codeberg.org" ]]; then
   if [[ -z "$OWNER" || -z "$REPO" ]]; then
     exit 0
   fi
-  PROVIDER_ICON="$RESET#[fg=${THEME[forge_codeberg]},bg=${THEME[surface]},bold] "
+  PROVIDER_ICON="#[fg=${THEME[foreground]}] "
   API_BASE="https://codeberg.org/api/v1"
   CURL_OPTS="-fsS --max-time 5"
   CURL_CONFIG="header = \"Authorization: token ${CODEBERG_TOKEN}\""
@@ -103,21 +103,21 @@ else
 fi
 
 if [[ $PR_COUNT -gt 0 ]]; then
-  PR_STATUS="#[fg=${THEME[success]},bg=${THEME[surface]},bold] ${PR_COUNT} "
+  PR_STATUS="#[fg=${THEME[success]},bg=${THEME[background]},bold] ${RESET}${PR_COUNT} "
 fi
 
 if [[ $REVIEW_COUNT -gt 0 ]]; then
-  REVIEW_STATUS="#[fg=${THEME[warning]},bg=${THEME[surface]},bold] ${REVIEW_COUNT} "
+  REVIEW_STATUS="#[fg=${THEME[warning]},bg=${THEME[background]},bold] ${RESET}${REVIEW_COUNT} "
 fi
 
 if [[ $ISSUE_COUNT -gt 0 ]]; then
-  ISSUE_STATUS="#[fg=${THEME[success]},bg=${THEME[surface]},bold] ${ISSUE_COUNT} "
+  ISSUE_STATUS="#[fg=${THEME[success]},bg=${THEME[background]},bold] ${RESET}${ISSUE_COUNT} "
 fi
 
 if [[ $BUG_COUNT -gt 0 ]]; then
-  BUG_STATUS="#[fg=${THEME[danger]},bg=${THEME[surface]},bold] ${BUG_COUNT} "
+  BUG_STATUS="#[fg=${THEME[danger]},bg=${THEME[background]},bold] ${RESET}${BUG_COUNT} "
 fi
 
-WB_STATUS="#[fg=${THEME[muted]},bg=${THEME[surface]},bold] ${PROVIDER_ICON}${PR_STATUS}${REVIEW_STATUS}${ISSUE_STATUS}${BUG_STATUS}"
+WB_STATUS="#[fg=${THEME[muted]},bold] ${PROVIDER_ICON}${PR_STATUS}${REVIEW_STATUS}${ISSUE_STATUS}${BUG_STATUS}"
 
 echo "$WB_STATUS"
